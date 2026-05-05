@@ -1,0 +1,12 @@
+node_modules
+.output
+.vercel
+.wrangler
+dist
+.tanstack
+.vinxi
+.nitro
+*.local
+.env
+.env.*
+!.env.example
