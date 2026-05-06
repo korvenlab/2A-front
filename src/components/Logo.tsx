@@ -7,7 +7,7 @@ export function Logo({ light = false }: { light?: boolean }) {
       <img
         src={logoSrc}
         alt="2A Vendas"
-        className={`h-16 w-auto object-contain transition-transform group-hover:scale-105 drop-shadow-lg ${light ? "drop-shadow-[0_2px_12px_rgba(255,255,255,0.35)]" : "drop-shadow-[0_4px_12px_rgba(0,0,0,0.15)]"}`}
+        className={`h-16 w-auto object-contain transition-transform group-hover:scale-105 ${light ? "drop-shadow-[0_2px_10px_rgba(255,255,255,0.28)]" : "drop-shadow-[0_2px_6px_rgba(0,0,0,0.07)]"}`}
       />
     </Link>
   );
