@@ -23,7 +23,7 @@ export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
       { title: "Entrar — 2AVendas" },
-      { name: "description", content: "Acesse sua conta 2AVendas como Vendedor ou Cliente." },
+      { name: "description", content: "Acesse sua conta 2AVendas como Representante ou Cliente." },
     ],
   }),
   component: LoginPage,
@@ -111,7 +111,7 @@ function LoginPage() {
 
           <Tabs value={mode} onValueChange={(v) => setMode(v as "vendedor" | "cliente")} className="mt-6">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="vendedor">Vendedor</TabsTrigger>
+              <TabsTrigger value="vendedor">Representante</TabsTrigger>
               <TabsTrigger value="cliente">Cliente</TabsTrigger>
             </TabsList>
           </Tabs>
@@ -166,7 +166,7 @@ function LoginPage() {
             </div>
 
             <Button type="submit" className="w-full h-11 shadow-md" disabled={submitting}>
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : `Entrar como ${mode === "vendedor" ? "Vendedor" : "Cliente"}`}
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : `Entrar como ${mode === "vendedor" ? "Representante" : "Cliente"}`}
             </Button>
           </form>
 

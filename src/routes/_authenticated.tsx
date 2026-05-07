@@ -52,7 +52,12 @@ function AuthLayout() {
   const navItems =
     role === "cliente"
       ? [{ to: "/portal", label: "Portal de Compras", icon: Store }]
-      : [...baseItems, { to: "/vendedores", label: "Vendedores", icon: UserCog }];
+      : role === "admin"
+        ? [
+            ...baseItems,
+            { to: "/vendedores", label: "Gerar link de produtos", icon: UserCog, highlight: true },
+          ]
+        : baseItems;
 
   return (
     <div className="min-h-screen bg-background flex">
@@ -73,7 +78,9 @@ function AuthLayout() {
                 className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                   active
                     ? "bg-primary text-primary-foreground shadow-sm"
-                    : "text-muted-foreground hover:bg-secondary hover:text-foreground"
+                    : it.highlight
+                      ? "bg-amber-100 text-amber-900 hover:bg-amber-200 dark:bg-amber-500/20 dark:text-amber-100 dark:hover:bg-amber-500/30"
+                      : "text-muted-foreground hover:bg-secondary hover:text-foreground"
                 }`}
               >
                 <it.icon className="h-4 w-4" /> {it.label}

@@ -281,6 +281,7 @@ function CatalogPage() {
       const iStock = idx(["estoque", "stock", "quantidade"]);
       const iActive = idx(["ativo", "active"]);
       const iDesc = idx(["descrição", "descricao", "description"]);
+      const iImage = idx(["imagem", "image", "image_url", "url_imagem", "url da imagem"]);
       if (iName === -1) {
         toast.error("Coluna 'Nome' não encontrada no CSV");
         return;
@@ -290,6 +291,7 @@ function CatalogPage() {
         const n = parseFloat(v.replace(/\./g, "").replace(",", "."));
         return isNaN(n) ? parseFloat(v) || 0 : n;
       };
+      const ownerSellerId = role === "vendedor" ? user?.id ?? null : null;
       const payload = rows.slice(1)
         .map((r) => ({
           organization_id: organization.id,
@@ -301,18 +303,84 @@ function CatalogPage() {
           stock: iStock >= 0 ? Math.floor(num(r[iStock])) : 0,
           active: iActive >= 0 ? !/^(não|nao|no|false|0|inativo)$/i.test((r[iActive] ?? "").trim()) : true,
           description: iDesc >= 0 ? (r[iDesc] ?? "").trim() || null : null,
+          image_url: iImage >= 0 ? (r[iImage] ?? "").trim() || null : null,
+          owner_seller_id: ownerSellerId,
         }))
         .filter((p) => p.name);
       if (payload.length === 0) {
         toast.error("Nenhum produto válido encontrado");
         return;
       }
-      const { error } = await supabase.from("products").insert(payload);
-      if (error) toast.error(error.message);
-      else {
-        toast.success(`${payload.length} produtos importados`);
-        load();
+      const withSku = payload.filter((p) => p.sku);
+      const withoutSku = payload.filter((p) => !p.sku);
+      const dedupBySku = new Map<string, (typeof payload)[number]>();
+      for (const p of withSku) dedupBySku.set((p.sku as string).toLowerCase(), p);
+      const dedupedWithSku = Array.from(dedupBySku.values());
+
+      const skuValues = dedupedWithSku.map((p) => p.sku as string);
+      const { data: existingWithSku, error: existingErr } = skuValues.length
+        ? await supabase
+            .from("products")
+            .select("id,sku")
+            .eq("organization_id", organization.id)
+            .in("sku", skuValues)
+        : { data: [], error: null };
+      if (existingErr) {
+        toast.error(existingErr.message);
+        return;
       }
+
+      const existingBySku = new Map<string, string>();
+      for (const row of (existingWithSku ?? []) as Array<{ id: string; sku: string | null }>) {
+        if (row.sku) existingBySku.set(row.sku.toLowerCase(), row.id);
+      }
+
+      const toUpdate = dedupedWithSku.filter((p) => existingBySku.has((p.sku as string).toLowerCase()));
+      const toInsert = [
+        ...dedupedWithSku.filter((p) => !existingBySku.has((p.sku as string).toLowerCase())),
+        ...withoutSku,
+      ];
+
+      let updated = 0;
+      let inserted = 0;
+      let failed = 0;
+      for (const p of toUpdate) {
+        const id = existingBySku.get((p.sku as string).toLowerCase());
+        if (!id) continue;
+        const { error } = await supabase
+          .from("products")
+          .update({
+            name: p.name,
+            sku: p.sku,
+            category: p.category,
+            supplier: p.supplier,
+            price: p.price,
+            stock: p.stock,
+            active: p.active,
+            description: p.description,
+            image_url: p.image_url,
+            owner_seller_id: p.owner_seller_id,
+          })
+          .eq("id", id);
+        if (error) failed += 1;
+        else updated += 1;
+      }
+
+      if (toInsert.length > 0) {
+        const { error } = await supabase.from("products").insert(toInsert);
+        if (error) {
+          failed += toInsert.length;
+          toast.error(error.message);
+        } else {
+          inserted = toInsert.length;
+        }
+      }
+
+      const skippedDuplicatedSku = withSku.length - dedupedWithSku.length;
+      toast.success(
+        `Importação concluída: ${inserted} inseridos, ${updated} atualizados, ${failed} falhas, ${skippedDuplicatedSku} SKUs duplicados ignorados.`,
+      );
+      load();
     } catch (e) {
       toast.error("Erro ao processar CSV");
     } finally {
