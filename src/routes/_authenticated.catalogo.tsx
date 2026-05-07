@@ -66,7 +66,9 @@ const empty: Omit<Product, "id"> = {
 
 function CatalogPage() {
   useMenuGate("catalogo");
-  const { organization, role, user } = useAuth();
+  const { organization, role, user, menu } = useAuth();
+  const useBackendMenu = !!import.meta.env.VITE_API_URL?.trim();
+  const canManageCatalog = useBackendMenu ? menu.catalogo : role === "admin" || role === "vendedor";
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -77,7 +79,6 @@ function CatalogPage() {
   const [uploadingImage, setUploadingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement | null>(null);
-  const canEdit = role === "admin" || role === "vendedor";
 
   const load = async () => {
     setLoading(true);
@@ -210,7 +211,7 @@ function CatalogPage() {
   };
 
   const exportCsv = () => {
-    if (products.length === 0) {
+    if (products.length === 0 && !canManageCatalog) {
       toast.error("Nenhum produto para exportar");
       return;
     }
@@ -219,11 +220,14 @@ function CatalogPage() {
       const s = v == null ? "" : String(v);
       return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    const rows = products.map((p) =>
-      [p.name, p.sku ?? "", p.category ?? "", p.supplier ?? "", p.price, p.stock, p.active ? "Sim" : "Não", p.description ?? ""]
-        .map(escape)
-        .join(","),
-    );
+    const rows =
+      products.length > 0
+        ? products.map((p) =>
+            [p.name, p.sku ?? "", p.category ?? "", p.supplier ?? "", p.price, p.stock, p.active ? "Sim" : "Não", p.description ?? ""]
+              .map(escape)
+              .join(","),
+          )
+        : [];
     const csv = "\uFEFF" + [headers.join(","), ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -234,7 +238,7 @@ function CatalogPage() {
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    toast.success(`${products.length} produtos exportados`);
+    toast.success(products.length > 0 ? `${products.length} produtos exportados` : "Modelo CSV (apenas cabeçalhos) exportado");
   };
 
   const parseCsv = (text: string): string[][] => {
@@ -409,7 +413,7 @@ function CatalogPage() {
                 if (f) handleImport(f);
               }}
             />
-            {canEdit && (
+            {canManageCatalog && (
               <Button
                 variant="outline"
                 onClick={() => fileInputRef.current?.click()}
@@ -419,10 +423,14 @@ function CatalogPage() {
                 Importar CSV
               </Button>
             )}
-            <Button variant="outline" onClick={exportCsv} disabled={loading || products.length === 0}>
+            <Button
+              variant="outline"
+              onClick={exportCsv}
+              disabled={loading || (!canManageCatalog && products.length === 0)}
+            >
               <Download className="h-4 w-4" /> Exportar CSV
             </Button>
-            {canEdit && (
+            {canManageCatalog && (
             <Dialog open={open} onOpenChange={setOpen}>
               <DialogTrigger asChild>
                 <Button onClick={openNew}>
@@ -626,7 +634,7 @@ function CatalogPage() {
                   <TableCell className="text-right font-medium">{brl(p.price)}</TableCell>
                   <TableCell className="text-right">{p.stock}</TableCell>
                   <TableCell>
-                    {canEdit ? (
+                    {canManageCatalog ? (
                       <Switch
                         checked={p.active}
                         onCheckedChange={() => toggleActive(p)}
@@ -638,7 +646,7 @@ function CatalogPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    {canEdit && (
+                    {canManageCatalog && (
                       <Button size="sm" variant="ghost" onClick={() => openEdit(p)}>
                         <Pencil className="h-4 w-4" />
                       </Button>

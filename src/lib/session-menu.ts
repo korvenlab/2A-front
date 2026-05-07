@@ -4,6 +4,7 @@ export type FallbackRole = "admin" | "vendedor" | "cliente";
 
 export interface MenuFlags {
   dashboard: boolean;
+  /** Com API: só quem tem `products:manage` (admin/vendedor). Sem isso não aparece link `/catalogo` nem gate. */
   catalogo: boolean;
   clientes: boolean;
   pedidos: boolean;
