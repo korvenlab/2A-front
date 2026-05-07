@@ -52,9 +52,7 @@ function AuthLayout() {
   const navItems =
     role === "cliente"
       ? [{ to: "/portal", label: "Portal de Compras", icon: Store }]
-      : role === "admin"
-      ? [...baseItems, { to: "/vendedores", label: "Vendedores", icon: UserCog }]
-      : baseItems;
+      : [...baseItems, { to: "/vendedores", label: "Vendedores", icon: UserCog }];
 
   return (
     <div className="min-h-screen bg-background flex">

@@ -42,13 +42,14 @@ interface Invitation {
   id: string;
   email: string;
   token: string;
+  purpose: string;
   accepted_at: string | null;
   expires_at: string;
   created_at: string;
 }
 
 function SellersPage() {
-  const { organization, role, loading: authLoading } = useAuth();
+  const { organization, role, user, loading: authLoading } = useAuth();
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [invites, setInvites] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,7 +58,7 @@ function SellersPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && role && role !== "admin") {
+    if (!authLoading && role && role !== "admin" && role !== "vendedor") {
       throw redirect({ to: "/dashboard" });
     }
   }, [authLoading, role]);
@@ -106,26 +107,32 @@ function SellersPage() {
 
     const { data: inv } = await supabase
       .from("seller_invitations")
-      .select("id,email,token,accepted_at,expires_at,created_at")
+      .select("id,email,token,purpose,accepted_at,expires_at,created_at")
+      .eq("purpose", "client_catalog")
       .order("created_at", { ascending: false });
     setInvites((inv as Invitation[]) ?? []);
     setLoading(false);
   };
 
   useEffect(() => {
-    if (role === "admin") load();
+    if (role === "admin" || role === "vendedor") load();
   }, [role]);
 
   const invite = async () => {
-    if (!organization) return;
+    if (!organization || !user) return;
     if (!email.trim()) return toast.error("Informe um e-mail");
     setSaving(true);
     const { error } = await supabase
       .from("seller_invitations")
-      .insert({ organization_id: organization.id, email: email.trim().toLowerCase() });
+      .insert({
+        organization_id: organization.id,
+        invited_by: user.id,
+        email: email.trim().toLowerCase(),
+        purpose: "client_catalog",
+      });
     setSaving(false);
     if (error) return toast.error(error.message);
-    toast.success("Convite criado. Compartilhe o link com o vendedor.");
+    toast.success("Link criado. Compartilhe com o cliente.");
     setEmail("");
     setOpen(false);
     load();
@@ -137,8 +144,7 @@ function SellersPage() {
     else load();
   };
 
-  const inviteUrl = (token: string) =>
-    `${window.location.origin}/signup?invite=${token}`;
+  const inviteUrl = (token: string) => `${window.location.origin}/portal?invite=${token}`;
 
   const copyInvite = (token: string) => {
     navigator.clipboard.writeText(inviteUrl(token));
@@ -149,29 +155,29 @@ function SellersPage() {
     <div className="p-6 lg:p-10 space-y-8">
       <PageHeader
         title="Vendedores"
-        description="Gerencie a equipe de vendas da representação."
+        description="Gerencie vendedores e gere links para clientes comprarem do vendedor."
         action={
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button>
-                <Plus className="h-4 w-4" /> Convidar vendedor
+                <Plus className="h-4 w-4" /> Gerar link para cliente
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Convidar vendedor</DialogTitle>
+                <DialogTitle>Gerar link de catálogo do vendedor</DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-2">
                 <div className="grid gap-2">
-                  <Label>E-mail do vendedor</Label>
+                  <Label>E-mail do cliente</Label>
                   <Input
                     type="email"
-                    placeholder="vendedor@exemplo.com"
+                    placeholder="cliente@exemplo.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Um link de convite será gerado para você compartilhar.
+                    O cliente deve fazer login e abrir este link para ver os produtos do vendedor.
                   </p>
                 </div>
               </div>
@@ -181,7 +187,7 @@ function SellersPage() {
                 </Button>
                 <Button onClick={invite} disabled={saving}>
                   {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Gerar convite
+                  Gerar link
                 </Button>
               </DialogFooter>
             </DialogContent>
@@ -230,7 +236,7 @@ function SellersPage() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Convites
+          Links para clientes
         </h2>
         <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
           {invites.length === 0 ? (

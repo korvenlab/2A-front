@@ -63,7 +63,7 @@ const empty: Omit<Product, "id"> = {
 };
 
 function CatalogPage() {
-  const { organization, role } = useAuth();
+  const { organization, role, user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -142,7 +142,11 @@ function CatalogPage() {
       ? await supabase.from("products").update(payload).eq("id", editing.id)
       : await supabase
           .from("products")
-          .insert({ ...payload, organization_id: organization.id });
+          .insert({
+            ...payload,
+            organization_id: organization.id,
+            owner_seller_id: role === "vendedor" ? user?.id ?? null : null,
+          });
     setSaving(false);
     if (error) return toast.error(error.message);
     if (editing && editing.image_url !== payload.image_url) {

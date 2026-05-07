@@ -80,22 +80,56 @@ function Portal() {
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [customerId, setCustomerId] = useState<string | null>(null);
+  const [assignedSellerId, setAssignedSellerId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [notes, setNotes] = useState("");
   const [placing, setPlacing] = useState(false);
   const [tab, setTab] = useState<"catalog" | "orders">("catalog");
+  const inviteToken =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("invite")
+      : null;
 
   const ensureCustomer = async () => {
-    if (!user || !organization) return null;
+    if (!user || !organization) return { customerId: null as string | null, sellerId: null as string | null };
+    let sellerFromToken: string | null = null;
+    if (inviteToken) {
+      const { data: inv } = await supabase
+        .from("seller_invitations")
+        .select("organization_id, invited_by, purpose, expires_at")
+        .eq("token", inviteToken)
+        .eq("purpose", "client_catalog")
+        .maybeSingle();
+      if (
+        inv &&
+        inv.organization_id === organization.id &&
+        new Date(inv.expires_at).getTime() > Date.now() &&
+        inv.invited_by
+      ) {
+        sellerFromToken = inv.invited_by;
+      } else {
+        toast.error("Link inválido ou expirado.");
+      }
+    }
     // Look for existing customer by user_id
     const { data: existing } = await supabase
       .from("customers")
-      .select("id")
+      .select("id, assigned_seller_id")
       .eq("user_id", user.id)
       .maybeSingle();
-    if (existing) return existing.id;
+    if (existing) {
+      const assigned = existing.assigned_seller_id ?? sellerFromToken ?? null;
+      setAssignedSellerId(assigned);
+      if (sellerFromToken && sellerFromToken !== existing.assigned_seller_id) {
+        await supabase
+          .from("customers")
+          .update({ assigned_seller_id: sellerFromToken })
+          .eq("id", existing.id);
+      }
+      return { customerId: existing.id, sellerId: assigned };
+    }
     // Create one tied to this user
     const { data, error } = await supabase
       .from("customers")
@@ -104,26 +138,31 @@ function Portal() {
         user_id: user.id,
         name: profile?.full_name || user.email || "Cliente",
         email: user.email ?? null,
+        assigned_seller_id: sellerFromToken,
       })
       .select("id")
       .single();
     if (error) {
       toast.error("Não foi possível criar seu cadastro: " + error.message);
-      return null;
+      return { customerId: null as string | null, sellerId: null as string | null };
     }
-    return data.id;
+    setAssignedSellerId(sellerFromToken ?? null);
+    return { customerId: data.id, sellerId: sellerFromToken ?? null };
   };
 
   const load = async () => {
     setLoading(true);
-    const cid = await ensureCustomer();
+    const ensured = await ensureCustomer();
+    const cid = ensured.customerId;
+    const sellerId = ensured.sellerId;
     setCustomerId(cid);
+    const productsQuery = supabase
+      .from("products")
+      .select("id,name,sku,description,price,stock,category,image_url")
+      .eq("active", true)
+      .order("name");
     const [{ data: prods }, { data: ords }] = await Promise.all([
-      supabase
-        .from("products")
-        .select("id,name,sku,description,price,stock,category,image_url")
-        .eq("active", true)
-        .order("name"),
+      sellerId ? productsQuery.eq("owner_seller_id", sellerId) : productsQuery.eq("id", "__none__"),
       cid
         ? supabase
             .from("orders")
@@ -140,7 +179,7 @@ function Portal() {
   useEffect(() => {
     if (user && organization) load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, organization?.id]);
+  }, [user?.id, organization?.id, inviteToken]);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return products;
@@ -184,6 +223,7 @@ function Portal() {
       .insert({
         organization_id: organization.id,
         customer_id: customerId,
+        seller_id: assignedSellerId,
         status: "enviado",
         notes: notes || null,
         order_number: 0,
