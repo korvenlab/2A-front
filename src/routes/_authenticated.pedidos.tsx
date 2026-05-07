@@ -50,7 +50,15 @@ interface Order {
   notes: string | null;
   created_at: string;
   customer_id: string;
-  customers: { name: string } | null;
+  customers: {
+    name: string;
+    email: string | null;
+    phone: string | null;
+    document: string | null;
+    city: string | null;
+    state: string | null;
+    address: string | null;
+  } | null;
 }
 interface CustomerOpt {
   id: string;
@@ -84,7 +92,7 @@ const statusVariant: Record<OrderStatus, "default" | "secondary" | "outline" | "
 };
 
 function OrdersPage() {
-  const { organization, user } = useAuth();
+  const { organization, user, role } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<CustomerOpt[]>([]);
   const [products, setProducts] = useState<ProductOpt[]>([]);
@@ -99,22 +107,32 @@ function OrdersPage() {
 
   const load = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    let ordersQuery = supabase
       .from("orders")
       .select(
-        "id,order_number,status,total,notes,created_at,customer_id,customers(name)",
+        "id,order_number,status,total,notes,created_at,customer_id,customers(name,email,phone,document,city,state,address)",
       )
       .order("created_at", { ascending: false });
+    if (role === "vendedor" && user?.id) {
+      ordersQuery = ordersQuery.eq("seller_id", user.id);
+    }
+    const { data, error } = await ordersQuery;
     if (error) toast.error(error.message);
     setOrders((data as unknown as Order[]) ?? []);
 
+    const customersQuery = supabase.from("customers").select("id,name").order("name");
+    const productsQuery = supabase
+      .from("products")
+      .select("id,name,price")
+      .eq("active", true)
+      .order("name");
     const [{ data: cs }, { data: ps }] = await Promise.all([
-      supabase.from("customers").select("id,name").order("name"),
-      supabase
-        .from("products")
-        .select("id,name,price")
-        .eq("active", true)
-        .order("name"),
+      role === "vendedor" && user?.id
+        ? customersQuery.eq("assigned_seller_id", user.id)
+        : customersQuery,
+      role === "vendedor" && user?.id
+        ? productsQuery.eq("owner_seller_id", user.id)
+        : productsQuery,
     ]);
     setCustomers((cs as CustomerOpt[]) ?? []);
     setProducts((ps as ProductOpt[]) ?? []);
@@ -122,8 +140,9 @@ function OrdersPage() {
   };
 
   useEffect(() => {
+    if (!organization || !user) return;
     load();
-  }, []);
+  }, [organization?.id, user?.id, role]);
 
   const total = useMemo(
     () => items.reduce((s, it) => s + it.unit_price * it.quantity, 0),
@@ -369,6 +388,7 @@ function OrdersPage() {
               <TableRow>
                 <TableHead>#</TableHead>
                 <TableHead>Cliente</TableHead>
+                <TableHead>Contato</TableHead>
                 <TableHead>Data</TableHead>
                 <TableHead className="text-right">Total</TableHead>
                 <TableHead>Status</TableHead>
@@ -381,7 +401,24 @@ function OrdersPage() {
                     #{String(o.order_number).padStart(4, "0")}
                   </TableCell>
                   <TableCell className="font-medium">
-                    {o.customers?.name ?? "—"}
+                    <div>{o.customers?.name ?? "—"}</div>
+                    {o.customers?.document && (
+                      <div className="text-xs text-muted-foreground">{o.customers.document}</div>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <div className="text-sm">{o.customers?.email ?? "—"}</div>
+                    <div className="text-xs text-muted-foreground">{o.customers?.phone ?? "—"}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {o.customers?.city
+                        ? `${o.customers.city}${o.customers?.state ? `/${o.customers.state}` : ""}`
+                        : "—"}
+                    </div>
+                    {o.customers?.address && (
+                      <div className="text-xs text-muted-foreground truncate max-w-56">
+                        {o.customers.address}
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {dt(o.created_at)}
@@ -390,23 +427,30 @@ function OrdersPage() {
                     {brl(o.total)}
                   </TableCell>
                   <TableCell>
-                    <Select
-                      value={o.status}
-                      onValueChange={(v) => changeStatus(o.id, v as OrderStatus)}
-                    >
-                      <SelectTrigger className="w-36 h-8 border-0 bg-transparent p-0">
-                        <Badge variant={statusVariant[o.status]}>
-                          {statusLabels[o.status]}
+                    <div className="flex items-center gap-2">
+                      <Select
+                        value={o.status}
+                        onValueChange={(v) => changeStatus(o.id, v as OrderStatus)}
+                      >
+                        <SelectTrigger className="w-36 h-8 border-0 bg-transparent p-0">
+                          <Badge variant={statusVariant[o.status]}>
+                            {statusLabels[o.status]}
+                          </Badge>
+                        </SelectTrigger>
+                        <SelectContent>
+                          {(Object.keys(statusLabels) as OrderStatus[]).map((s) => (
+                            <SelectItem key={s} value={s}>
+                              {statusLabels[s]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {o.status === "enviado" && (
+                        <Badge variant="default" className="whitespace-nowrap">
+                          Novo pedido do cliente
                         </Badge>
-                      </SelectTrigger>
-                      <SelectContent>
-                        {(Object.keys(statusLabels) as OrderStatus[]).map((s) => (
-                          <SelectItem key={s} value={s}>
-                            {statusLabels[s]}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

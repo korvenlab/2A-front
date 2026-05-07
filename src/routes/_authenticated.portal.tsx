@@ -46,8 +46,10 @@ interface Product {
 }
 
 interface CartLine {
+  key: string;
   product: Product;
   quantity: number;
+  variation: string | null;
 }
 
 interface OrderRow {
@@ -83,6 +85,8 @@ function Portal() {
   const [assignedSellerId, setAssignedSellerId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
+  const [draftQtyByProduct, setDraftQtyByProduct] = useState<Record<string, number>>({});
+  const [draftVariationByProduct, setDraftVariationByProduct] = useState<Record<string, string>>({});
   const [cartOpen, setCartOpen] = useState(false);
   const [notes, setNotes] = useState("");
   const [placing, setPlacing] = useState(false);
@@ -198,21 +202,43 @@ function Portal() {
   );
   const cartCount = cart.reduce((sum, l) => sum + l.quantity, 0);
 
-  const addToCart = (p: Product) => {
+  const addToCart = (p: Product, qty: number, variation: string) => {
+    if (p.stock <= 0) return toast.error("Produto sem estoque");
+    const normalizedQty = Math.max(1, Math.min(qty, p.stock));
+    const normalizedVariation = variation.trim();
+    const lineKey = `${p.id}::${normalizedVariation.toLowerCase()}`;
     setCart((c) => {
-      const found = c.find((l) => l.product.id === p.id);
-      if (found) return c.map((l) => (l.product.id === p.id ? { ...l, quantity: l.quantity + 1 } : l));
-      return [...c, { product: p, quantity: 1 }];
+      const found = c.find((l) => l.key === lineKey);
+      if (found) {
+        return c.map((l) =>
+          l.key === lineKey
+            ? { ...l, quantity: Math.min(l.quantity + normalizedQty, l.product.stock) }
+            : l,
+        );
+      }
+      return [
+        ...c,
+        {
+          key: lineKey,
+          product: p,
+          quantity: normalizedQty,
+          variation: normalizedVariation || null,
+        },
+      ];
     });
     toast.success(`${p.name} adicionado`);
   };
 
-  const updateQty = (id: string, qty: number) => {
-    if (qty <= 0) return setCart((c) => c.filter((l) => l.product.id !== id));
-    setCart((c) => c.map((l) => (l.product.id === id ? { ...l, quantity: qty } : l)));
+  const updateQty = (key: string, qty: number) => {
+    if (qty <= 0) return setCart((c) => c.filter((l) => l.key !== key));
+    setCart((c) =>
+      c.map((l) =>
+        l.key === key ? { ...l, quantity: Math.min(Math.max(qty, 1), l.product.stock) } : l,
+      ),
+    );
   };
 
-  const removeLine = (id: string) => setCart((c) => c.filter((l) => l.product.id !== id));
+  const removeLine = (key: string) => setCart((c) => c.filter((l) => l.key !== key));
 
   const placeOrder = async () => {
     if (!organization || !customerId) return toast.error("Cadastro do cliente não disponível");
@@ -237,7 +263,7 @@ function Portal() {
     const items = cart.map((l) => ({
       order_id: order.id,
       product_id: l.product.id,
-      product_name: l.product.name,
+      product_name: l.variation ? `${l.product.name} (${l.variation})` : l.product.name,
       quantity: l.quantity,
       unit_price: l.product.price,
       subtotal: l.product.price * l.quantity,
@@ -285,32 +311,35 @@ function Portal() {
                   <div className="space-y-3">
                     {cart.map((l) => (
                       <div
-                        key={l.product.id}
+                        key={l.key}
                         className="flex items-start gap-3 rounded-lg border border-border p-3"
                       >
                         <div className="flex-1 min-w-0">
                           <div className="font-medium truncate">{l.product.name}</div>
+                          {l.variation && (
+                            <div className="text-xs text-muted-foreground">Variação: {l.variation}</div>
+                          )}
                           <div className="text-xs text-muted-foreground">{brl(l.product.price)} un.</div>
                           <div className="mt-2 flex items-center gap-2">
                             <Button
                               size="icon"
                               variant="outline"
                               className="h-7 w-7"
-                              onClick={() => updateQty(l.product.id, l.quantity - 1)}
+                              onClick={() => updateQty(l.key, l.quantity - 1)}
                             >
                               <Minus className="h-3 w-3" />
                             </Button>
                             <Input
                               type="number"
                               value={l.quantity}
-                              onChange={(e) => updateQty(l.product.id, parseInt(e.target.value) || 0)}
+                              onChange={(e) => updateQty(l.key, parseInt(e.target.value) || 0)}
                               className="h-7 w-14 text-center"
                             />
                             <Button
                               size="icon"
                               variant="outline"
                               className="h-7 w-7"
-                              onClick={() => updateQty(l.product.id, l.quantity + 1)}
+                              onClick={() => updateQty(l.key, l.quantity + 1)}
                             >
                               <Plus className="h-3 w-3" />
                             </Button>
@@ -322,7 +351,7 @@ function Portal() {
                             size="icon"
                             variant="ghost"
                             className="h-7 w-7 text-muted-foreground"
-                            onClick={() => removeLine(l.product.id)}
+                            onClick={() => removeLine(l.key)}
                           >
                             <Trash2 className="h-3 w-3" />
                           </Button>
@@ -418,14 +447,53 @@ function Portal() {
                       </div>
                     )}
                     <h3 className="font-semibold mt-1 line-clamp-2">{p.name}</h3>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      SKU: {p.sku ?? "—"} • Estoque: {p.stock}
+                    </div>
                     {p.description && (
                       <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
                         {p.description}
                       </p>
                     )}
+                    <div className="mt-3 space-y-2">
+                      <Input
+                        value={draftVariationByProduct[p.id] ?? ""}
+                        onChange={(e) =>
+                          setDraftVariationByProduct((prev) => ({ ...prev, [p.id]: e.target.value }))
+                        }
+                        placeholder="Variação (ex.: cor azul, tam M)"
+                        className="h-9"
+                      />
+                      <div className="flex items-center gap-2">
+                        <Input
+                          type="number"
+                          min={1}
+                          max={Math.max(p.stock, 1)}
+                          value={draftQtyByProduct[p.id] ?? 1}
+                          onChange={(e) =>
+                            setDraftQtyByProduct((prev) => ({
+                              ...prev,
+                              [p.id]: Math.max(1, parseInt(e.target.value) || 1),
+                            }))
+                          }
+                          className="h-9 w-24"
+                        />
+                        <div className="text-xs text-muted-foreground">Quantidade</div>
+                      </div>
+                    </div>
                     <div className="mt-auto pt-3 flex items-center justify-between">
                       <span className="text-lg font-bold text-primary">{brl(p.price)}</span>
-                      <Button size="sm" onClick={() => addToCart(p)}>
+                      <Button
+                        size="sm"
+                        disabled={p.stock <= 0}
+                        onClick={() =>
+                          addToCart(
+                            p,
+                            draftQtyByProduct[p.id] ?? 1,
+                            draftVariationByProduct[p.id] ?? "",
+                          )
+                        }
+                      >
                         <Plus className="h-4 w-4" /> Adicionar
                       </Button>
                     </div>
