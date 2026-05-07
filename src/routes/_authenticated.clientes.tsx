@@ -32,6 +32,8 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import { Plus, Pencil, Loader2, UsersRound } from "lucide-react";
+import { useMenuGate } from "@/hooks/use-menu-gate";
+import { userFacingDataError } from "@/lib/supabase-user-error";
 
 export const Route = createFileRoute("/_authenticated/clientes")({
   head: () => ({ meta: [{ title: "Clientes — 2AVendas" }] }),
@@ -67,6 +69,7 @@ const empty: Omit<Customer, "id"> = {
 };
 
 function CustomersPage() {
+  useMenuGate("clientes");
   const { organization, role, user } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [sellers, setSellers] = useState<SellerOpt[]>([]);
@@ -83,7 +86,7 @@ function CustomersPage() {
       .from("customers")
       .select("id,name,email,phone,document,city,state,notes,assigned_seller_id")
       .order("name");
-    if (error) toast.error(error.message);
+    if (error) toast.error(userFacingDataError(error));
     setCustomers((data as Customer[]) ?? []);
 
     if (isAdmin) {
@@ -148,7 +151,7 @@ function CustomersPage() {
           .from("customers")
           .insert({ ...payload, organization_id: organization.id });
     setSaving(false);
-    if (error) return toast.error(error.message);
+    if (error) return toast.error(userFacingDataError(error));
     toast.success(editing ? "Cliente atualizado" : "Cliente criado");
     setOpen(false);
     load();

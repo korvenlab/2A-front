@@ -29,6 +29,8 @@ import {
 import { toast } from "sonner";
 import { Plus, Pencil, Loader2, PackageSearch, Download, Upload } from "lucide-react";
 import { useRef } from "react";
+import { useMenuGate } from "@/hooks/use-menu-gate";
+import { userFacingDataError } from "@/lib/supabase-user-error";
 
 const PRODUCT_IMAGES_BUCKET = "product-images";
 
@@ -63,6 +65,7 @@ const empty: Omit<Product, "id"> = {
 };
 
 function CatalogPage() {
+  useMenuGate("catalogo");
   const { organization, role, user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -82,7 +85,7 @@ function CatalogPage() {
       .from("products")
       .select("id,name,sku,description,price,stock,category,supplier,image_url,active")
       .order("created_at", { ascending: false });
-    if (error) toast.error(error.message);
+    if (error) toast.error(userFacingDataError(error));
     setProducts((data as Product[]) ?? []);
     setLoading(false);
   };
@@ -148,7 +151,7 @@ function CatalogPage() {
             owner_seller_id: role === "vendedor" ? user?.id ?? null : null,
           });
     setSaving(false);
-    if (error) return toast.error(error.message);
+    if (error) return toast.error(userFacingDataError(error));
     if (editing && editing.image_url !== payload.image_url) {
       await removeStorageImageIfAny(editing.image_url);
     }
@@ -162,7 +165,7 @@ function CatalogPage() {
       .from("products")
       .update({ active: !p.active })
       .eq("id", p.id);
-    if (error) toast.error(error.message);
+    if (error) toast.error(userFacingDataError(error));
     else load();
   };
 
@@ -192,7 +195,7 @@ function CatalogPage() {
           upsert: false,
         });
       if (uploadError) {
-        toast.error(uploadError.message);
+        toast.error(userFacingDataError(uploadError));
         return;
       }
       const { data } = supabase.storage
@@ -326,7 +329,7 @@ function CatalogPage() {
             .in("sku", skuValues)
         : { data: [], error: null };
       if (existingErr) {
-        toast.error(existingErr.message);
+        toast.error(userFacingDataError(existingErr));
         return;
       }
 
@@ -370,7 +373,7 @@ function CatalogPage() {
         const { error } = await supabase.from("products").insert(toInsert);
         if (error) {
           failed += toInsert.length;
-          toast.error(error.message);
+          toast.error(userFacingDataError(error));
         } else {
           inserted = toInsert.length;
         }

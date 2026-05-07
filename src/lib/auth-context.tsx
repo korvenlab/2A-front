@@ -1,6 +1,12 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  emptyMenu,
+  fallbackMenuFromRole,
+  fetchSessionMenu,
+  type MenuFlags,
+} from "@/lib/session-menu";
 
 export type AppRole = "admin" | "vendedor" | "cliente";
 
@@ -24,6 +30,8 @@ interface AuthState {
   profile: Profile | null;
   organization: Organization | null;
   role: AppRole | null;
+  /** Habilitações de navegação (API / backend ou fallback por role). */
+  menu: MenuFlags;
   loading: boolean;
   isAuthenticated: boolean;
   refresh: () => Promise<void>;
@@ -32,14 +40,21 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
 
+async function resolveMenu(accessToken: string | null | undefined, currentRole: AppRole | null) {
+  if (!accessToken) return emptyMenu();
+  const fetched = await fetchSessionMenu(accessToken);
+  return fetched ?? fallbackMenuFromRole(currentRole);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
+  const [menu, setMenu] = useState<MenuFlags>(emptyMenu());
   const [loading, setLoading] = useState(true);
 
-  const loadUserData = async (uid: string) => {
+  const loadUserData = async (uid: string, accessToken?: string | null) => {
     const { data: prof } = await supabase
       .from("profiles")
       .select("id, organization_id, full_name, email, avatar_url")
@@ -58,33 +73,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setOrganization(null);
     }
 
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", uid);
-    const list = (roles ?? []).map((r: { role: AppRole }) => r.role);
+    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", uid);
+    const list = ((roles ?? []) as { role: AppRole }[]).map((r) => r.role);
     const priority: AppRole[] = ["admin", "vendedor", "cliente"];
     const primary = priority.find((p) => list.includes(p)) ?? null;
     setRole(primary);
+
+    const token =
+      accessToken ??
+      (
+        await supabase.auth.getSession()
+      ).data.session?.access_token ??
+      null;
+    const nextMenu = await resolveMenu(token, primary);
+    setMenu(nextMenu);
   };
 
   useEffect(() => {
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, newSession) => {
+    const { data: sub } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
       if (newSession?.user) {
-        // defer to avoid deadlock
-        setTimeout(() => loadUserData(newSession.user.id), 0);
+        setTimeout(() => {
+          void loadUserData(newSession.user.id, newSession.access_token);
+        }, 0);
       } else {
         setProfile(null);
         setOrganization(null);
         setRole(null);
+        setMenu(emptyMenu());
       }
     });
 
-    supabase.auth.getSession().then(({ data }) => {
+    void supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       if (data.session?.user) {
-        loadUserData(data.session.user.id).finally(() => setLoading(false));
+        void loadUserData(data.session.user.id, data.session.access_token).finally(() =>
+          setLoading(false),
+        );
       } else {
         setLoading(false);
       }
@@ -94,7 +119,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refresh = async () => {
-    if (session?.user) await loadUserData(session.user.id);
+    const { data } = await supabase.auth.getSession();
+    const s = data.session;
+    if (s?.user) await loadUserData(s.user.id, s.access_token);
   };
 
   const signOut = async () => {
@@ -109,6 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         profile,
         organization,
         role,
+        menu,
         loading,
         isAuthenticated: !!session,
         refresh,

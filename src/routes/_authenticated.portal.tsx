@@ -28,6 +28,8 @@ import {
   Search,
   PackageSearch,
 } from "lucide-react";
+import { useMenuGate } from "@/hooks/use-menu-gate";
+import { userFacingDataError } from "@/lib/supabase-user-error";
 
 export const Route = createFileRoute("/_authenticated/portal")({
   head: () => ({ meta: [{ title: "Portal B2B — 2AVendas" }] }),
@@ -77,6 +79,7 @@ const statusLabels: Record<string, string> = {
 };
 
 function Portal() {
+  useMenuGate("portal");
   const { user, profile, organization } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [orders, setOrders] = useState<OrderRow[]>([]);
@@ -147,7 +150,7 @@ function Portal() {
       .select("id")
       .single();
     if (error) {
-      toast.error("Não foi possível criar seu cadastro: " + error.message);
+      toast.error("Não foi possível criar seu cadastro: " + userFacingDataError(error));
       return { customerId: null as string | null, sellerId: null as string | null };
     }
     setAssignedSellerId(sellerFromToken ?? null);
@@ -258,7 +261,7 @@ function Portal() {
       .single();
     if (error || !order) {
       setPlacing(false);
-      return toast.error(error?.message ?? "Erro ao criar pedido");
+      return toast.error(userFacingDataError(error) ?? "Erro ao criar pedido");
     }
     const items = cart.map((l) => ({
       order_id: order.id,
@@ -270,7 +273,7 @@ function Portal() {
     }));
     const { error: itemsError } = await supabase.from("order_items").insert(items);
     setPlacing(false);
-    if (itemsError) return toast.error(itemsError.message);
+    if (itemsError) return toast.error(userFacingDataError(itemsError));
     toast.success("Pedido enviado com sucesso!");
     setCart([]);
     setNotes("");

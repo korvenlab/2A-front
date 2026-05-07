@@ -1,4 +1,4 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -33,6 +33,8 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import { Plus, Loader2, UserCog, Copy, Trash2 } from "lucide-react";
+import { useMenuGate } from "@/hooks/use-menu-gate";
+import { userFacingDataError } from "@/lib/supabase-user-error";
 
 export const Route = createFileRoute("/_authenticated/vendedores")({
   head: () => ({ meta: [{ title: "Gerar link de produtos — 2AVendas" }] }),
@@ -56,7 +58,8 @@ interface Invitation {
 }
 
 function SellersPage() {
-  const { organization, role, user, loading: authLoading } = useAuth();
+  useMenuGate("vendedores");
+  const { organization, user, menu } = useAuth();
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [invites, setInvites] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -67,19 +70,13 @@ function SellersPage() {
   );
   const [saving, setSaving] = useState(false);
 
-  useEffect(() => {
-    if (!authLoading && role && role !== "admin") {
-      throw redirect({ to: "/dashboard" });
-    }
-  }, [authLoading, role]);
-
   const load = async () => {
     setLoading(true);
     const { data: rs, error } = await supabase
       .from("user_roles")
       .select("user_id")
       .eq("role", "vendedor");
-    if (error) toast.error(error.message);
+    if (error) toast.error(userFacingDataError(error));
 
     const ids = (rs ?? []).map((r: { user_id: string }) => r.user_id);
     const profilesMap: Record<string, { full_name: string | null; email: string | null }> = {};
@@ -124,8 +121,9 @@ function SellersPage() {
   };
 
   useEffect(() => {
-    if (role === "admin") load();
-  }, [role]);
+    if (!organization?.id || !menu.vendedores) return;
+    void load();
+  }, [organization?.id, menu.vendedores]);
 
   const invite = async () => {
     if (!organization || !user) return;
@@ -140,7 +138,7 @@ function SellersPage() {
         purpose: invitePurpose,
       });
     setSaving(false);
-    if (error) return toast.error(error.message);
+    if (error) return toast.error(userFacingDataError(error));
     toast.success(
       invitePurpose === "seller_signup"
         ? "Convite de representante criado."
@@ -154,7 +152,7 @@ function SellersPage() {
 
   const revoke = async (id: string) => {
     const { error } = await supabase.from("seller_invitations").delete().eq("id", id);
-    if (error) toast.error(error.message);
+    if (error) toast.error(userFacingDataError(error));
     else load();
   };
 

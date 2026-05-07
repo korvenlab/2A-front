@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useAuth } from "@/lib/auth-context";
+import { useMenuGate } from "@/hooks/use-menu-gate";
 import { TrendingUp, ShoppingBag, Users, DollarSign } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
@@ -15,6 +16,7 @@ const stats = [
 ];
 
 function Dashboard() {
+  useMenuGate("dashboard");
   const { profile, role } = useAuth();
   return (
     <div className="p-6 lg:p-10 space-y-8">

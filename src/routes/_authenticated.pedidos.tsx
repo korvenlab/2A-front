@@ -34,6 +34,8 @@ import {
 } from "@/components/ui/table";
 import { toast } from "sonner";
 import { Plus, Loader2, ShoppingBag, Trash2 } from "lucide-react";
+import { useMenuGate } from "@/hooks/use-menu-gate";
+import { userFacingDataError } from "@/lib/supabase-user-error";
 
 export const Route = createFileRoute("/_authenticated/pedidos")({
   head: () => ({ meta: [{ title: "Pedidos — 2AVendas" }] }),
@@ -92,6 +94,7 @@ const statusVariant: Record<OrderStatus, "default" | "secondary" | "outline" | "
 };
 
 function OrdersPage() {
+  useMenuGate("pedidos");
   const { organization, user, role } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<CustomerOpt[]>([]);
@@ -117,7 +120,7 @@ function OrdersPage() {
       ordersQuery = ordersQuery.eq("seller_id", user.id);
     }
     const { data, error } = await ordersQuery;
-    if (error) toast.error(error.message);
+    if (error) toast.error(userFacingDataError(error));
     setOrders((data as unknown as Order[]) ?? []);
 
     const customersQuery = supabase.from("customers").select("id,name").order("name");
@@ -197,7 +200,7 @@ function OrdersPage() {
       .single();
     if (error || !ord) {
       setSaving(false);
-      return toast.error(error?.message ?? "Falha ao criar pedido");
+      return toast.error(userFacingDataError(error) ?? "Falha ao criar pedido");
     }
     const { error: errIt } = await supabase.from("order_items").insert(
       items.map((it) => ({
@@ -210,7 +213,7 @@ function OrdersPage() {
       })),
     );
     setSaving(false);
-    if (errIt) return toast.error(errIt.message);
+    if (errIt) return toast.error(userFacingDataError(errIt));
     toast.success("Pedido criado");
     setOpen(false);
     reset();
@@ -219,7 +222,7 @@ function OrdersPage() {
 
   const changeStatus = async (id: string, status: OrderStatus) => {
     const { error } = await supabase.from("orders").update({ status }).eq("id", id);
-    if (error) toast.error(error.message);
+    if (error) toast.error(userFacingDataError(error));
     else load();
   };
 
