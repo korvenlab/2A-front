@@ -44,6 +44,14 @@ interface AuthState {
 
 const AuthContext = createContext<AuthState | undefined>(undefined);
 
+/** Após sair: página inicial (produção costuma ser o mesmo origin de 2avendas.com). Opcional: `VITE_PUBLIC_HOME_URL`. */
+function resolvePublicHomeUrl(): string {
+  const configured = import.meta.env.VITE_PUBLIC_HOME_URL?.trim();
+  if (configured) return `${configured.replace(/\/+$/, "")}/`;
+  if (typeof window !== "undefined") return `${window.location.origin}/`;
+  return "/";
+}
+
 async function resolveMenu(accessToken: string | null | undefined, currentRole: AppRole | null) {
   if (!accessToken) return emptyMenu();
   const fetched = await fetchSessionMenu(accessToken);
@@ -191,6 +199,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    if (typeof window !== "undefined") {
+      window.location.replace(resolvePublicHomeUrl());
+    }
   };
 
   return (
