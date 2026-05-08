@@ -62,25 +62,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .maybeSingle();
     setProfile((prof as Profile) ?? null);
 
-    if (prof?.organization_id) {
-      const { data: org } = await supabase
+    const { data: appUserRow } = await supabase
+      .from("app_users")
+      .select("role, organization_id")
+      .eq("id", uid)
+      .maybeSingle();
+    const appUser = appUserRow as {
+      role?: string | null;
+      organization_id?: string | null;
+    } | null;
+
+    // Mesma prioridade que public.current_user_org() no Postgres (evita path de Storage com org errada).
+    let resolvedOrgId: string | null = appUser?.organization_id ?? null;
+    if (!resolvedOrgId) {
+      resolvedOrgId = prof?.organization_id ?? null;
+    }
+    if (!resolvedOrgId) {
+      const { data: urRows } = await supabase
+        .from("user_roles")
+        .select("organization_id, role")
+        .eq("user_id", uid)
+        .not("organization_id", "is", null);
+      const list = (urRows ?? []) as { organization_id: string; role: AppRole }[];
+      const priority: AppRole[] = ["admin", "vendedor", "cliente"];
+      list.sort((a, b) => {
+        const ia = priority.indexOf(a.role);
+        const ib = priority.indexOf(b.role);
+        return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+      });
+      resolvedOrgId = list[0]?.organization_id ?? null;
+    }
+
+    if (resolvedOrgId) {
+      const { data: org, error: orgFetchErr } = await supabase
         .from("organizations")
         .select("id, name, slug")
-        .eq("id", prof.organization_id)
+        .eq("id", resolvedOrgId)
         .maybeSingle();
-      setOrganization((org as Organization) ?? null);
+      if (orgFetchErr && import.meta.env.DEV) {
+        console.warn("[auth] organizations lookup:", orgFetchErr.message);
+      }
+      // Mesmo se o SELECT falhar por RLS/cache, mantemos o id resolvido para inserts alinharem ao tenant do JWT.
+      if (org) {
+        setOrganization(org as Organization);
+      } else {
+        setOrganization({
+          id: resolvedOrgId,
+          name: "Representação",
+          slug: "representacao",
+        });
+      }
     } else {
       setOrganization(null);
     }
 
-    const { data: appUser } = await supabase
-      .from("app_users")
-      .select("role")
-      .eq("id", uid)
-      .maybeSingle();
-    const appRole = (appUser as { role?: string } | null)?.role?.toLowerCase();
+    const appRole = appUser?.role?.trim().toLowerCase() ?? undefined;
     let primary: AppRole | null = null;
-    if (appRole === "admin" || appRole === "vendedor" || appRole === "cliente") {
+    if (
+      appRole === "admin" ||
+      appRole === "vendedor" ||
+      appRole === "cliente"
+    ) {
       primary = appRole;
     } else {
       const { data: roles } = await supabase

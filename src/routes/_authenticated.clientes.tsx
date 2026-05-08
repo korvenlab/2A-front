@@ -132,29 +132,50 @@ function CustomersPage() {
   };
 
   const save = async () => {
-    if (!organization || !user) return;
-    if (!form.name.trim()) return toast.error("Nome é obrigatório");
+    if (!form.name.trim()) {
+      toast.error("Nome é obrigatório");
+      return;
+    }
+    if (!organization) {
+      toast.error(
+        "Organização não carregada. Aguarde alguns segundos e tente de novo, ou recarregue a página.",
+      );
+      return;
+    }
+    if (!user) {
+      toast.error("Sessão inválida. Faça login novamente.");
+      return;
+    }
     setSaving(true);
-    const payload = {
-      ...form,
-      email: form.email || null,
-      phone: form.phone || null,
-      document: form.document || null,
-      city: form.city || null,
-      state: form.state || null,
-      notes: form.notes || null,
-      assigned_seller_id: isAdmin ? form.assigned_seller_id : user.id,
-    };
-    const { error } = editing
-      ? await supabase.from("customers").update(payload).eq("id", editing.id)
-      : await supabase
-          .from("customers")
-          .insert({ ...payload, organization_id: organization.id });
-    setSaving(false);
-    if (error) return toast.error(userFacingDataError(error));
-    toast.success(editing ? "Cliente atualizado" : "Cliente criado");
-    setOpen(false);
-    load();
+    try {
+      const payload = {
+        ...form,
+        email: form.email || null,
+        phone: form.phone || null,
+        document: form.document || null,
+        city: form.city || null,
+        state: form.state || null,
+        notes: form.notes || null,
+        assigned_seller_id: isAdmin ? form.assigned_seller_id : user.id,
+      };
+      const { error } = editing
+        ? await supabase.from("customers").update(payload).eq("id", editing.id)
+        : await supabase
+            .from("customers")
+            .insert({ ...payload, organization_id: organization.id });
+      if (error) {
+        toast.error(userFacingDataError(error));
+        return;
+      }
+      toast.success(editing ? "Cliente atualizado com sucesso." : "Cliente criado com sucesso.");
+      setOpen(false);
+      await load();
+    } catch (e) {
+      console.error("[clientes] save", e);
+      toast.error(e instanceof Error ? e.message : "Erro inesperado ao salvar o cliente.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const sellerLabel = (id: string | null) => {
@@ -273,9 +294,14 @@ function CustomersPage() {
                 <Button variant="outline" onClick={() => setOpen(false)}>
                   Cancelar
                 </Button>
-                <Button onClick={save} disabled={saving}>
+                <Button
+                  type="button"
+                  onClick={save}
+                  disabled={saving}
+                  className="inline-flex items-center gap-2"
+                >
                   {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Salvar
+                  {saving ? "Salvando…" : "Salvar"}
                 </Button>
               </DialogFooter>
             </DialogContent>

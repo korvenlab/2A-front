@@ -124,37 +124,57 @@ function SellersPage() {
   }, [organization?.id, menu.vendedores]);
 
   const invite = async () => {
-    if (!organization || !user) return;
     if (!email.trim()) return toast.error("Informe um e-mail");
+    if (!organization) {
+      toast.error(
+        "Organização não carregada. Recarregue a página ou aguarde o painel terminar de carregar.",
+      );
+      return;
+    }
+    if (!user) {
+      toast.error("Sessão inválida. Faça login novamente.");
+      return;
+    }
     if (role !== "admin" && invitePurpose === "seller_signup") {
       return toast.error("Somente admin pode criar convite de vendedor.");
     }
     setSaving(true);
-    const { error } = await supabase
-      .from("seller_invitations")
-      .insert({
+    try {
+      const { error } = await supabase.from("seller_invitations").insert({
         organization_id: organization.id,
         invited_by: user.id,
         email: email.trim().toLowerCase(),
         purpose: invitePurpose,
       });
-    setSaving(false);
-    if (error) return toast.error(userFacingDataError(error));
-    toast.success(
-      invitePurpose === "seller_signup"
-        ? "Convite de representante criado."
-        : "Link de produtos criado para cliente.",
-    );
-    setEmail("");
-    setInvitePurpose("client_catalog");
-    setOpen(false);
-    load();
+      if (error) {
+        toast.error(userFacingDataError(error));
+        return;
+      }
+      toast.success(
+        invitePurpose === "seller_signup"
+          ? "Convite de representante criado com sucesso."
+          : "Link de produtos criado com sucesso.",
+      );
+      setEmail("");
+      setInvitePurpose("client_catalog");
+      setOpen(false);
+      await load();
+    } catch (e) {
+      console.error("[vendedores] invite", e);
+      toast.error(e instanceof Error ? e.message : "Erro inesperado ao criar o convite.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const revoke = async (id: string) => {
     const { error } = await supabase.from("seller_invitations").delete().eq("id", id);
-    if (error) toast.error(userFacingDataError(error));
-    else load();
+    if (error) {
+      toast.error(userFacingDataError(error));
+      return;
+    }
+    toast.success("Convite revogado.");
+    await load();
   };
 
   const inviteUrl = (token: string, purpose: string) =>
@@ -232,9 +252,14 @@ function SellersPage() {
                 <Button variant="outline" onClick={() => setOpen(false)}>
                   Cancelar
                 </Button>
-                <Button onClick={invite} disabled={saving}>
+                <Button
+                  type="button"
+                  onClick={invite}
+                  disabled={saving}
+                  className="inline-flex items-center gap-2"
+                >
                   {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Gerar link
+                  {saving ? "Gerando…" : "Gerar link"}
                 </Button>
               </DialogFooter>
             </DialogContent>

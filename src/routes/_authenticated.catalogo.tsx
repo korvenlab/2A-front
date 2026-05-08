@@ -129,36 +129,55 @@ function CatalogPage() {
   };
 
   const save = async () => {
-    if (!organization) return;
-    if (!form.name.trim()) return toast.error("Nome é obrigatório");
+    if (!form.name.trim()) {
+      toast.error("Nome é obrigatório");
+      return;
+    }
+    if (!organization) {
+      toast.error(
+        "Organização não carregada. Aguarde alguns segundos e tente de novo, ou recarregue a página.",
+      );
+      return;
+    }
+    if (!user && role === "vendedor") {
+      toast.error("Sessão inválida. Faça login novamente.");
+      return;
+    }
     setSaving(true);
-    const payload = {
-      ...form,
-      sku: form.sku || null,
-      description: form.description || null,
-      category: form.category || null,
-      supplier: form.supplier || null,
-      image_url: form.image_url || null,
-      price: Number(form.price) || 0,
-      stock: Number(form.stock) || 0,
-    };
-    const { error } = editing
-      ? await supabase.from("products").update(payload).eq("id", editing.id)
-      : await supabase
-          .from("products")
-          .insert({
+    try {
+      const payload = {
+        ...form,
+        sku: form.sku || null,
+        description: form.description || null,
+        category: form.category || null,
+        supplier: form.supplier || null,
+        image_url: form.image_url || null,
+        price: Number(form.price) || 0,
+        stock: Number(form.stock) || 0,
+      };
+      const { error } = editing
+        ? await supabase.from("products").update(payload).eq("id", editing.id)
+        : await supabase.from("products").insert({
             ...payload,
             organization_id: organization.id,
             owner_seller_id: role === "vendedor" ? user?.id ?? null : null,
           });
-    setSaving(false);
-    if (error) return toast.error(userFacingDataError(error));
-    if (editing && editing.image_url !== payload.image_url) {
-      await removeStorageImageIfAny(editing.image_url);
+      if (error) {
+        toast.error(userFacingDataError(error));
+        return;
+      }
+      if (editing && editing.image_url !== payload.image_url) {
+        await removeStorageImageIfAny(editing.image_url);
+      }
+      toast.success(editing ? "Produto salvo com sucesso." : "Produto criado com sucesso.");
+      setOpen(false);
+      await load();
+    } catch (e) {
+      console.error("[catalogo] save", e);
+      toast.error(e instanceof Error ? e.message : "Erro inesperado ao salvar o produto.");
+    } finally {
+      setSaving(false);
     }
-    toast.success(editing ? "Produto atualizado" : "Produto criado");
-    setOpen(false);
-    load();
   };
 
   const toggleActive = async (p: Product) => {
@@ -166,13 +185,19 @@ function CatalogPage() {
       .from("products")
       .update({ active: !p.active })
       .eq("id", p.id);
-    if (error) toast.error(userFacingDataError(error));
-    else load();
+    if (error) {
+      toast.error(userFacingDataError(error));
+      return;
+    }
+    toast.success(p.active ? "Produto desativado." : "Produto ativado.");
+    await load();
   };
 
   const handleImageUpload = async (file: File) => {
     if (!organization) {
-      toast.error("Organização não encontrada");
+      toast.error(
+        "Organização não carregada. Recarregue a página ou aguarde o painel terminar de carregar.",
+      );
       return;
     }
     if (!file.type.startsWith("image/")) {
@@ -269,7 +294,12 @@ function CatalogPage() {
   };
 
   const handleImport = async (file: File) => {
-    if (!organization) return;
+    if (!organization) {
+      toast.error(
+        "Organização não carregada. Recarregue a página ou aguarde o painel terminar de carregar.",
+      );
+      return;
+    }
     setImporting(true);
     try {
       const text = await file.text();
@@ -571,9 +601,14 @@ function CatalogPage() {
                   <Button variant="outline" onClick={() => setOpen(false)}>
                     Cancelar
                   </Button>
-                  <Button onClick={save} disabled={saving || uploadingImage}>
+                  <Button
+                    type="button"
+                    onClick={save}
+                    disabled={saving || uploadingImage}
+                    className="inline-flex items-center gap-2"
+                  >
                     {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-                    Salvar
+                    {saving ? "Salvando…" : "Salvar"}
                   </Button>
                 </DialogFooter>
               </DialogContent>
