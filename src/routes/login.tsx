@@ -23,7 +23,7 @@ export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
       { title: "Entrar — 2AVendas" },
-      { name: "description", content: "Acesso para representantes. Clientes entram apenas pelo link de convite." },
+      { name: "description", content: "Entre na sua conta 2AVendas." },
     ],
   }),
   component: LoginPage,
@@ -116,17 +116,7 @@ function LoginPage() {
             <Logo />
           </div>
 
-          <h1 className="text-3xl font-bold tracking-tight">Entrar — representantes</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {inviteToken
-              ? "Entre com o e-mail e a senha cadastrados pelo link de convite."
-              : "Acesso ao painel da sua representação (administrador ou vendedor)."}
-          </p>
-          {!inviteToken ? (
-            <p className="mt-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
-              É cliente? Use apenas o link de convite que sua representação enviou — cadastro e retorno ao app seguem esse link (esta tela é para representantes).
-            </p>
-          ) : null}
+          <h1 className="text-3xl font-bold tracking-tight">Entrar</h1>
 
           <form onSubmit={onSubmit} className="mt-6 space-y-4">
             <div>
@@ -202,7 +192,7 @@ function LoginPage() {
               </>
             ) : (
               <>
-                Representante sem conta?{" "}
+                Ainda não tem conta de representação?{" "}
                 <Link to="/signup" className="font-semibold text-primary hover:underline">
                   Cadastre sua representação
                 </Link>
