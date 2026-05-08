@@ -79,18 +79,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq("id", uid)
       .maybeSingle();
     const appRole = (appUser as { role?: string } | null)?.role?.toLowerCase();
+    let primary: AppRole | null = null;
     if (appRole === "admin" || appRole === "vendedor" || appRole === "cliente") {
-      setRole(appRole);
-      return;
+      primary = appRole;
+    } else {
+      const { data: roles } = await supabase
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", uid);
+      const list = (roles ?? []).map((r: { role: AppRole }) => r.role);
+      const priority: AppRole[] = ["admin", "vendedor", "cliente"];
+      primary = priority.find((p) => list.includes(p)) ?? null;
     }
-
-    const { data: roles } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", uid);
-    const list = (roles ?? []).map((r: { role: AppRole }) => r.role);
-    const priority: AppRole[] = ["admin", "vendedor", "cliente"];
-    const primary = priority.find((p) => list.includes(p)) ?? null;
     setRole(primary);
 
     const token =
