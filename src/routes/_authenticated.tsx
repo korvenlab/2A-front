@@ -38,6 +38,10 @@ function AuthLayout() {
     }
     if (!menu.dashboard && menu.portal && location.pathname.startsWith("/dashboard")) {
       navigate({ to: "/portal" });
+      return;
+    }
+    if (!role) {
+      navigate({ to: "/portal" });
     }
   }, [isAuthenticated, loading, menu.dashboard, menu.portal, navigate, location.pathname]);
 
@@ -67,6 +71,27 @@ function AuthLayout() {
     );
   }
 
+<<<<<<< HEAD
+=======
+  const baseItems = [
+    { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { to: "/pedidos", label: "Pedidos", icon: ShoppingBag },
+    { to: "/clientes", label: "Clientes", icon: Users },
+    { to: "/catalogo", label: "Catálogo", icon: Package },
+  ];
+  const navItems =
+    role === "cliente"
+      ? [{ to: "/portal", label: "Portal de Compras", icon: Store }]
+      : role === "admin"
+        ? [
+            ...baseItems,
+            { to: "/vendedores", label: "Gerar link de produtos", icon: UserCog, highlight: true },
+          ]
+        : role === "vendedor"
+          ? baseItems
+          : [{ to: "/portal", label: "Portal de Compras", icon: Store }];
+
+>>>>>>> d7813d8 (fix(auth): stabilize role resolution and least-privilege navigation)
   return (
     <div className="min-h-screen bg-background flex flex-col lg:flex-row">
       <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r border-border bg-card">
