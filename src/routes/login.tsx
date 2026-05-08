@@ -11,7 +11,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 const REMEMBER_KEY = "2avendas.rememberedEmail";
@@ -24,7 +23,7 @@ export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
       { title: "Entrar — 2AVendas" },
-      { name: "description", content: "Acesse sua conta 2AVendas como Representante ou Cliente." },
+      { name: "description", content: "Acesso para representantes. Clientes entram apenas pelo link de convite." },
     ],
   }),
   component: LoginPage,
@@ -52,7 +51,6 @@ function LoginPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const inviteToken = inviteTokenFromLoginSearch(search);
-  const [mode, setMode] = useState<"vendedor" | "cliente">("vendedor");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPwd, setShowPwd] = useState(false);
@@ -118,17 +116,17 @@ function LoginPage() {
             <Logo />
           </div>
 
-          <h1 className="text-3xl font-bold tracking-tight">Entrar na sua conta</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Entrar — representantes</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Acesse o 2AVendas e gerencie sua representação.
+            {inviteToken
+              ? "Entre com o e-mail e a senha cadastrados pelo link de convite."
+              : "Acesso ao painel da sua representação (administrador ou vendedor)."}
           </p>
-
-          <Tabs value={mode} onValueChange={(v) => setMode(v as "vendedor" | "cliente")} className="mt-6">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="vendedor">Representante</TabsTrigger>
-              <TabsTrigger value="cliente">Cliente</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          {!inviteToken ? (
+            <p className="mt-2 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+              É cliente? Use apenas o link de convite que sua representação enviou — cadastro e retorno ao app seguem esse link (esta tela é para representantes).
+            </p>
+          ) : null}
 
           <form onSubmit={onSubmit} className="mt-6 space-y-4">
             <div>
@@ -180,7 +178,7 @@ function LoginPage() {
             </div>
 
             <Button type="submit" className="w-full h-11 shadow-md" disabled={submitting}>
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : `Entrar como ${mode === "vendedor" ? "Representante" : "Cliente"}`}
+              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Entrar"}
             </Button>
           </form>
 
@@ -195,14 +193,21 @@ function LoginPage() {
           </Button>
 
           <p className="mt-8 text-center text-sm text-muted-foreground">
-            Ainda não tem uma conta?{" "}
-            <Link
-              to="/signup"
-              search={inviteToken ? { invite: inviteToken } : undefined}
-              className="font-semibold text-primary hover:underline"
-            >
-              {inviteToken ? "Criar conta com o convite" : "Cadastre sua representação"}
-            </Link>
+            {inviteToken ? (
+              <>
+                Primeiro acesso?{" "}
+                <Link to="/signup" search={{ invite: inviteToken }} className="font-semibold text-primary hover:underline">
+                  Criar conta com o convite
+                </Link>
+              </>
+            ) : (
+              <>
+                Representante sem conta?{" "}
+                <Link to="/signup" className="font-semibold text-primary hover:underline">
+                  Cadastre sua representação
+                </Link>
+              </>
+            )}
           </p>
         </div>
       </div>

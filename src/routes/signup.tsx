@@ -191,7 +191,7 @@ function SignupPage() {
     !hasInvite
       ? "14 dias grátis. Sem cartão de crédito. Informe a empresa da sua representação (tenant operacional)."
       : invitePurpose === "client_catalog"
-        ? "Informe a empresa do cliente (quem compra). A representação já está definida pelo convite."
+        ? "Bem-vindo ao 2AVendas. Você terá acesso aos produtos da representação que lhe enviou o convite."
         : invitePurpose === "seller_signup"
           ? "Opcional: nome da equipe ou como aparece na carteira; por padrão usamos o nome da representação do convite."
           : invitePeekLoading
