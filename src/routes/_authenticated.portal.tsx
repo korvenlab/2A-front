@@ -38,6 +38,7 @@ export const Route = createFileRoute("/_authenticated/portal")({
 
 interface Product {
   id: string;
+  owner_seller_id: string | null;
   name: string;
   sku: string | null;
   description: string | null;
@@ -85,7 +86,7 @@ function Portal() {
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [customerId, setCustomerId] = useState<string | null>(null);
-  const [assignedSellerId, setAssignedSellerId] = useState<string | null>(null);
+  const [allowedSellerIds, setAllowedSellerIds] = useState<string[]>([]);
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [draftQtyByProduct, setDraftQtyByProduct] = useState<Record<string, number>>({});
@@ -105,17 +106,20 @@ function Portal() {
     if (inviteToken) {
       const { data: inv } = await supabase
         .from("seller_invitations")
-        .select("organization_id, invited_by, purpose, expires_at")
+        .select("id, organization_id, invited_by, purpose, expires_at, accepted_at, email")
         .eq("token", inviteToken)
         .eq("purpose", "client_catalog")
         .maybeSingle();
       if (
         inv &&
-        inv.organization_id === organization.id &&
         new Date(inv.expires_at).getTime() > Date.now() &&
-        inv.invited_by
+        inv.invited_by &&
+        (inv.email ?? "").toLowerCase() === (user.email ?? "").toLowerCase()
       ) {
         sellerFromToken = inv.invited_by;
+        if (!inv.accepted_at) {
+          await supabase.from("seller_invitations").update({ accepted_at: new Date().toISOString() }).eq("id", inv.id);
+        }
       } else {
         toast.error("Link inválido ou expirado.");
       }
@@ -127,15 +131,13 @@ function Portal() {
       .eq("user_id", user.id)
       .maybeSingle();
     if (existing) {
-      const assigned = existing.assigned_seller_id ?? sellerFromToken ?? null;
-      setAssignedSellerId(assigned);
       if (sellerFromToken && sellerFromToken !== existing.assigned_seller_id) {
         await supabase
           .from("customers")
           .update({ assigned_seller_id: sellerFromToken })
           .eq("id", existing.id);
       }
-      return { customerId: existing.id, sellerId: assigned };
+      return { customerId: existing.id, sellerId: existing.assigned_seller_id ?? sellerFromToken ?? null };
     }
     // Create one tied to this user
     const { data, error } = await supabase
@@ -153,7 +155,6 @@ function Portal() {
       toast.error("Não foi possível criar seu cadastro: " + userFacingDataError(error));
       return { customerId: null as string | null, sellerId: null as string | null };
     }
-    setAssignedSellerId(sellerFromToken ?? null);
     return { customerId: data.id, sellerId: sellerFromToken ?? null };
   };
 
@@ -163,13 +164,33 @@ function Portal() {
     const cid = ensured.customerId;
     const sellerId = ensured.sellerId;
     setCustomerId(cid);
+    const { data: accessInvites } = await supabase
+      .from("seller_invitations")
+      .select("invited_by")
+      .eq("purpose", "client_catalog")
+      .not("accepted_at", "is", null)
+      .eq("organization_id", organization?.id ?? "__none__")
+      .eq("email", (user?.email ?? "").toLowerCase());
+    const sellersFromInvites = Array.from(
+      new Set(
+        (accessInvites ?? [])
+          .map((i: { invited_by: string | null }) => i.invited_by)
+          .filter((id): id is string => !!id),
+      ),
+    );
+    const effectiveSellers = sellerId
+      ? Array.from(new Set([...sellersFromInvites, sellerId]))
+      : sellersFromInvites;
+    setAllowedSellerIds(effectiveSellers);
     const productsQuery = supabase
       .from("products")
-      .select("id,name,sku,description,price,stock,category,image_url")
+      .select("id,owner_seller_id,name,sku,description,price,stock,category,image_url")
       .eq("active", true)
       .order("name");
     const [{ data: prods }, { data: ords }] = await Promise.all([
-      sellerId ? productsQuery.eq("owner_seller_id", sellerId) : productsQuery.eq("id", "__none__"),
+      effectiveSellers.length > 0
+        ? productsQuery.in("owner_seller_id", effectiveSellers)
+        : productsQuery.eq("id", "__none__"),
       cid
         ? supabase
             .from("orders")
@@ -207,6 +228,13 @@ function Portal() {
 
   const addToCart = (p: Product, qty: number, variation: string) => {
     if (p.stock <= 0) return toast.error("Produto sem estoque");
+    if (!p.owner_seller_id) return toast.error("Produto sem vendedor responsável.");
+    const existingSeller = cart[0]?.product.owner_seller_id ?? null;
+    if (existingSeller && existingSeller !== p.owner_seller_id) {
+      return toast.error(
+        "Seu carrinho só pode ter produtos de uma empresa por vez. Finalize ou limpe o carrinho para trocar.",
+      );
+    }
     const normalizedQty = Math.max(1, Math.min(qty, p.stock));
     const normalizedVariation = variation.trim();
     const lineKey = `${p.id}::${normalizedVariation.toLowerCase()}`;
@@ -246,13 +274,17 @@ function Portal() {
   const placeOrder = async () => {
     if (!organization || !customerId) return toast.error("Cadastro do cliente não disponível");
     if (cart.length === 0) return toast.error("Adicione produtos ao carrinho");
+    const orderSellerId = cart[0]?.product.owner_seller_id ?? null;
+    if (!orderSellerId) {
+      return toast.error("Não foi possível identificar a empresa deste pedido.");
+    }
     setPlacing(true);
     const { data: order, error } = await supabase
       .from("orders")
       .insert({
         organization_id: organization.id,
         customer_id: customerId,
-        seller_id: assignedSellerId,
+        seller_id: orderSellerId,
         status: "enviado",
         notes: notes || null,
         order_number: 0,
@@ -286,7 +318,11 @@ function Portal() {
     <div className="p-6 lg:p-10 space-y-6">
       <PageHeader
         title={`Olá, ${profile?.full_name?.split(" ")[0] ?? "cliente"}`}
-        description={`Faça novos pedidos em ${organization?.name ?? "sua representação"}.`}
+        description={
+          allowedSellerIds.length > 1
+            ? `Você tem acesso a ${allowedSellerIds.length} empresas neste portal.`
+            : `Faça novos pedidos em ${organization?.name ?? "sua representação"}.`
+        }
         action={
           <Sheet open={cartOpen} onOpenChange={setCartOpen}>
             <SheetTrigger asChild>

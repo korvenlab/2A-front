@@ -59,15 +59,13 @@ interface Invitation {
 
 function SellersPage() {
   useMenuGate("vendedores");
-  const { organization, user, menu } = useAuth();
+  const { organization, user, menu, role } = useAuth();
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [invites, setInvites] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
-  const [invitePurpose, setInvitePurpose] = useState<"client_catalog" | "seller_signup">(
-    "client_catalog",
-  );
+  const [invitePurpose, setInvitePurpose] = useState<"client_catalog" | "seller_signup">("client_catalog");
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
@@ -128,6 +126,9 @@ function SellersPage() {
   const invite = async () => {
     if (!organization || !user) return;
     if (!email.trim()) return toast.error("Informe um e-mail");
+    if (role !== "admin" && invitePurpose === "seller_signup") {
+      return toast.error("Somente admin pode criar convite de vendedor.");
+    }
     setSaving(true);
     const { error } = await supabase
       .from("seller_invitations")
@@ -196,9 +197,11 @@ function SellersPage() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="client_catalog">Cliente (link de produtos)</SelectItem>
-                      <SelectItem value="seller_signup">
-                        Representante (acesso vendedor)
-                      </SelectItem>
+                      {role === "admin" && (
+                        <SelectItem value="seller_signup">
+                          Representante (acesso vendedor)
+                        </SelectItem>
+                      )}
                     </SelectContent>
                   </Select>
                 </div>

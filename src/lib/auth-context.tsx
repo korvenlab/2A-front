@@ -73,10 +73,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setOrganization(null);
     }
 
-<<<<<<< HEAD
-    const { data: roles } = await supabase.from("user_roles").select("role").eq("user_id", uid);
-    const list = ((roles ?? []) as { role: AppRole }[]).map((r) => r.role);
-=======
     const { data: appUser } = await supabase
       .from("app_users")
       .select("role")
@@ -93,7 +89,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select("role")
       .eq("user_id", uid);
     const list = (roles ?? []).map((r: { role: AppRole }) => r.role);
->>>>>>> d7813d8 (fix(auth): stabilize role resolution and least-privilege navigation)
     const priority: AppRole[] = ["admin", "vendedor", "cliente"];
     const primary = priority.find((p) => list.includes(p)) ?? null;
     setRole(primary);
