@@ -60,13 +60,13 @@ function AuthLayout() {
     if (menu.vendedores) {
       items.push({
         to: "/vendedores",
-        label: "Gerar link de produtos",
+        label: role === "admin" ? "Equipe e convites" : "Gerar link de produtos",
         icon: UserCog,
         highlight: true,
       });
     }
     return items;
-  }, [menu]);
+  }, [menu, role]);
 
   if (loading || !isAuthenticated) {
     return (

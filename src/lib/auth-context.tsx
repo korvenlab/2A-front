@@ -47,7 +47,12 @@ const AuthContext = createContext<AuthState | undefined>(undefined);
 async function resolveMenu(accessToken: string | null | undefined, currentRole: AppRole | null) {
   if (!accessToken) return emptyMenu();
   const fetched = await fetchSessionMenu(accessToken);
-  return fetched ?? fallbackMenuFromRole(currentRole);
+  const menu = fetched ?? fallbackMenuFromRole(currentRole);
+  /** Reforço: API antiga ou matriz sem sellers:view não pode esconder gestão de equipe do admin. */
+  if (currentRole === "admin") {
+    return { ...menu, vendedores: menu.vendedores || true };
+  }
+  return menu;
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {

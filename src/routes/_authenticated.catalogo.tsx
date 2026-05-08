@@ -31,6 +31,13 @@ import { Plus, Pencil, Loader2, PackageSearch, Download, Upload } from "lucide-r
 import { useRef } from "react";
 import { useMenuGate } from "@/hooks/use-menu-gate";
 import { userFacingDataError } from "@/lib/supabase-user-error";
+import {
+  MAX_PRODUCT_IMAGES,
+  normalizeProductImageUrls,
+  parseImageUrlsFromCsvCell,
+  validateProductImageCount,
+  isLikelyHttpUrl,
+} from "@/lib/product-images";
 
 const PRODUCT_IMAGES_BUCKET = "product-images";
 
@@ -39,7 +46,7 @@ export const Route = createFileRoute("/_authenticated/catalogo")({
   component: CatalogPage,
 });
 
-interface Product {
+interface ProductRow {
   id: string;
   name: string;
   sku: string | null;
@@ -49,10 +56,23 @@ interface Product {
   category: string | null;
   supplier: string | null;
   image_url: string | null;
+  image_urls: unknown;
   active: boolean;
 }
 
-const empty: Omit<Product, "id"> = {
+interface ProductForm {
+  name: string;
+  sku: string;
+  description: string;
+  price: number;
+  stock: number;
+  category: string;
+  supplier: string;
+  image_urls: string[];
+  active: boolean;
+}
+
+const emptyForm: ProductForm = {
   name: "",
   sku: "",
   description: "",
@@ -60,7 +80,7 @@ const empty: Omit<Product, "id"> = {
   stock: 0,
   category: "",
   supplier: "",
-  image_url: "",
+  image_urls: [],
   active: true,
 };
 
@@ -69,11 +89,12 @@ function CatalogPage() {
   const { organization, role, user, menu } = useAuth();
   const useBackendMenu = !!import.meta.env.VITE_API_URL?.trim();
   const canManageCatalog = useBackendMenu ? menu.catalogo : role === "admin" || role === "vendedor";
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<ProductRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<Product | null>(null);
-  const [form, setForm] = useState<Omit<Product, "id">>(empty);
+  const [editing, setEditing] = useState<ProductRow | null>(null);
+  const [form, setForm] = useState<ProductForm>(emptyForm);
+  const [imageUrlDraft, setImageUrlDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [importing, setImporting] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -84,10 +105,10 @@ function CatalogPage() {
     setLoading(true);
     const { data, error } = await supabase
       .from("products")
-      .select("id,name,sku,description,price,stock,category,supplier,image_url,active")
+      .select("id,name,sku,description,price,stock,category,supplier,image_url,image_urls,active")
       .order("created_at", { ascending: false });
     if (error) toast.error(userFacingDataError(error));
-    setProducts((data as Product[]) ?? []);
+    setProducts((data as ProductRow[]) ?? []);
     setLoading(false);
   };
 
@@ -97,14 +118,25 @@ function CatalogPage() {
 
   const openNew = () => {
     setEditing(null);
-    setForm(empty);
+    setForm(emptyForm);
+    setImageUrlDraft("");
     setOpen(true);
   };
 
-  const openEdit = (p: Product) => {
+  const openEdit = (p: ProductRow) => {
     setEditing(p);
-    const { id: _id, ...rest } = p;
-    setForm(rest);
+    setForm({
+      name: p.name,
+      sku: p.sku ?? "",
+      description: p.description ?? "",
+      price: p.price,
+      stock: p.stock,
+      category: p.category ?? "",
+      supplier: p.supplier ?? "",
+      image_urls: normalizeProductImageUrls(p.image_urls, p.image_url),
+      active: p.active,
+    });
+    setImageUrlDraft("");
     setOpen(true);
   };
 
@@ -133,6 +165,12 @@ function CatalogPage() {
       toast.error("Nome é obrigatório");
       return;
     }
+    const urls = form.image_urls.map((u) => u.trim()).filter(Boolean);
+    const imgErr = validateProductImageCount(urls);
+    if (imgErr) {
+      toast.error(imgErr);
+      return;
+    }
     if (!organization) {
       toast.error(
         "Organização não carregada. Aguarde alguns segundos e tente de novo, ou recarregue a página.",
@@ -146,14 +184,16 @@ function CatalogPage() {
     setSaving(true);
     try {
       const payload = {
-        ...form,
-        sku: form.sku || null,
-        description: form.description || null,
-        category: form.category || null,
-        supplier: form.supplier || null,
-        image_url: form.image_url || null,
+        name: form.name.trim(),
+        sku: form.sku.trim() || null,
+        description: form.description.trim() || null,
+        category: form.category.trim() || null,
+        supplier: form.supplier.trim() || null,
+        image_urls: urls,
+        image_url: urls[0] ?? null,
         price: Number(form.price) || 0,
         stock: Number(form.stock) || 0,
+        active: form.active,
       };
       const { error } = editing
         ? await supabase.from("products").update(payload).eq("id", editing.id)
@@ -166,8 +206,11 @@ function CatalogPage() {
         toast.error(userFacingDataError(error));
         return;
       }
-      if (editing && editing.image_url !== payload.image_url) {
-        await removeStorageImageIfAny(editing.image_url);
+      if (editing) {
+        const prevUrls = normalizeProductImageUrls(editing.image_urls, editing.image_url);
+        for (const u of prevUrls) {
+          if (!urls.includes(u)) await removeStorageImageIfAny(u);
+        }
       }
       toast.success(editing ? "Produto salvo com sucesso." : "Produto criado com sucesso.");
       setOpen(false);
@@ -180,7 +223,7 @@ function CatalogPage() {
     }
   };
 
-  const toggleActive = async (p: Product) => {
+  const toggleActive = async (p: ProductRow) => {
     const { error } = await supabase
       .from("products")
       .update({ active: !p.active })
@@ -198,6 +241,10 @@ function CatalogPage() {
       toast.error(
         "Organização não carregada. Recarregue a página ou aguarde o painel terminar de carregar.",
       );
+      return;
+    }
+    if (form.image_urls.length >= MAX_PRODUCT_IMAGES) {
+      toast.error(`No máximo ${MAX_PRODUCT_IMAGES} imagens por produto.`);
       return;
     }
     if (!file.type.startsWith("image/")) {
@@ -228,11 +275,40 @@ function CatalogPage() {
         .from(PRODUCT_IMAGES_BUCKET)
         .getPublicUrl(objectPath);
       const publicUrl = data.publicUrl;
-      setForm((prev) => ({ ...prev, image_url: publicUrl }));
+      setForm((prev) => ({ ...prev, image_urls: [...prev.image_urls, publicUrl] }));
       toast.success("Imagem carregada");
     } finally {
       setUploadingImage(false);
     }
+  };
+
+  const removeImageAt = (index: number) => {
+    setForm((prev) => ({
+      ...prev,
+      image_urls: prev.image_urls.filter((_, i) => i !== index),
+    }));
+  };
+
+  const addImageUrlFromDraft = () => {
+    const u = imageUrlDraft.trim();
+    if (!u) {
+      toast.error("Cole uma URL de imagem.");
+      return;
+    }
+    if (!isLikelyHttpUrl(u)) {
+      toast.error("Informe uma URL http(s) válida.");
+      return;
+    }
+    if (form.image_urls.length >= MAX_PRODUCT_IMAGES) {
+      toast.error(`No máximo ${MAX_PRODUCT_IMAGES} imagens por produto.`);
+      return;
+    }
+    if (form.image_urls.includes(u)) {
+      toast.error("Esta URL já foi adicionada.");
+      return;
+    }
+    setForm((prev) => ({ ...prev, image_urls: [...prev.image_urls, u] }));
+    setImageUrlDraft("");
   };
 
   const exportCsv = () => {
@@ -240,18 +316,39 @@ function CatalogPage() {
       toast.error("Nenhum produto para exportar");
       return;
     }
-    const headers = ["Nome", "SKU", "Categoria", "Fornecedor", "Preço", "Estoque", "Ativo", "Descrição"];
+    const headers = [
+      "Nome",
+      "SKU",
+      "Categoria",
+      "Fornecedor",
+      "Preço",
+      "Estoque",
+      "Ativo",
+      "Descrição",
+      "Imagens",
+    ];
     const escape = (v: unknown) => {
       const s = v == null ? "" : String(v);
       return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
     const rows =
       products.length > 0
-        ? products.map((p) =>
-            [p.name, p.sku ?? "", p.category ?? "", p.supplier ?? "", p.price, p.stock, p.active ? "Sim" : "Não", p.description ?? ""]
+        ? products.map((p) => {
+            const imgs = normalizeProductImageUrls(p.image_urls, p.image_url);
+            return [
+              p.name,
+              p.sku ?? "",
+              p.category ?? "",
+              p.supplier ?? "",
+              p.price,
+              p.stock,
+              p.active ? "Sim" : "Não",
+              p.description ?? "",
+              imgs.join("|"),
+            ]
               .map(escape)
-              .join(","),
-          )
+              .join(",");
+          })
         : [];
     const csv = "\uFEFF" + [headers.join(","), ...rows].join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
@@ -319,6 +416,7 @@ function CatalogPage() {
       const iActive = idx(["ativo", "active"]);
       const iDesc = idx(["descrição", "descricao", "description"]);
       const iImage = idx(["imagem", "image", "image_url", "url_imagem", "url da imagem"]);
+      const iImages = idx(["imagens", "images", "urls_imagem", "urls imagem"]);
       if (iName === -1) {
         toast.error("Coluna 'Nome' não encontrada no CSV");
         return;
@@ -329,8 +427,13 @@ function CatalogPage() {
         return isNaN(n) ? parseFloat(v) || 0 : n;
       };
       const ownerSellerId = role === "vendedor" ? user?.id ?? null : null;
-      const payload = rows.slice(1)
-        .map((r) => ({
+      const rawRows = rows.slice(1).map((r) => {
+        const rawImgMulti = iImages >= 0 ? (r[iImages] ?? "").trim() : "";
+        const rawImgSingle = iImage >= 0 ? (r[iImage] ?? "").trim() : "";
+        const image_urls = rawImgMulti
+          ? parseImageUrlsFromCsvCell(rawImgMulti)
+          : parseImageUrlsFromCsvCell(rawImgSingle);
+        return {
           organization_id: organization.id,
           name: (r[iName] ?? "").trim(),
           sku: iSku >= 0 ? (r[iSku] ?? "").trim() || null : null,
@@ -340,12 +443,19 @@ function CatalogPage() {
           stock: iStock >= 0 ? Math.floor(num(r[iStock])) : 0,
           active: iActive >= 0 ? !/^(não|nao|no|false|0|inativo)$/i.test((r[iActive] ?? "").trim()) : true,
           description: iDesc >= 0 ? (r[iDesc] ?? "").trim() || null : null,
-          image_url: iImage >= 0 ? (r[iImage] ?? "").trim() || null : null,
+          image_urls,
+          image_url: image_urls[0] ?? null,
           owner_seller_id: ownerSellerId,
-        }))
-        .filter((p) => p.name);
+        };
+      });
+      const skippedBadImages = rawRows.filter((p) => p.name && validateProductImageCount(p.image_urls) !== null).length;
+      const payload = rawRows.filter((p) => p.name && validateProductImageCount(p.image_urls) === null);
       if (payload.length === 0) {
-        toast.error("Nenhum produto válido encontrado");
+        toast.error(
+          skippedBadImages > 0
+            ? "Nenhuma linha válida: cada produto precisa de 1 a 4 imagens (coluna Imagens ou Imagem)."
+            : "Nenhum produto válido encontrado",
+        );
         return;
       }
       const withSku = payload.filter((p) => p.sku);
@@ -395,6 +505,7 @@ function CatalogPage() {
             stock: p.stock,
             active: p.active,
             description: p.description,
+            image_urls: p.image_urls,
             image_url: p.image_url,
             owner_seller_id: p.owner_seller_id,
           })
@@ -415,7 +526,7 @@ function CatalogPage() {
 
       const skippedDuplicatedSku = withSku.length - dedupedWithSku.length;
       toast.success(
-        `Importação concluída: ${inserted} inseridos, ${updated} atualizados, ${failed} falhas, ${skippedDuplicatedSku} SKUs duplicados ignorados.`,
+        `Importação concluída: ${inserted} inseridos, ${updated} atualizados, ${failed} falhas, ${skippedDuplicatedSku} SKUs duplicados ignorados, ${skippedBadImages} linhas sem imagens válidas ignoradas.`,
       );
       load();
     } catch (e) {
@@ -504,14 +615,10 @@ function CatalogPage() {
                     />
                   </div>
                   <div className="grid gap-2">
-                    <Label>Imagem do produto</Label>
-                    <Input
-                      placeholder="Cole a URL da imagem (https://...)"
-                      value={form.image_url ?? ""}
-                      onChange={(e) =>
-                        setForm({ ...form, image_url: e.target.value })
-                      }
-                    />
+                    <Label>Fotos do produto ({form.image_urls.length}/{MAX_PRODUCT_IMAGES}) *</Label>
+                    <p className="text-xs text-muted-foreground">
+                      Obrigatório entre 1 e {MAX_PRODUCT_IMAGES} imagens. Você pode enviar arquivos ou colar URLs públicas (https).
+                    </p>
                     <input
                       ref={imageFileInputRef}
                       type="file"
@@ -528,34 +635,49 @@ function CatalogPage() {
                         type="button"
                         variant="outline"
                         onClick={() => imageFileInputRef.current?.click()}
-                        disabled={uploadingImage}
+                        disabled={uploadingImage || form.image_urls.length >= MAX_PRODUCT_IMAGES}
                       >
                         {uploadingImage ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <Upload className="h-4 w-4" />
                         )}{" "}
-                        Enviar da máquina
+                        Enviar arquivo
                       </Button>
-                      {form.image_url && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          onClick={() =>
-                            setForm((prev) => ({ ...prev, image_url: "" }))
-                          }
-                        >
-                          Remover imagem
-                        </Button>
-                      )}
                     </div>
-                    {form.image_url && (
-                      <div className="mt-1 rounded-lg border border-border bg-muted p-2">
-                        <img
-                          src={form.image_url}
-                          alt="Pré-visualização"
-                          className="h-28 w-28 rounded-md object-cover"
-                        />
+                    <div className="flex flex-wrap gap-2 items-center">
+                      <Input
+                        placeholder="https://…"
+                        value={imageUrlDraft}
+                        onChange={(e) => setImageUrlDraft(e.target.value)}
+                        className="flex-1 min-w-[12rem]"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            addImageUrlFromDraft();
+                          }
+                        }}
+                      />
+                      <Button type="button" variant="secondary" onClick={addImageUrlFromDraft}>
+                        Adicionar URL
+                      </Button>
+                    </div>
+                    {form.image_urls.length > 0 && (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-1">
+                        {form.image_urls.map((url, idx) => (
+                          <div key={`${url}-${idx}`} className="relative rounded-lg border border-border bg-muted overflow-hidden group">
+                            <img src={url} alt="" className="h-28 w-full object-cover" />
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="destructive"
+                              className="absolute top-1 right-1 h-8 w-8 p-0 opacity-90"
+                              onClick={() => removeImageAt(idx)}
+                            >
+                              ×
+                            </Button>
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -641,20 +763,28 @@ function CatalogPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {products.map((p) => (
+              {products.map((p) => {
+                const thumbs = normalizeProductImageUrls(p.image_urls, p.image_url);
+                const thumb = thumbs[0];
+                return (
                 <TableRow key={p.id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <div className="h-11 w-11 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
-                        {p.image_url ? (
+                      <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
+                        {thumb ? (
                           <img
-                            src={p.image_url}
+                            src={thumb}
                             alt={p.name}
                             loading="lazy"
                             className="h-full w-full object-cover"
                           />
                         ) : (
                           <div className="h-full w-full" />
+                        )}
+                        {thumbs.length > 1 && (
+                          <span className="absolute bottom-0 right-0 rounded-tl bg-background/90 px-1 text-[10px] font-medium border-t border-l border-border">
+                            +{thumbs.length - 1}
+                          </span>
                         )}
                       </div>
                       <div>
@@ -688,7 +818,8 @@ function CatalogPage() {
                     )}
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
             </TableBody>
           </Table>
         )}

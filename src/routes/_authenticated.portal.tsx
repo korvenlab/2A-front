@@ -27,9 +27,12 @@ import {
   Loader2,
   Search,
   PackageSearch,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useMenuGate } from "@/hooks/use-menu-gate";
 import { userFacingDataError } from "@/lib/supabase-user-error";
+import { normalizeProductImageUrls } from "@/lib/product-images";
 
 export const Route = createFileRoute("/_authenticated/portal")({
   head: () => ({ meta: [{ title: "Portal B2B — 2AVendas" }] }),
@@ -46,6 +49,7 @@ interface Product {
   stock: number;
   category: string | null;
   image_url: string | null;
+  image_urls: unknown;
 }
 
 interface CartLine {
@@ -78,6 +82,122 @@ const statusLabels: Record<string, string> = {
   faturado: "Faturado",
   cancelado: "Cancelado",
 };
+
+function CatalogProductCard({
+  p,
+  draftQty,
+  draftVariation,
+  onDraftQty,
+  onDraftVariation,
+  onAdd,
+}: {
+  p: Product;
+  draftQty: number;
+  draftVariation: string;
+  onDraftQty: (n: number) => void;
+  onDraftVariation: (v: string) => void;
+  onAdd: () => void;
+}) {
+  const gallery = normalizeProductImageUrls(p.image_urls, p.image_url);
+  const [idx, setIdx] = useState(0);
+  useEffect(() => setIdx(0), [p.id]);
+  const shown = gallery.length ? gallery[Math.min(idx, gallery.length - 1)] : null;
+
+  return (
+    <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden flex flex-col">
+      <div className="aspect-square bg-muted relative flex items-center justify-center overflow-hidden">
+        {shown ? (
+          <img src={shown} alt={p.name} loading="lazy" className="h-full w-full object-cover" />
+        ) : (
+          <Package className="h-12 w-12 text-muted-foreground/40" />
+        )}
+        {gallery.length > 1 && (
+          <>
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon"
+              className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full shadow-md opacity-90"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIdx((i) => (i - 1 + gallery.length) % gallery.length);
+              }}
+              aria-label="Imagem anterior"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="secondary"
+              size="icon"
+              className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 rounded-full shadow-md opacity-90"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIdx((i) => (i + 1) % gallery.length);
+              }}
+              aria-label="Próxima imagem"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1 px-2">
+              {gallery.map((_, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  className={`h-1.5 rounded-full transition-all ${
+                    i === idx ? "w-4 bg-primary" : "w-1.5 bg-background/80 ring-1 ring-border"
+                  }`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIdx(i);
+                  }}
+                  aria-label={`Foto ${i + 1}`}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+      <div className="p-4 flex flex-col flex-1">
+        {p.category && (
+          <div className="text-xs uppercase tracking-wide text-muted-foreground">{p.category}</div>
+        )}
+        <h3 className="font-semibold mt-1 line-clamp-2">{p.name}</h3>
+        <div className="mt-1 text-xs text-muted-foreground">
+          SKU: {p.sku ?? "—"} • Estoque: {p.stock}
+        </div>
+        {p.description && (
+          <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{p.description}</p>
+        )}
+        <div className="mt-3 space-y-2">
+          <Input
+            value={draftVariation}
+            onChange={(e) => onDraftVariation(e.target.value)}
+            placeholder="Variação (ex.: cor azul, tam M)"
+            className="h-9"
+          />
+          <div className="flex items-center gap-2">
+            <Input
+              type="number"
+              min={1}
+              max={Math.max(p.stock, 1)}
+              value={draftQty}
+              onChange={(e) => onDraftQty(Math.max(1, parseInt(e.target.value) || 1))}
+              className="h-9 w-24"
+            />
+            <div className="text-xs text-muted-foreground">Quantidade</div>
+          </div>
+        </div>
+        <div className="mt-auto pt-3 flex items-center justify-between">
+          <span className="text-lg font-bold text-primary">{brl(p.price)}</span>
+          <Button size="sm" disabled={p.stock <= 0} onClick={onAdd}>
+            <Plus className="h-4 w-4" /> Adicionar
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function Portal() {
   useMenuGate("portal");
@@ -189,7 +309,7 @@ function Portal() {
     setAllowedSellerIds(effectiveSellers);
     const productsQuery = supabase
       .from("products")
-      .select("id,owner_seller_id,name,sku,description,price,stock,category,image_url")
+      .select("id,owner_seller_id,name,sku,description,price,stock,category,image_url,image_urls")
       .eq("active", true)
       .order("name");
     const [{ data: prods }, { data: ords }] = await Promise.all([
@@ -468,81 +588,19 @@ function Portal() {
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {filtered.map((p) => (
-                <div
+                <CatalogProductCard
                   key={p.id}
-                  className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden flex flex-col"
-                >
-                  <div className="aspect-square bg-muted flex items-center justify-center">
-                    {p.image_url ? (
-                      <img
-                        src={p.image_url}
-                        alt={p.name}
-                        loading="lazy"
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <Package className="h-12 w-12 text-muted-foreground/40" />
-                    )}
-                  </div>
-                  <div className="p-4 flex flex-col flex-1">
-                    {p.category && (
-                      <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                        {p.category}
-                      </div>
-                    )}
-                    <h3 className="font-semibold mt-1 line-clamp-2">{p.name}</h3>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      SKU: {p.sku ?? "—"} • Estoque: {p.stock}
-                    </div>
-                    {p.description && (
-                      <p className="mt-1 text-sm text-muted-foreground line-clamp-2">
-                        {p.description}
-                      </p>
-                    )}
-                    <div className="mt-3 space-y-2">
-                      <Input
-                        value={draftVariationByProduct[p.id] ?? ""}
-                        onChange={(e) =>
-                          setDraftVariationByProduct((prev) => ({ ...prev, [p.id]: e.target.value }))
-                        }
-                        placeholder="Variação (ex.: cor azul, tam M)"
-                        className="h-9"
-                      />
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type="number"
-                          min={1}
-                          max={Math.max(p.stock, 1)}
-                          value={draftQtyByProduct[p.id] ?? 1}
-                          onChange={(e) =>
-                            setDraftQtyByProduct((prev) => ({
-                              ...prev,
-                              [p.id]: Math.max(1, parseInt(e.target.value) || 1),
-                            }))
-                          }
-                          className="h-9 w-24"
-                        />
-                        <div className="text-xs text-muted-foreground">Quantidade</div>
-                      </div>
-                    </div>
-                    <div className="mt-auto pt-3 flex items-center justify-between">
-                      <span className="text-lg font-bold text-primary">{brl(p.price)}</span>
-                      <Button
-                        size="sm"
-                        disabled={p.stock <= 0}
-                        onClick={() =>
-                          addToCart(
-                            p,
-                            draftQtyByProduct[p.id] ?? 1,
-                            draftVariationByProduct[p.id] ?? "",
-                          )
-                        }
-                      >
-                        <Plus className="h-4 w-4" /> Adicionar
-                      </Button>
-                    </div>
-                  </div>
-                </div>
+                  p={p}
+                  draftQty={draftQtyByProduct[p.id] ?? 1}
+                  draftVariation={draftVariationByProduct[p.id] ?? ""}
+                  onDraftQty={(n) => setDraftQtyByProduct((prev) => ({ ...prev, [p.id]: n }))}
+                  onDraftVariation={(v) =>
+                    setDraftVariationByProduct((prev) => ({ ...prev, [p.id]: v }))
+                  }
+                  onAdd={() =>
+                    addToCart(p, draftQtyByProduct[p.id] ?? 1, draftVariationByProduct[p.id] ?? "")
+                  }
+                />
               ))}
             </div>
           )}

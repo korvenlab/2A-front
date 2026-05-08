@@ -37,7 +37,7 @@ import { useMenuGate } from "@/hooks/use-menu-gate";
 import { userFacingDataError } from "@/lib/supabase-user-error";
 
 export const Route = createFileRoute("/_authenticated/vendedores")({
-  head: () => ({ meta: [{ title: "Gerar link de produtos — 2AVendas" }] }),
+  head: () => ({ meta: [{ title: "Equipe e convites — 2AVendas" }] }),
   component: SellersPage,
 });
 
@@ -73,6 +73,7 @@ function SellersPage() {
     const { data: rs, error } = await supabase
       .from("user_roles")
       .select("user_id")
+      .eq("organization_id", organization.id)
       .eq("role", "vendedor");
     if (error) toast.error(userFacingDataError(error));
 
@@ -113,6 +114,7 @@ function SellersPage() {
     const { data: inv } = await supabase
       .from("seller_invitations")
       .select("id,email,token,purpose,accepted_at,expires_at,created_at")
+      .eq("organization_id", organization.id)
       .order("created_at", { ascending: false });
     setInvites((inv as Invitation[]) ?? []);
     setLoading(false);
@@ -190,13 +192,17 @@ function SellersPage() {
   return (
     <div className="p-6 lg:p-10 space-y-8">
       <PageHeader
-        title="Gerar link de produtos"
-        description="Crie links para clientes acessarem o catálogo dos seus representantes."
+        title={role === "admin" ? "Equipe e convites" : "Gerar link de produtos"}
+        description={
+          role === "admin"
+            ? "Convide vendedores (link de cadastro) e gere links de catálogo para clientes da sua representação."
+            : "Crie links para clientes acessarem o catálogo dos seus representantes."
+        }
         action={
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button>
-                <Plus className="h-4 w-4" /> Gerar link para cliente
+                <Plus className="h-4 w-4" /> {role === "admin" ? "Novo convite ou link" : "Gerar link para cliente"}
               </Button>
             </DialogTrigger>
             <DialogContent>
