@@ -179,13 +179,12 @@ function SellersPage() {
     await load();
   };
 
-  const inviteUrl = (token: string, purpose: string) =>
-    purpose === "seller_signup"
-      ? `${window.location.origin}/signup?invite=${token}`
-      : `${window.location.origin}/portal?invite=${token}`;
+  /** Cliente novo: cadastro em `/signup` (com `invite_token` nos metadados). `/portal` exige login — link antigo “não levava a lugar” para quem ainda não tinha conta. */
+  const inviteUrl = (token: string) =>
+    `${window.location.origin}/signup?invite=${encodeURIComponent(token)}`;
 
-  const copyInvite = (token: string, purpose: string) => {
-    navigator.clipboard.writeText(inviteUrl(token, purpose));
+  const copyInvite = (token: string, _purpose: string) => {
+    navigator.clipboard.writeText(inviteUrl(token));
     toast.success("Link copiado");
   };
 
@@ -250,7 +249,7 @@ function SellersPage() {
                   <p className="text-xs text-muted-foreground">
                     {invitePurpose === "seller_signup"
                       ? "O representante deve abrir o link e criar conta para entrar como vendedor."
-                      : "O cliente deve fazer login e abrir este link para ver os produtos do representante."}
+                      : "O link abre o cadastro do cliente; ao criar a conta, ele fica vinculado ao representante que gerou o convite. Quem já tem conta pode entrar pelo login e usar o Portal de compras."}
                   </p>
                 </div>
               </div>
