@@ -26,13 +26,14 @@ type NavEntry = {
 };
 
 function AuthLayout() {
-  const { isAuthenticated, loading, signOut, profile, organization, menu, role } = useAuth();
+  const { isAuthenticated, loading, signingOut, signOut, profile, organization, menu, role } = useAuth();
   const navigate = useNavigate();
   const { location } = useRouterState();
 
   useEffect(() => {
     if (loading) return;
     if (!isAuthenticated) {
+      if (signingOut) return;
       const redirect = `${location.pathname}${location.search}`;
       const invite = new URLSearchParams(location.search).get("invite") ?? undefined;
       navigate({
@@ -48,7 +49,7 @@ function AuthLayout() {
     if (!role) {
       navigate({ to: "/portal" });
     }
-  }, [isAuthenticated, loading, menu.dashboard, menu.portal, navigate, location.pathname]);
+  }, [isAuthenticated, loading, signingOut, menu.dashboard, menu.portal, navigate, location.pathname, location.search]);
 
   const navItems = useMemo(() => {
     const items: NavEntry[] = [];

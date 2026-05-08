@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { flushSync } from "react-dom";
 import type { Session, User } from "@supabase/supabase-js";
+import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
   emptyMenu,
@@ -38,6 +40,8 @@ interface AuthState {
   menu: MenuFlags;
   loading: boolean;
   isAuthenticated: boolean;
+  /** True durante logout intencional — evita redirect para /login e flicker de erro nas rotas autenticadas. */
+  signingOut: boolean;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -70,6 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [role, setRole] = useState<AppRole | null>(null);
   const [menu, setMenu] = useState<MenuFlags>(emptyMenu());
   const [loading, setLoading] = useState(true);
+  const [signingOut, setSigningOut] = useState(false);
 
   const loadUserData = async (uid: string, accessToken?: string | null) => {
     const { data: prof } = await supabase
@@ -198,9 +203,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    if (typeof window !== "undefined") {
-      window.location.replace(resolvePublicHomeUrl());
+    flushSync(() => setSigningOut(true));
+    try {
+      await supabase.auth.signOut();
+      if (typeof window !== "undefined") {
+        window.location.replace(resolvePublicHomeUrl());
+      }
+    } catch (e) {
+      flushSync(() => setSigningOut(false));
+      throw e;
     }
   };
 
@@ -215,10 +226,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         menu,
         loading,
         isAuthenticated: !!session,
+        signingOut,
         refresh,
         signOut,
       }}
     >
+      {signingOut ? (
+        <div
+          className="fixed inset-0 z-[2147483647] flex flex-col items-center justify-center gap-4 bg-background"
+          role="status"
+          aria-live="polite"
+          aria-busy="true"
+        >
+          <Loader2 className="h-10 w-10 animate-spin text-primary" aria-hidden />
+          <p className="text-sm text-muted-foreground">Saindo…</p>
+        </div>
+      ) : null}
       {children}
     </AuthContext.Provider>
   );
