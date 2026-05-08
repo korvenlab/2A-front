@@ -33,7 +33,12 @@ function AuthLayout() {
   useEffect(() => {
     if (loading) return;
     if (!isAuthenticated) {
-      navigate({ to: "/login", search: { redirect: location.pathname } });
+      const redirect = `${location.pathname}${location.search}`;
+      const invite = new URLSearchParams(location.search).get("invite") ?? undefined;
+      navigate({
+        to: "/login",
+        search: invite ? { redirect, invite } : { redirect },
+      });
       return;
     }
     if (!menu.dashboard && menu.portal && location.pathname.startsWith("/dashboard")) {

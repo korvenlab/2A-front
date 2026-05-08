@@ -17,8 +17,9 @@ import { Eye, EyeOff, Loader2 } from "lucide-react";
 const REMEMBER_KEY = "2avendas.rememberedEmail";
 
 export const Route = createFileRoute("/login")({
-  validateSearch: (search: Record<string, unknown>): { redirect?: string } => ({
+  validateSearch: (search: Record<string, unknown>): { redirect?: string; invite?: string } => ({
     redirect: (search.redirect as string) || undefined,
+    invite: typeof search.invite === "string" ? search.invite : undefined,
   }),
   head: () => ({
     meta: [
@@ -34,10 +35,23 @@ const schema = z.object({
   password: z.string().min(6, { message: "Mínimo 6 caracteres" }).max(72),
 });
 
+function inviteTokenFromLoginSearch(search: { invite?: string; redirect?: string }) {
+  if (search.invite) return search.invite;
+  const red = search.redirect;
+  if (!red?.includes("invite=")) return undefined;
+  try {
+    const qs = red.includes("?") ? red.split("?")[1] ?? "" : "";
+    return new URLSearchParams(qs).get("invite") ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function LoginPage() {
   const { isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
   const search = Route.useSearch();
+  const inviteToken = inviteTokenFromLoginSearch(search);
   const [mode, setMode] = useState<"vendedor" | "cliente">("vendedor");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -182,8 +196,12 @@ function LoginPage() {
 
           <p className="mt-8 text-center text-sm text-muted-foreground">
             Ainda não tem uma conta?{" "}
-            <Link to="/signup" className="font-semibold text-primary hover:underline">
-              Cadastre sua representação
+            <Link
+              to="/signup"
+              search={inviteToken ? { invite: inviteToken } : undefined}
+              className="font-semibold text-primary hover:underline"
+            >
+              {inviteToken ? "Criar conta com o convite" : "Cadastre sua representação"}
             </Link>
           </p>
         </div>

@@ -140,12 +140,17 @@ function Portal() {
       return { customerId: existing.id, sellerId: existing.assigned_seller_id ?? sellerFromToken ?? null };
     }
     // Create one tied to this user
+    const clientCompany =
+      profile?.organization_client?.trim() ||
+      profile?.full_name?.trim() ||
+      user.email ||
+      "Cliente";
     const { data, error } = await supabase
       .from("customers")
       .insert({
         organization_id: organization.id,
         user_id: user.id,
-        name: profile?.full_name || user.email || "Cliente",
+        name: clientCompany,
         email: user.email ?? null,
         assigned_seller_id: sellerFromToken,
       })
