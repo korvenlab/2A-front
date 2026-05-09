@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/lib/auth-context";
-import { LoginTechnicalAside } from "@/components/auth/LoginTechnicalAside";
+import { LoginFlowAside } from "@/components/auth/LoginFlowAside";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 const REMEMBER_KEY = "2avendas.rememberedEmail";
 
 const loginInputClass =
-  "login-tech-input mt-1.5 h-11 rounded-none border border-[color:var(--tech-input-border)] bg-[color:var(--tech-bg)] px-3 text-sm font-medium text-[color:var(--tech-title)] placeholder:text-[color:var(--tech-label)] shadow-none focus-visible:ring-0";
+  "login-input-clean mt-1.5 h-11 px-3 text-sm font-normal text-[#333] placeholder:text-[#94a3b8] focus-visible:ring-0";
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>): { redirect?: string; invite?: string } => ({
@@ -104,32 +104,28 @@ function LoginPage() {
   };
 
   return (
-    <div className="login-split-brand tech-font-ui min-h-screen bg-[color:var(--tech-bg)] text-[color:var(--tech-sub)]">
-      <div className="border-b border-white/10 px-5 py-6 lg:hidden">
-        <p className="tech-font-mono text-[9px] font-semibold uppercase tracking-[2.5px] text-[color:var(--tech-label)]">
-          Pedidos link B2B
-        </p>
-        <p className="mt-2 text-xs leading-relaxed text-[color:var(--tech-sub)]">
-          Novos pedidos pelo link entram na fila do painel após o login.
+    <div className="flex min-h-screen flex-col bg-[#F8FAFC] font-sans antialiased">
+      <div className="border-b-2 border-[#002B5B] bg-white px-5 py-5 lg:hidden">
+        <p className="text-sm font-normal leading-relaxed text-[#002B5B]">
+          Sua operação B2B centralizada: Vendedores, Funil e Pedidos via Link.
         </p>
       </div>
 
-      <div className="grid min-h-[calc(100vh-1px)] lg:grid-cols-[minmax(0,1fr)_min(100%,440px)]">
-        <LoginTechnicalAside />
+      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+        <LoginFlowAside />
 
-        <div className="flex flex-col justify-center border-l border-white/10 px-6 py-12 lg:min-h-screen lg:px-12 xl:px-14">
-          <div className="mx-auto w-full max-w-[360px] text-left">
-            <div className="mb-10">
-              <Logo light />
+        <div className="flex flex-1 flex-col items-center justify-center px-4 py-12 sm:px-6 lg:min-h-screen lg:py-16 xl:px-10">
+          <div className="w-full max-w-[400px] rounded-[4px] border-2 border-[#002B5B] bg-white p-8 shadow-[4px_4px_0_0_#002B5B]">
+            <div className="mb-9 flex justify-start">
+              <Logo light={false} />
             </div>
 
-            <h1 className="tech-font-mono text-xl font-semibold uppercase tracking-[2.5px] text-[color:var(--tech-title)]">
-              Acesso
-            </h1>
+            <h1 className="text-xl font-semibold tracking-tight text-[#002B5B]">Entrar na conta</h1>
+            <p className="mt-2 text-sm font-normal text-[#333]">Use seu e-mail e senha cadastrados.</p>
 
-            <form onSubmit={onSubmit} className="mt-8 space-y-5">
+            <form onSubmit={onSubmit} className="mt-8 space-y-5 text-left">
               <div>
-                <Label htmlFor="email" className="tech-font-ui text-xs font-medium text-[color:var(--tech-label)]">
+                <Label htmlFor="email" className="text-sm font-medium text-[#002B5B]">
                   E-mail
                 </Label>
                 <Input
@@ -144,7 +140,7 @@ function LoginPage() {
                 />
               </div>
               <div>
-                <Label htmlFor="password" className="tech-font-ui text-xs font-medium text-[color:var(--tech-label)]">
+                <Label htmlFor="password" className="text-sm font-medium text-[#002B5B]">
                   Senha
                 </Label>
                 <div className="relative mt-1.5">
@@ -160,8 +156,8 @@ function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setShowPwd((s) => !s)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[color:var(--tech-label)] hover:text-[color:var(--tech-title)]"
-                    aria-label={showPwd ? "Ocultar" : "Mostrar"}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[#64748B] hover:text-[#002B5B]"
+                    aria-label={showPwd ? "Ocultar senha" : "Mostrar senha"}
                   >
                     {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -169,7 +165,7 @@ function LoginPage() {
                 <div className="mt-2 flex justify-end">
                   <Link
                     to="/forgot-password"
-                    className="tech-font-ui text-[11px] text-[color:var(--tech-label)] underline-offset-2 hover:text-[color:var(--tech-sub)] hover:underline"
+                    className="text-xs font-normal text-[#0056b3] underline-offset-2 hover:underline"
                   >
                     Esqueci minha senha
                   </Link>
@@ -181,49 +177,53 @@ function LoginPage() {
                   id="remember"
                   checked={remember}
                   onCheckedChange={(v) => setRemember(!!v)}
-                  className="rounded-none border-[color:var(--tech-input-border)] bg-[color:var(--tech-bg)] shadow-none focus-visible:ring-1 focus-visible:ring-white/30 data-[state=checked]:border-white data-[state=checked]:bg-white data-[state=checked]:text-black"
+                  className="rounded-[4px] border border-[#CBD5E1] bg-white shadow-none focus-visible:ring-2 focus-visible:ring-[#0056b3]/35 data-[state=checked]:border-[#0056b3] data-[state=checked]:bg-[#0056b3] data-[state=checked]:text-white"
                 />
-                <Label htmlFor="remember" className="tech-font-ui cursor-pointer text-xs font-normal text-[color:var(--tech-label)]">
+                <Label htmlFor="remember" className="cursor-pointer text-sm font-normal text-[#333]">
                   Lembrar e-mail
                 </Label>
               </div>
 
               <Button
                 type="submit"
-                className="tech-font-ui h-11 w-full rounded-none border-0 bg-white text-sm font-semibold uppercase tracking-[2px] text-black shadow-none hover:bg-[#e8e8e8]"
+                className="h-11 w-full rounded-[4px] border-0 bg-[#0056b3] text-sm font-semibold text-white shadow-none hover:bg-[#004494]"
                 disabled={submitting}
               >
-                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "ENTRAR"}
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Entrar"}
               </Button>
             </form>
 
             <div className="my-8 flex items-center gap-3">
-              <div className="h-px flex-1 bg-[color:var(--tech-input-border)]" />
-              <span className="tech-font-mono text-[10px] uppercase tracking-[2px] text-[color:var(--tech-label)]">ou</span>
-              <div className="h-px flex-1 bg-[color:var(--tech-input-border)]" />
+              <div className="h-px flex-1 bg-[#E0E7FF]" />
+              <span className="text-xs font-normal text-[#64748B]">ou</span>
+              <div className="h-px flex-1 bg-[#E0E7FF]" />
             </div>
 
             <Button
               variant="outline"
-              className="tech-font-ui h-11 w-full rounded-none border border-[color:var(--tech-input-border)] bg-transparent text-sm font-medium text-[color:var(--tech-sub)] shadow-none hover:border-white/25 hover:bg-white/[0.04] hover:text-[color:var(--tech-title)]"
+              className="h-11 w-full rounded-[4px] border-2 border-[#002B5B] bg-white text-sm font-medium text-[#002B5B] shadow-none hover:bg-[#F8FAFC]"
               onClick={onGoogle}
               disabled={submitting}
             >
               <GoogleIcon /> Continuar com Google
             </Button>
 
-            <p className="mt-10 text-left text-xs leading-relaxed text-[color:var(--tech-sub)]">
+            <p className="mt-10 text-left text-xs font-normal leading-relaxed text-[#333]">
               {inviteToken ? (
                 <>
                   Primeiro acesso?{" "}
-                  <Link to="/signup" search={{ invite: inviteToken }} className="text-[color:var(--tech-title)] underline-offset-2 hover:underline">
+                  <Link
+                    to="/signup"
+                    search={{ invite: inviteToken }}
+                    className="font-medium text-[#0056b3] underline-offset-2 hover:underline"
+                  >
                     Criar conta com o convite
                   </Link>
                 </>
               ) : (
                 <>
                   Ainda não tem conta?{" "}
-                  <Link to="/signup" className="text-[color:var(--tech-title)] underline-offset-2 hover:underline">
+                  <Link to="/signup" className="font-medium text-[#0056b3] underline-offset-2 hover:underline">
                     Cadastre sua representação
                   </Link>
                 </>

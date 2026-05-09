@@ -27,8 +27,8 @@ export function LandingHeader({ technical }: { technical?: boolean }) {
           <a href="#fluxo" className={technical ? "hover:text-[#0056b3]" : "hover:text-foreground"}>
             Fluxo
           </a>
-          <a href="#entrega" className={technical ? "hover:text-[#0056b3]" : "hover:text-foreground"}>
-            Entrega
+          <a href="#capacidades" className={technical ? "hover:text-[#0056b3]" : "hover:text-foreground"}>
+            Capacidades
           </a>
           <a href="#pricing" className={technical ? "hover:text-[#0056b3]" : "hover:text-foreground"}>
             Preços

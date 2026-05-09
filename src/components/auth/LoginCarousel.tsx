@@ -53,16 +53,7 @@ export function LoginCarousel() {
   }, []);
 
   return (
-    <div
-      className="login-split-brand relative flex min-h-screen w-full flex-col bg-white"
-      style={{
-        backgroundImage: `
-          linear-gradient(rgba(59, 130, 246, 0.06) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(59, 130, 246, 0.06) 1px, transparent 1px)
-        `,
-        backgroundSize: "56px 56px",
-      }}
-    >
+    <div className="login-split-brand relative flex min-h-screen w-full flex-col bg-white">
       {slides.map((s, i) => {
         const Icon = s.icon;
         return (
@@ -74,11 +65,11 @@ export function LoginCarousel() {
           >
             <div className="flex flex-1 flex-col justify-center px-10 pb-6 pt-14 lg:px-14 lg:pt-16">
               <div className="mx-auto w-full max-w-2xl">
-                <div className="overflow-hidden rounded-[6px] border border-[color:var(--landing-blue-line)] bg-neutral-50 shadow-sm">
+                <div className="overflow-hidden rounded-[4px] border-2 border-[#002B5B] bg-white shadow-[4px_4px_0_0_#002B5B]">
                   <img
                     src={s.image}
                     alt=""
-                    className="block max-h-[min(440px,48vh)] w-full object-cover object-top"
+                    className="block max-h-[min(440px,48vh)] w-full bg-white object-cover object-top"
                     loading={i === 0 ? "eager" : "lazy"}
                   />
                 </div>

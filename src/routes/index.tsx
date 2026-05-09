@@ -2,13 +2,13 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { LandingHeader } from "@/components/landing/Header";
 import { LandingFooter } from "@/components/landing/Footer";
-import { DataFlowAnimation } from "@/components/landing/DataFlowAnimation";
+import { HeroSystemFlow } from "@/components/landing/HeroSystemFlow";
 import { Check } from "lucide-react";
 
 /** Marinho #002B5B contorno forte; #E0E7FF itens internos; página #F8FAFC */
 const r = "rounded-[4px]";
 const borderInner = "border border-[#E0E7FF]";
-const borderOuterNavy = "border border-[#002B5B]";
+const borderOuterNavy = "border-2 border-[#002B5B]";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -36,18 +36,48 @@ const fluxoPedido = [
   { etapa: "3", texto: "O pedido aparece no seu painel." },
 ];
 
-const entregaCols = [
+const capacidadesCards = [
   {
-    titulo: "Link de pedidos",
-    texto: "Cliente compra pelo celular ou PC com seu link.",
+    titulo: "Centralização de representantes",
+    texto:
+      "Gerencie toda a sua equipe externa em um só lugar, com controle de quem atende qual cliente.",
   },
   {
-    titulo: "Dashboard único",
-    texto: "Pedidos em uma tela.",
+    titulo: "Organização via funil",
+    texto:
+      "Visualize o status de cada negociação e pedido em colunas claras, do primeiro contato ao fechamento.",
   },
   {
-    titulo: "Multi-empresa",
-    texto: "Várias representações no mesmo lugar.",
+    titulo: "Disparo de WhatsApp",
+    texto:
+      "Envie atualizações de pedidos e catálogos para seus clientes B2B direto pelo WhatsApp de forma organizada.",
+  },
+  {
+    titulo: "Link de pedido direto",
+    texto: "Seu catálogo vira um link para o cliente comprar sozinho e o pedido cair direto no seu painel.",
+  },
+];
+
+const textoPorSecao = [
+  {
+    titulo: "Gestão de equipe",
+    corpo:
+      "A centralização mata a bagunça de planilhas e grupos soltos: cada representante no radar, com permissões claras e histórico na mesma base. Você mantém controle total sobre quem fala com quem, sem perder o fio da operação B2B.",
+  },
+  {
+    titulo: "Funil de vendas",
+    corpo:
+      "Negociações e pedidos ganham colunas nítidas — do primeiro contato ao fechamento — para você enxergar gargalos sem achismo. É organização visível, branco e azul marinho, com ritmo previsível e centralização do que importa.",
+  },
+  {
+    titulo: "Automação de WhatsApp",
+    corpo:
+      "Dispare atualizações e avisos com método: mensagens alinhadas ao pedido e ao cliente, sem spam e sem caos de prints. Controle total do que sai da sua operação; o cliente recebe informação certa, sem bagunça na comunicação.",
+  },
+  {
+    titulo: "Portal do cliente",
+    corpo:
+      "O link do catálogo vira vitrine e checkout B2B com bordas definidas: seu cliente compra sozinho e o pedido cai centralizado no painel. Menos retrabalho, mais previsibilidade — centralização de ponta a ponta, sem ruído visual nem operacional.",
   },
 ];
 
@@ -94,7 +124,7 @@ function LinkProtagonistField() {
 function HeroProdutoVisual() {
   return (
     <div className={`${r} ${borderOuterNavy} bg-white p-5 md:p-7`}>
-      <DataFlowAnimation />
+      <HeroSystemFlow />
     </div>
   );
 }
@@ -194,18 +224,31 @@ function Landing() {
         </div>
       </section>
 
-      <section id="entrega" className="border-b border-[#E0E7FF]">
+      <section id="capacidades" className="border-b border-[#E0E7FF]">
         <div className="container mx-auto max-w-6xl px-4 py-24 text-left lg:py-32">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#0056b3]">Entrega</p>
-          <h2 className="landing-heading mt-4 max-w-2xl text-xl">O que está no produto</h2>
-          <div className={`mt-16 grid grid-cols-1 overflow-hidden ${r} ${borderOuterNavy} bg-white md:grid-cols-3`}>
-            {entregaCols.map(({ titulo, texto }) => (
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#0056b3]">Capacidades</p>
+          <h2 className="landing-heading mt-4 max-w-2xl text-xl">Capacidades do sistema</h2>
+          <p className="mt-3 max-w-2xl text-sm font-normal text-[#333]">
+            Cards com contorno marcado e sombra sólida — engenharia visual para leitura rápida.
+          </p>
+
+          <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {capacidadesCards.map(({ titulo, texto }) => (
               <div
                 key={titulo}
-                className="border-b border-[#E0E7FF] bg-white p-8 last:border-b-0 md:border-r md:border-b-0 md:last:border-r-0"
+                className={`flex flex-col ${r} border-2 border-[#002B5B] bg-white p-6 shadow-[4px_4px_0_0_#002B5B]`}
               >
-                <h3 className="landing-heading text-base">{titulo}</h3>
-                <p className="mt-4 text-sm font-normal leading-relaxed text-[#333]">{texto}</p>
+                <h3 className="landing-heading text-base leading-snug text-[#002B5B]">{titulo}</h3>
+                <p className="mt-4 flex-1 text-sm font-normal leading-relaxed text-[#333]">{texto}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-20 grid gap-10 md:grid-cols-2 md:gap-x-12 md:gap-y-12">
+            {textoPorSecao.map(({ titulo, corpo }) => (
+              <div key={titulo} className={`${r} border border-[#E0E7FF] border-l-4 border-l-[#002B5B] bg-white p-6`}>
+                <h3 className="landing-heading text-base text-[#002B5B]">{titulo}</h3>
+                <p className="mt-4 text-sm font-normal leading-relaxed text-[#333]">{corpo}</p>
               </div>
             ))}
           </div>

@@ -31,8 +31,8 @@ export function LandingFooter({ technical }: { technical?: boolean }) {
               </a>
             </li>
             <li>
-              <a href="#entrega" className={technical ? "text-[#333] hover:text-[#0056b3]" : "text-muted-foreground hover:text-foreground"}>
-                Entrega
+              <a href="#capacidades" className={technical ? "text-[#333] hover:text-[#0056b3]" : "text-muted-foreground hover:text-foreground"}>
+                Capacidades
               </a>
             </li>
             <li>

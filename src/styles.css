@@ -200,13 +200,89 @@
   letter-spacing: 0.18em;
 }
 
-/* Login: foco neon branco + glow fino */
+/* Login escuro legado (carousel signup): foco neon */
 .login-tech-input:focus-visible {
   outline: none;
   border-color: rgba(255, 255, 255, 0.8);
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.15),
     0 0 18px rgba(255, 255, 255, 0.06);
+}
+
+/* Login claro — borda nítida; foco royal 2px */
+.login-input-clean {
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background-color: #ffffff;
+  box-shadow: none;
+}
+
+.login-input-clean:focus-visible {
+  outline: none;
+  border-width: 2px;
+  border-color: #0056b3;
+}
+
+/* Fluxo lateral do login (~9s) */
+@keyframes login-flow-line-move {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+@keyframes login-flow-line-move-v {
+  0% {
+    background-position: 50% 0%;
+  }
+  100% {
+    background-position: 50% 200%;
+  }
+}
+
+.login-flow-line-h {
+  background: linear-gradient(90deg, #e0e7ff 0%, #0056b3 42%, #0056b3 58%, #e0e7ff 100%);
+  background-size: 200% 100%;
+  animation: login-flow-line-move 9s linear infinite;
+}
+
+.login-flow-line-v {
+  background: linear-gradient(180deg, #e0e7ff 0%, #0056b3 42%, #0056b3 58%, #e0e7ff 100%);
+  background-size: 100% 220%;
+  animation: login-flow-line-move-v 9s linear infinite;
+}
+
+@keyframes login-flow-node-pulse {
+  0%,
+  28% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  33%,
+  94% {
+    opacity: 0.38;
+    transform: translateY(1px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.login-flow-pulse-a {
+  animation: login-flow-node-pulse 9s ease-in-out infinite;
+}
+
+.login-flow-pulse-b {
+  animation: login-flow-node-pulse 9s ease-in-out infinite;
+  animation-delay: -3s;
+}
+
+.login-flow-pulse-c {
+  animation: login-flow-node-pulse 9s ease-in-out infinite;
+  animation-delay: -6s;
 }
 
 /* Landing “hard tech” */
@@ -250,107 +326,182 @@
   animation: landing-cursor-blink 1.05s step-end infinite;
 }
 
-/* Data-flow hero (~6s, ciclo Korven) */
-@keyframes landing-dataflow-link-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.09);
-    opacity: 0.88;
-  }
+/* Hero sistema (~6s): painéis em sequência + feixes + dado / WhatsApp / dashboard */
+.hero-sys-root {
+  contain: layout style;
 }
 
-.landing-dataflow-link-icon {
-  animation: landing-dataflow-link-pulse 6s ease-in-out infinite;
-}
-
-@keyframes landing-dataflow-row-pick {
+@keyframes hero-sys-panel-ring {
   0%,
-  6% {
-    border-color: #e0e7ff;
-    background-color: #ffffff;
-  }
   10%,
-  22% {
-    border-color: #0056b3;
-    background-color: #eff6ff;
-  }
-  28%,
+  42%,
   100% {
     border-color: #e0e7ff;
-    background-color: #ffffff;
+    box-shadow: none;
+  }
+  14%,
+  34% {
+    border-color: #002b5b;
+    box-shadow: 3px 3px 0 0 #002b5b;
   }
 }
 
-.landing-dataflow-catalog-row:nth-child(1) {
-  animation: landing-dataflow-row-pick 6s ease-in-out infinite;
+.hero-sys-panel-a {
+  animation: hero-sys-panel-ring 6s ease-in-out infinite;
 }
 
-.landing-dataflow-catalog-row:nth-child(2) {
-  animation: landing-dataflow-row-pick 6s ease-in-out infinite;
+.hero-sys-panel-b {
+  animation: hero-sys-panel-ring 6s ease-in-out infinite;
   animation-delay: -2s;
 }
 
-.landing-dataflow-catalog-row:nth-child(3) {
-  animation: landing-dataflow-row-pick 6s ease-in-out infinite;
+.hero-sys-panel-c {
+  animation: hero-sys-panel-ring 6s ease-in-out infinite;
   animation-delay: -4s;
 }
 
-@keyframes landing-dataflow-order {
+@keyframes hero-sys-dice-move {
   0%,
-  48% {
-    opacity: 0.25;
-    transform: translateY(10px);
+  38%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
   }
-  54%,
+  6%,
+  24% {
+    transform: translate(12px, -8px) rotate(24deg);
+  }
+}
+
+.hero-sys-dice {
+  animation: hero-sys-dice-move 6s ease-in-out infinite;
+}
+
+@keyframes hero-sys-wa-pop {
+  0%,
+  34%,
+  100% {
+    opacity: 0.55;
+    transform: scale(1);
+  }
+  38%,
+  58% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
+.hero-sys-wa {
+  animation: hero-sys-wa-pop 6s ease-in-out infinite;
+}
+
+@keyframes hero-sys-dash-pop {
+  0%,
+  66%,
+  100% {
+    opacity: 0.62;
+    transform: scale(1);
+  }
+  70%,
+  92% {
+    opacity: 1;
+    transform: scale(1.07);
+  }
+}
+
+.hero-sys-dash {
+  animation: hero-sys-dash-pop 6s ease-in-out infinite;
+}
+
+@keyframes hero-sys-beam-h {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  8% {
+    opacity: 1;
+  }
+  92% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(220%);
+    opacity: 0;
+  }
+}
+
+.hero-sys-track-h {
+  position: relative;
+  height: 3px;
+  flex: 1 1 auto;
+  min-width: 1.75rem;
+  max-width: 5.5rem;
+  overflow: hidden;
+  border-radius: 9999px;
+  background-color: #e8eefc;
+}
+
+.hero-sys-beam-h {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: min(70%, 4rem);
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, transparent 0%, #0056b3 45%, transparent 100%);
+  animation: hero-sys-beam-h 6s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes hero-sys-beam-v {
+  0% {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
   90% {
     opacity: 1;
-    transform: translateY(0);
-  }
-  96%,
-  100% {
-    opacity: 0.25;
-    transform: translateY(10px);
-  }
-}
-
-.landing-dataflow-order-panel {
-  animation: landing-dataflow-order 6s ease-in-out infinite;
-}
-
-@keyframes landing-dataflow-line-move {
-  0% {
-    background-position: 0% 50%;
   }
   100% {
-    background-position: 200% 50%;
+    transform: translateY(220%);
+    opacity: 0;
   }
 }
 
-.landing-dataflow-line-h {
-  height: 3px;
-  border-radius: 2px;
-  background: linear-gradient(90deg, #e0e7ff 0%, #0056b3 40%, #0056b3 60%, #e0e7ff 100%);
-  background-size: 200% 100%;
-  animation: landing-dataflow-line-move 6s linear infinite;
-}
-
-@keyframes landing-dataflow-line-move-v {
-  0% {
-    background-position: 50% 0%;
-  }
-  100% {
-    background-position: 50% 200%;
-  }
-}
-
-.landing-dataflow-line-v {
+.hero-sys-track-v {
+  position: relative;
+  height: 2.5rem;
   width: 3px;
-  border-radius: 2px;
-  background: linear-gradient(180deg, #e0e7ff 0%, #0056b3 40%, #0056b3 60%, #e0e7ff 100%);
-  background-size: 100% 250%;
-  animation: landing-dataflow-line-move-v 6s linear infinite;
+  overflow: hidden;
+  border-radius: 9999px;
+  background-color: #e8eefc;
+}
+
+.hero-sys-beam-v {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: min(72%, 2rem);
+  width: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, transparent 0%, #0056b3 45%, transparent 100%);
+  animation: hero-sys-beam-v 6s ease-in-out infinite;
+  will-change: transform;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-sys-panel-a,
+  .hero-sys-panel-b,
+  .hero-sys-panel-c,
+  .hero-sys-dice,
+  .hero-sys-wa,
+  .hero-sys-dash,
+  .hero-sys-beam-h,
+  .hero-sys-beam-v {
+    animation: none !important;
+  }
+
+  .hero-sys-panel-c {
+    border-color: #002b5b;
+    box-shadow: 3px 3px 0 0 #002b5b;
+  }
 }
