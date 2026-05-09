@@ -244,30 +244,6 @@ function Landing() {
         </div>
       </section>
 
-      <section>
-        <div className="container mx-auto max-w-6xl px-4 py-24 lg:py-32">
-          <div className={`${r} ${borderOuterNavy} bg-white px-8 py-12 lg:px-12 lg:py-14`}>
-            <div className="grid gap-10 text-left lg:grid-cols-2 lg:items-center lg:gap-16">
-              <div>
-                <h2 className="landing-heading text-xl lg:text-2xl">Configure o link e envie para os clientes.</h2>
-                <p className="mt-4 text-sm font-normal leading-relaxed text-[#333]">
-                  Conta em minutos. Catálogo no ar; link quando você quiser.
-                </p>
-              </div>
-              <div className="flex justify-start lg:justify-end">
-                <Button
-                  size="lg"
-                  asChild
-                  className={`h-11 ${r} border-0 bg-[#0056b3] px-8 text-sm font-semibold text-white shadow-none hover:bg-[#004494]`}
-                >
-                  <Link to="/signup">Criar meu link de vendas</Link>
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <LandingFooter technical />
     </div>
   );
