@@ -2,28 +2,35 @@ import { useEffect, useState } from "react";
 import heroImg from "@/assets/login-hero.jpg";
 import mobileImg from "@/assets/mobile-app.jpg";
 import referralImg from "@/assets/referral.jpg";
-import { Smartphone, Gift, Sparkles, Apple } from "lucide-react";
+import { Smartphone, Gift, Link2, Apple } from "lucide-react";
 
 const slides = [
   {
     image: heroImg,
-    eyebrow: "Novidade",
-    title: "Dashboard B2B totalmente repaginado",
-    description: "Acompanhe vendas, metas e a performance dos seus vendedores em tempo real.",
-    icon: Sparkles,
+    eyebrow: "Painel",
+    title: "Acesse seus pedidos e gerencie sua equipe.",
+    description:
+      "Seus clientes estão comprando agora? Verifique os novos pedidos feitos pelo seu link exclusivo.",
+    icon: Link2,
   },
   {
     image: mobileImg,
-    eyebrow: "App 2AVendas",
+    eyebrow: "Mobile",
     title: "Sua representação no bolso",
-    description: "Baixe agora para iOS e Android e venda de qualquer lugar.",
+    description: "Baixe agora para iOS e Android e acompanhe pedidos de qualquer lugar.",
     icon: Smartphone,
     cta: (
-      <div className="flex gap-3 mt-6">
-        <button className="flex items-center gap-2 rounded-xl bg-primary-foreground/10 backdrop-blur px-4 py-2.5 text-sm font-semibold text-primary-foreground border border-primary-foreground/20 hover:bg-primary-foreground/20 transition">
+      <div className="mt-6 flex gap-3">
+        <button
+          type="button"
+          className="flex items-center gap-2 rounded-[6px] border border-[color:var(--landing-blue-line)] bg-[color:var(--landing-blue-fill)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[color:var(--landing-blue-fill-strong)]"
+        >
           <Apple className="h-5 w-5" /> App Store
         </button>
-        <button className="flex items-center gap-2 rounded-xl bg-primary-foreground/10 backdrop-blur px-4 py-2.5 text-sm font-semibold text-primary-foreground border border-primary-foreground/20 hover:bg-primary-foreground/20 transition">
+        <button
+          type="button"
+          className="flex items-center gap-2 rounded-[6px] border border-[color:var(--landing-blue-line)] bg-[color:var(--landing-blue-fill)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[color:var(--landing-blue-fill-strong)]"
+        >
           <Smartphone className="h-5 w-5" /> Google Play
         </button>
       </div>
@@ -31,7 +38,7 @@ const slides = [
   },
   {
     image: referralImg,
-    eyebrow: "Indique e Ganhe",
+    eyebrow: "Indicação",
     title: "Ganhe 1 mês grátis a cada indicação",
     description: "Convide outras representações e receba créditos a cada cadastro confirmado.",
     icon: Gift,
@@ -46,43 +53,66 @@ export function LoginCarousel() {
   }, []);
 
   return (
-    <div className="relative h-full w-full overflow-hidden" style={{ background: "var(--gradient-hero)" }}>
+    <div
+      className="login-split-brand relative flex min-h-screen w-full flex-col bg-[#0a0a0a]"
+      style={{
+        backgroundImage: `
+          linear-gradient(rgba(96, 165, 250, 0.07) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(96, 165, 250, 0.07) 1px, transparent 1px)
+        `,
+        backgroundSize: "56px 56px",
+      }}
+    >
       {slides.map((s, i) => {
         const Icon = s.icon;
         return (
           <div
             key={i}
-            className={`absolute inset-0 flex flex-col justify-end p-12 transition-opacity duration-700 ${
-              i === idx ? "opacity-100" : "opacity-0 pointer-events-none"
+            className={`absolute inset-0 flex flex-col transition-opacity duration-700 ${
+              i === idx ? "opacity-100" : "pointer-events-none opacity-0"
             }`}
           >
-            <img
-              src={s.image}
-              alt=""
-              className="absolute inset-0 h-full w-full object-cover opacity-30 mix-blend-luminosity"
-              loading={i === 0 ? "eager" : "lazy"}
-            />
-            <div
-              className="absolute inset-0"
-              style={{ background: "linear-gradient(180deg, transparent 30%, oklch(0.20 0.10 258 / 0.85) 100%)" }}
-            />
-            <div className="relative z-10 max-w-md text-primary-foreground">
-              <div className="inline-flex items-center gap-2 rounded-full bg-primary-foreground/15 backdrop-blur px-3 py-1 text-xs font-semibold uppercase tracking-wider">
-                <Icon className="h-3.5 w-3.5" /> {s.eyebrow}
+            <div className="flex flex-1 flex-col justify-center px-10 pb-6 pt-14 lg:px-14 lg:pt-16">
+              <div className="mx-auto w-full max-w-2xl">
+                <div className="overflow-hidden rounded-[6px] border border-[color:var(--landing-blue-line)] bg-[#111]">
+                  <img
+                    src={s.image}
+                    alt=""
+                    className="block max-h-[min(440px,48vh)] w-full object-cover object-top"
+                    loading={i === 0 ? "eager" : "lazy"}
+                  />
+                </div>
               </div>
-              <h2 className="mt-4 text-3xl lg:text-4xl font-bold leading-tight">{s.title}</h2>
-              <p className="mt-3 text-base text-primary-foreground/80">{s.description}</p>
-              {s.cta}
+            </div>
+
+            <div className="relative border-t border-[color:var(--landing-blue-line-faint)] bg-[#0a0a0a] px-10 py-10 lg:px-14">
+              <div className="mx-auto max-w-lg">
+                <div className="flex items-center gap-2 border-l-2 border-[color:var(--landing-blue-bright)] pl-3">
+                  <Icon className="h-4 w-4 shrink-0 text-[color:var(--landing-blue-bright)]" strokeWidth={1.5} />
+                  <span className="text-[11px] font-medium uppercase tracking-wider text-[color:var(--landing-blue-soft)]">
+                    {s.eyebrow}
+                  </span>
+                </div>
+                <h2 className="mt-4 text-2xl font-semibold leading-snug tracking-tight text-white lg:text-[1.65rem]">
+                  {s.title}
+                </h2>
+                <p className="mt-3 text-sm leading-relaxed text-[color:var(--landing-blue-soft)] lg:text-[15px]">{s.description}</p>
+                {s.cta}
+              </div>
             </div>
           </div>
         );
       })}
-      <div className="absolute bottom-6 right-12 z-20 flex gap-2">
+
+      <div className="absolute bottom-6 right-10 z-20 flex gap-1.5 lg:right-14">
         {slides.map((_, i) => (
           <button
             key={i}
+            type="button"
             onClick={() => setIdx(i)}
-            className={`h-1.5 rounded-full transition-all ${i === idx ? "w-8 bg-primary-foreground" : "w-1.5 bg-primary-foreground/40"}`}
+            className={`h-2 rounded-[3px] transition-all ${
+              i === idx ? "w-8 bg-[color:var(--landing-blue-bright)]" : "w-2 bg-[color:var(--landing-blue-line)] hover:bg-[color:var(--landing-blue-soft)]"
+            }`}
             aria-label={`Slide ${i + 1}`}
           />
         ))}
