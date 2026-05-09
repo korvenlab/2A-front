@@ -229,15 +229,13 @@ function Landing() {
                 </ul>
                 <div className="mt-auto pt-10">
                   <Button
-                    asChild
+                    type="button"
+                    disabled
                     variant="outline"
-                    className={`h-10 w-full ${r} shadow-none ${
-                      p.highlight
-                        ? "border-0 bg-[#0056b3] font-semibold text-white hover:bg-[#004494]"
-                        : `${borderInner} bg-white font-semibold text-[#002B5B] hover:bg-[#002B5B]/[0.03]`
-                    }`}
+                    title="Em breve"
+                    className={`h-10 w-full ${r} cursor-not-allowed border-[#CBD5E1] bg-[#F8FAFC] font-semibold text-[#94A3B8] shadow-none hover:bg-[#F8FAFC]`}
                   >
-                    <Link to="/signup">{p.cta}</Link>
+                    {p.cta}
                   </Button>
                 </div>
               </div>
