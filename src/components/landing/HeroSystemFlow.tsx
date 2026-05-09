@@ -22,10 +22,10 @@ function BeamV({ delay }: { delay?: string }) {
  */
 export function HeroSystemFlow() {
   return (
-    <div className="hero-sys-root text-left">
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-stretch lg:justify-between lg:gap-8 xl:gap-10">
+    <div className="hero-sys-root min-w-0 text-left">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-stretch lg:justify-center lg:gap-4 xl:gap-6">
         {/* Etapa 1 */}
-        <div className="hero-sys-panel hero-sys-panel-a flex min-h-[172px] w-full shrink-0 flex-[1.05] flex-col justify-between gap-4 border border-[#E0E7FF] bg-white p-5 lg:min-w-[280px] xl:min-w-[300px]">
+        <div className="hero-sys-panel hero-sys-panel-a flex min-h-[172px] w-full flex-col justify-between gap-4 border border-[#E0E7FF] bg-white p-5 lg:min-h-[160px] lg:min-w-0 lg:flex-1 lg:basis-0">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#0056b3]">Etapa 1</p>
           <div className="flex items-end justify-between gap-3 px-0 sm:px-1">
             <div className="flex flex-col items-center gap-1">
@@ -47,7 +47,7 @@ export function HeroSystemFlow() {
         <BeamH delay="0s" />
 
         {/* Etapa 2 */}
-        <div className="hero-sys-panel hero-sys-panel-b flex min-h-[172px] w-full shrink-0 flex-[1.15] flex-col justify-between gap-4 border border-[#E0E7FF] bg-white p-5 lg:min-w-[300px] xl:min-w-[328px]">
+        <div className="hero-sys-panel hero-sys-panel-b flex min-h-[172px] w-full flex-col justify-between gap-4 border border-[#E0E7FF] bg-white p-5 lg:min-h-[160px] lg:min-w-0 lg:flex-1 lg:basis-0">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#0056b3]">Etapa 2</p>
           <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-4 px-0 sm:px-1">
             <div className="flex flex-col items-center gap-1">
@@ -72,7 +72,7 @@ export function HeroSystemFlow() {
         <BeamH delay="-2s" />
 
         {/* Etapa 3 */}
-        <div className="hero-sys-panel hero-sys-panel-c flex min-h-[172px] w-full shrink-0 flex-col justify-between gap-4 border border-[#E0E7FF] bg-white p-5 lg:w-[min(100%,248px)] xl:w-[264px]">
+        <div className="hero-sys-panel hero-sys-panel-c flex min-h-[172px] w-full flex-col justify-between gap-4 border border-[#E0E7FF] bg-white p-5 lg:min-h-[160px] lg:w-[min(100%,220px)] lg:flex-shrink-0 xl:w-[236px]">
           <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-[#0056b3]">Painel central</p>
           <div className="flex flex-1 items-center justify-center py-2">
             <LayoutDashboard className="hero-sys-dash h-12 w-12 text-[#0056b3]" strokeWidth={1.6} aria-hidden />

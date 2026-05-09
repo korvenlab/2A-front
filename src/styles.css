@@ -331,18 +331,17 @@
   contain: layout style;
 }
 
+/* Ênfase só na borda — evita sombra offset que “vaza” do quadro marinho ao usar overflow-hidden */
 @keyframes hero-sys-panel-ring {
   0%,
   10%,
   42%,
   100% {
     border-color: #e0e7ff;
-    box-shadow: none;
   }
   14%,
   34% {
     border-color: #002b5b;
-    box-shadow: 3px 3px 0 0 #002b5b;
   }
 }
 
@@ -368,7 +367,7 @@
   }
   6%,
   24% {
-    transform: translate(12px, -8px) rotate(24deg);
+    transform: translate(5px, -4px) rotate(18deg);
   }
 }
 
@@ -432,8 +431,8 @@
 .hero-sys-track-h {
   position: relative;
   height: 3px;
-  flex: 1 1 3rem;
-  min-width: 2.5rem;
+  flex: 0 0 clamp(2.25rem, 4vw, 3.75rem);
+  min-width: 0;
   overflow: hidden;
   border-radius: 9999px;
   background-color: #e8eefc;
@@ -501,6 +500,5 @@
 
   .hero-sys-panel-c {
     border-color: #002b5b;
-    box-shadow: 3px 3px 0 0 #002b5b;
   }
 }

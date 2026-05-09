@@ -110,7 +110,7 @@ const plans = [
 function LinkProtagonistField() {
   return (
     <div
-      className={`flex max-w-2xl items-center ${r} ${borderInner} bg-white px-4 py-3.5 font-mono text-[15px] leading-none text-[#333]`}
+      className={`mx-auto flex w-full max-w-2xl items-center ${r} ${borderInner} bg-white px-4 py-3.5 font-mono text-[15px] leading-none text-[#333]`}
       role="img"
       aria-label="Endereço do link: 24vendas.com barra sua-representacao"
     >
@@ -123,7 +123,7 @@ function LinkProtagonistField() {
 
 function HeroProdutoVisual() {
   return (
-    <div className={`${r} ${borderOuterNavy} w-full bg-white p-6 md:p-8`}>
+    <div className={`${r} ${borderOuterNavy} mx-auto w-full max-w-5xl overflow-hidden bg-white p-6 md:p-8`}>
       <HeroSystemFlow />
     </div>
   );
@@ -158,27 +158,27 @@ function Landing() {
       <LandingHeader technical />
 
       <section id="produto" className="border-b border-[#E0E7FF]">
-        <div className="container mx-auto max-w-6xl px-4 py-20 text-left lg:py-28">
-          <div className="flex flex-col gap-14 lg:gap-16">
-            <div className="max-w-xl lg:max-w-2xl lg:pr-8">
+        <div className="container mx-auto max-w-6xl px-4 py-20 lg:py-28">
+          <div className="flex flex-col items-center gap-14 text-center lg:gap-16">
+            <div className="w-full max-w-2xl px-1 sm:px-2">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#0056b3]">Link de pedidos</p>
               <div className="mt-5">
                 <LinkProtagonistField />
               </div>
 
-              <h1 className="landing-heading mt-9 text-[1.7rem] leading-[1.2] tracking-tight sm:text-[2rem] lg:text-[2.35rem] lg:leading-[1.15]">
+              <h1 className="landing-heading mt-9 text-balance text-[1.7rem] leading-[1.2] tracking-tight sm:text-[2rem] lg:text-[2.35rem] lg:leading-[1.15]">
                 Seu catálogo agora é um link de vendas.
               </h1>
-              <p className="mt-6 max-w-[36rem] text-base font-normal leading-relaxed text-[#333] sm:text-[17px]">
+              <p className="mx-auto mt-6 max-w-[36rem] text-base font-normal leading-relaxed text-[#333] sm:text-[17px]">
                 Envie para o seu cliente B2B. Ele escolhe os produtos e faz o pedido sozinho. Você recebe tudo organizado no seu
                 painel.
               </p>
 
-              <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              <div className="mt-10 flex flex-col items-center gap-3 sm:flex-row sm:flex-wrap sm:justify-center">
                 <Button
                   size="lg"
                   asChild
-                  className={`h-11 ${r} justify-start border-0 bg-[#0056b3] px-8 text-sm font-semibold text-white shadow-none hover:bg-[#004494] sm:justify-center`}
+                  className={`flex h-11 ${r} w-full justify-center border-0 bg-[#0056b3] px-8 text-sm font-semibold text-white shadow-none hover:bg-[#004494] sm:w-auto sm:min-w-[14rem]`}
                 >
                   <Link to="/signup">Criar meu link de vendas</Link>
                 </Button>
@@ -186,12 +186,12 @@ function Landing() {
                   size="lg"
                   variant="outline"
                   asChild
-                  className={`h-11 ${r} justify-start ${borderInner} bg-white text-sm font-semibold text-[#002B5B] shadow-none hover:bg-[#002B5B]/[0.03] sm:justify-center`}
+                  className={`flex h-11 ${r} w-full justify-center ${borderInner} bg-white text-sm font-semibold text-[#002B5B] shadow-none hover:bg-[#002B5B]/[0.03] sm:w-auto sm:min-w-[10rem]`}
                 >
                   <Link to="/login">Entrar</Link>
                 </Button>
               </div>
-              <div className="mt-8 flex flex-wrap gap-x-7 gap-y-2 text-xs font-normal text-[#333]">
+              <div className="mt-8 flex flex-wrap justify-center gap-x-7 gap-y-2 text-xs font-normal text-[#333]">
                 <span className="inline-flex items-center gap-1.5">
                   <Check className="h-3.5 w-3.5 shrink-0 text-[#0056b3]" strokeWidth={2} />
                   14 dias grátis
