@@ -26,11 +26,6 @@ export function LandingFooter({ technical }: { technical?: boolean }) {
               </a>
             </li>
             <li>
-              <a href="#fluxo" className={technical ? "text-[#333] hover:text-[#0056b3]" : "text-muted-foreground hover:text-foreground"}>
-                Fluxo
-              </a>
-            </li>
-            <li>
               <a href="#capacidades" className={technical ? "text-[#333] hover:text-[#0056b3]" : "text-muted-foreground hover:text-foreground"}>
                 Capacidades
               </a>

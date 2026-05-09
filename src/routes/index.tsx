@@ -30,12 +30,6 @@ export const Route = createFileRoute("/")({
   component: Landing,
 });
 
-const fluxoPedido = [
-  { etapa: "1", texto: "Você envia o link do catálogo." },
-  { etapa: "2", texto: "O cliente escolhe produtos e confirma." },
-  { etapa: "3", texto: "O pedido aparece no seu painel." },
-];
-
 const capacidadesCards = [
   {
     titulo: "Centralização de representantes",
@@ -129,29 +123,6 @@ function HeroProdutoVisual() {
   );
 }
 
-function FluxoTable() {
-  return (
-    <div className={`overflow-hidden ${r} border-2 border-[#002B5B] bg-white`}>
-      <table className="w-full border-collapse text-left text-sm font-normal">
-        <thead>
-          <tr className="border-b border-[#E0E7FF] bg-[#EFF6FF]">
-            <th className="landing-heading w-12 px-3 py-3 text-sm">#</th>
-            <th className="landing-heading px-3 py-3 text-sm">Etapa</th>
-          </tr>
-        </thead>
-        <tbody className="text-[#333]">
-          {fluxoPedido.map((row) => (
-            <tr key={row.etapa} className="border-b border-[#E0E7FF] last:border-0">
-              <td className="px-3 py-3 tabular-nums text-sm font-bold text-[#0056b3]">{row.etapa}</td>
-              <td className="px-3 py-3">{row.texto}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 function Landing() {
   return (
     <div className="landing-clean-tech flex min-h-screen flex-col antialiased selection:bg-[#E0E7FF]">
@@ -208,48 +179,38 @@ function Landing() {
         </div>
       </section>
 
-      <section id="fluxo" className="border-b border-[#E0E7FF]">
+      <section id="capacidades" className="border-b border-[#E0E7FF]">
         <div className="container mx-auto max-w-6xl px-4 py-24 text-left lg:py-32">
           <div className="grid gap-16 lg:grid-cols-12 lg:gap-12">
             <div className="lg:col-span-4">
-              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#0056b3]">Fluxo</p>
-              <h2 className="landing-heading mt-4 text-xl">Do link ao pedido no painel</h2>
-              <p className="mt-3 text-sm font-normal text-[#333]">Três etapas.</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#0056b3]">Capacidades</p>
+              <h2 className="landing-heading mt-4 text-xl">Capacidades do sistema</h2>
+              <p className="mt-3 text-sm font-normal text-[#333]">
+                Cards com contorno marcado e sombra sólida — engenharia visual para leitura rápida.
+              </p>
             </div>
             <div className="lg:col-span-8">
-              <FluxoTable />
+              <div className="grid gap-6 sm:grid-cols-2">
+                {capacidadesCards.map(({ titulo, texto }) => (
+                  <div
+                    key={titulo}
+                    className={`flex flex-col ${r} border-2 border-[#002B5B] bg-white p-6 shadow-[4px_4px_0_0_#002B5B]`}
+                  >
+                    <h3 className="landing-heading text-base leading-snug text-[#002B5B]">{titulo}</h3>
+                    <p className="mt-4 flex-1 text-sm font-normal leading-relaxed text-[#333]">{texto}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-16 grid gap-10 md:grid-cols-2 md:gap-x-10 md:gap-y-10">
+                {textoPorSecao.map(({ titulo, corpo }) => (
+                  <div key={titulo} className={`${r} border border-[#E0E7FF] border-l-4 border-l-[#002B5B] bg-white p-6`}>
+                    <h3 className="landing-heading text-base text-[#002B5B]">{titulo}</h3>
+                    <p className="mt-4 text-sm font-normal leading-relaxed text-[#333]">{corpo}</p>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="capacidades" className="border-b border-[#E0E7FF]">
-        <div className="container mx-auto max-w-6xl px-4 py-24 text-left lg:py-32">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#0056b3]">Capacidades</p>
-          <h2 className="landing-heading mt-4 max-w-2xl text-xl">Capacidades do sistema</h2>
-          <p className="mt-3 max-w-2xl text-sm font-normal text-[#333]">
-            Cards com contorno marcado e sombra sólida — engenharia visual para leitura rápida.
-          </p>
-
-          <div className="mt-14 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {capacidadesCards.map(({ titulo, texto }) => (
-              <div
-                key={titulo}
-                className={`flex flex-col ${r} border-2 border-[#002B5B] bg-white p-6 shadow-[4px_4px_0_0_#002B5B]`}
-              >
-                <h3 className="landing-heading text-base leading-snug text-[#002B5B]">{titulo}</h3>
-                <p className="mt-4 flex-1 text-sm font-normal leading-relaxed text-[#333]">{texto}</p>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-20 grid gap-10 md:grid-cols-2 md:gap-x-12 md:gap-y-12">
-            {textoPorSecao.map(({ titulo, corpo }) => (
-              <div key={titulo} className={`${r} border border-[#E0E7FF] border-l-4 border-l-[#002B5B] bg-white p-6`}>
-                <h3 className="landing-heading text-base text-[#002B5B]">{titulo}</h3>
-                <p className="mt-4 text-sm font-normal leading-relaxed text-[#333]">{corpo}</p>
-              </div>
-            ))}
           </div>
         </div>
       </section>
