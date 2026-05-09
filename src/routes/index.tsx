@@ -2,60 +2,52 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { LandingHeader } from "@/components/landing/Header";
 import { LandingFooter } from "@/components/landing/Footer";
-import { Check, UserCircle, ClipboardList, UsersRound } from "lucide-react";
+import { Check } from "lucide-react";
 import catalogClientPreview from "@/assets/image_77364b.png";
 
-const borderSubtle = "border border-[color:var(--landing-blue-line)]";
-const borderSection = "border-b border-[color:var(--landing-blue-line-faint)]";
-const surfacePanel = "bg-[#111111]";
+/** Clean Tech — marinho #002B5B estrutura, royal #0056b3 ação, corpo #333 */
+const r = "rounded-[4px]";
+const borderClean = "border border-[#E0E7FF]";
+const borderGrayFlat = "border border-[#D1D5DB]";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "24 Vendas — Link de pedidos B2B e painel único" },
+      { title: "2AVendas — Link de pedidos para catálogo B2B" },
       {
         name: "description",
         content:
-          "Link para o cliente B2B comprar sozinho. Pedidos entram no seu painel. Vendedores e pedidos em uma tela.",
+          "Monte o link do catálogo. Cliente faz pedido sozinho; você vê tudo no dashboard.",
       },
-      { property: "og:title", content: "24 Vendas — Pedidos pelo link, gestão no painel" },
+      { property: "og:title", content: "Catálogo como link de vendas — 2AVendas" },
       {
         property: "og:description",
         content:
-          "Cliente usa seu link; você gerencia tudo em um só lugar.",
+          "Link de pedidos, pedidos recebidos no painel, gestão em uma tela.",
       },
     ],
   }),
   component: Landing,
 });
 
-const mockClienteLinhas = [
-  { nome: "Ref. Industrial XL", preco: "R$ 184,90" },
-  { nome: "Kit Montagem B", preco: "R$ 92,00" },
-  { nome: "Peça Substituição 04", preco: "R$ 36,50" },
-];
-
 const fluxoPedido = [
-  { etapa: "1", texto: "Cliente abre o link que você enviou." },
-  { etapa: "2", texto: "Marca produtos e confirma o pedido." },
-  { etapa: "3", texto: "O pedido aparece na sua lista." },
+  { etapa: "1", texto: "Você envia o link do catálogo." },
+  { etapa: "2", texto: "O cliente escolhe produtos e confirma." },
+  { etapa: "3", texto: "O pedido aparece no seu painel." },
 ];
 
-const operacaoBlocos = [
+const entregaCols = [
   {
-    icon: UserCircle,
-    titulo: "Vendedores",
-    texto: "Cadastre sua equipe e saiba quem está vendendo.",
+    titulo: "Link de pedidos",
+    texto: "Cliente compra pelo celular ou PC com seu link.",
   },
   {
-    icon: ClipboardList,
-    titulo: "Pedidos",
-    texto: "Receba pedidos feitos por você ou direto pelo link do cliente.",
+    titulo: "Dashboard único",
+    texto: "Pedidos em uma tela.",
   },
   {
-    icon: UsersRound,
-    titulo: "Clientes",
-    texto: "Sua base de clientes B2B organizada e acessível.",
+    titulo: "Multi-empresa",
+    texto: "Várias representações no mesmo lugar.",
   },
 ];
 
@@ -63,14 +55,14 @@ const plans = [
   {
     name: "Starter",
     price: "R$ 99",
-    desc: "Operação enxuta com link de pedidos.",
+    desc: "Link de pedidos e equipe pequena.",
     features: ["Até 3 vendedores", "Até 50 clientes", "Portal com link", "Suporte por email"],
     cta: "Criar minha conta",
   },
   {
     name: "Pro",
     price: "R$ 299",
-    desc: "Volume maior, mesma tela de gestão.",
+    desc: "Volume maior, mesmo dashboard.",
     features: ["Vendedores ilimitados", "Clientes ilimitados", "Portal completo", "App mobile", "Suporte prioritário"],
     cta: "Criar minha conta",
     highlight: true,
@@ -78,37 +70,58 @@ const plans = [
   {
     name: "Enterprise",
     price: "Custom",
-    desc: "Integrações e escopo sob medida.",
+    desc: "Integrações sob medida.",
     features: ["Tudo do Pro", "Integração ERP customizada", "SSO e auditoria", "Gerente dedicado"],
     cta: "Falar com vendas",
   },
 ];
 
-function ClienteAcessaCard() {
+const pedidosRecebidosMock = [
+  { id: "#2041", via: "Link", estado: "Novo" },
+  { id: "#2038", via: "Link", estado: "Em análise" },
+];
+
+/** Campo travado: prefixo fixo + slug + cursor */
+function LinkProtagonistField() {
   return (
-    <div className={`${borderSubtle} rounded-[4px] ${surfacePanel}`}>
-      <div className="border-b border-[color:var(--landing-blue-line-faint)] bg-[color:var(--landing-blue-fill)] px-4 py-3">
-        <p className="text-[11px] font-medium uppercase tracking-wider text-[color:var(--landing-blue-soft)]">
-          O que seu cliente acessa
-        </p>
+    <div
+      className={`flex max-w-2xl items-center ${r} ${borderGrayFlat} bg-[#F9FAFB] px-4 py-3.5 font-mono text-[15px] leading-none text-[#333]`}
+      role="img"
+      aria-label="Endereço do link: 24vendas.com barra sua-representacao"
+    >
+      <span className="select-none text-[#333]/55">24vendas.com/</span>
+      <span className="font-medium text-[#002B5B]">sua-representacao</span>
+      <span className="landing-link-cursor ml-px inline-block h-[1.15em] w-[2px] shrink-0 bg-[#0056b3]" aria-hidden />
+    </div>
+  );
+}
+
+function FlatCatalogScreenshot() {
+  return (
+    <div className={`${r} overflow-hidden ${borderGrayFlat} bg-white`}>
+      <img
+        src={catalogClientPreview}
+        alt="Captura do catálogo no sistema — sem mockup decorativo"
+        width={1200}
+        height={900}
+        className="block max-h-[min(56vh,560px)] w-full object-cover object-top"
+      />
+    </div>
+  );
+}
+
+function PedidosRecebidosLista() {
+  return (
+    <div className={`w-full max-w-md ${r} ${borderClean} bg-white`}>
+      <div className="border-b border-[#E0E7FF] px-4 py-2.5">
+        <p className="text-xs font-semibold text-[#002B5B]">Pedidos recebidos</p>
       </div>
-      <ul className="divide-y divide-[color:var(--landing-blue-line-faint)]">
-        {mockClienteLinhas.map((row) => (
-          <li
-            key={row.nome}
-            className="flex flex-col gap-2 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between sm:gap-4"
-          >
-            <span className="min-w-0 text-[rgba(255,255,255,0.88)]">{row.nome}</span>
-            <div className="flex flex-shrink-0 flex-wrap items-center gap-3 sm:justify-end">
-              <span className="tabular-nums text-[rgba(255,255,255,0.55)]">{row.preco}</span>
-              <button
-                type="button"
-                className="rounded-[4px] border border-[color:var(--landing-blue-line)] bg-transparent px-3 py-1.5 text-xs font-medium text-[color:var(--landing-blue-bright)] hover:bg-[color:var(--landing-blue-fill)]"
-                disabled
-              >
-                Adicionar ao pedido
-              </button>
-            </div>
+      <ul className="divide-y divide-[#E0E7FF]">
+        {pedidosRecebidosMock.map((row) => (
+          <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm font-normal text-[#333]">
+            <span className="font-semibold tabular-nums text-[#002B5B]">{row.id}</span>
+            <span>{row.via}</span>
+            <span className="text-xs font-medium text-[#0056b3]">{row.estado}</span>
           </li>
         ))}
       </ul>
@@ -116,21 +129,54 @@ function ClienteAcessaCard() {
   );
 }
 
+/** Linha reta royal: botão “Enviar link” → lista Pedidos recebidos */
+function FluxoEnviarParaPedidos() {
+  return (
+    <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:gap-0">
+      <button
+        type="button"
+        disabled
+        className={`${r} shrink-0 border border-[#002B5B] bg-white px-5 py-2.5 text-sm font-semibold text-[#002B5B]`}
+      >
+        Enviar link
+      </button>
+
+      <div className="flex shrink-0 items-center sm:px-4" aria-hidden>
+        <div className="h-9 w-px bg-[#0056b3] sm:hidden" />
+        <div className="hidden h-px w-14 bg-[#0056b3] sm:block" />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <PedidosRecebidosLista />
+      </div>
+    </div>
+  );
+}
+
+function HeroProdutoVisual() {
+  return (
+    <div className="flex flex-col gap-10 text-left">
+      <FlatCatalogScreenshot />
+      <FluxoEnviarParaPedidos />
+    </div>
+  );
+}
+
 function FluxoTable() {
   return (
-    <div className={`overflow-hidden rounded-[4px] ${borderSubtle}`}>
-      <table className="w-full border-collapse text-left text-sm">
+    <div className={`overflow-hidden ${r} ${borderClean} bg-white`}>
+      <table className="w-full border-collapse text-left text-sm font-normal">
         <thead>
-          <tr className="border-b border-[color:var(--landing-blue-line-faint)] bg-[color:var(--landing-blue-fill-strong)]">
-            <th className="w-12 px-3 py-2.5 font-medium text-[color:var(--landing-blue-soft)]">#</th>
-            <th className="px-3 py-2.5 font-medium text-white">Etapa</th>
+          <tr className="border-b border-[#E0E7FF] bg-white">
+            <th className="landing-heading w-12 px-3 py-2.5 text-sm">#</th>
+            <th className="landing-heading px-3 py-2.5 text-sm">Etapa</th>
           </tr>
         </thead>
-        <tbody>
+        <tbody className="text-[#333]">
           {fluxoPedido.map((row) => (
-            <tr key={row.etapa} className="border-b border-[color:var(--landing-blue-line-faint)] last:border-0">
-              <td className="px-3 py-2.5 font-mono text-xs text-[color:var(--landing-blue-bright)]">{row.etapa}</td>
-              <td className="px-3 py-2.5 text-[rgba(255,255,255,0.78)]">{row.texto}</td>
+            <tr key={row.etapa} className="border-b border-[#E0E7FF] last:border-0">
+              <td className="px-3 py-2.5 tabular-nums font-semibold text-[#002B5B]">{row.etapa}</td>
+              <td className="px-3 py-2.5">{row.texto}</td>
             </tr>
           ))}
         </tbody>
@@ -141,80 +187,69 @@ function FluxoTable() {
 
 function Landing() {
   return (
-    <div className="landing-hard-tech flex min-h-screen flex-col bg-[#0a0a0a] font-sans text-[rgba(255,255,255,0.92)] antialiased selection:bg-blue-500/35">
+    <div className="landing-clean-tech flex min-h-screen flex-col bg-white antialiased selection:bg-[#E0E7FF]">
       <LandingHeader technical />
 
-      <section id="produto" className={borderSection}>
-        <div className="container mx-auto max-w-6xl px-4 py-12 lg:py-16">
-          <div className="grid gap-12 lg:grid-cols-2 lg:gap-10 lg:items-start">
+      <section id="produto" className="border-b border-[#E0E7FF]">
+        <div className="container mx-auto max-w-6xl px-4 py-20 text-left lg:py-28">
+          <div className="mb-14 max-w-3xl lg:mb-20">
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#0056b3]">Link de pedidos</p>
+            <div className="mt-5">
+              <LinkProtagonistField />
+            </div>
+          </div>
+
+          <div className="grid gap-16 lg:grid-cols-2 lg:items-start lg:gap-x-16 lg:gap-y-20">
             <div className="max-w-xl">
-              <h1 className="text-3xl font-semibold tracking-tight text-white sm:text-4xl lg:text-[2.25rem] lg:leading-tight">
-                Sua representação comercial aberta para pedidos{" "}
-                <span className="text-[color:var(--landing-blue-bright)]">24h</span>.
+              <h1 className="landing-heading text-[1.7rem] leading-[1.2] tracking-tight sm:text-[2rem] lg:text-[2.35rem] lg:leading-[1.15]">
+                Seu catálogo agora é um link de vendas.
               </h1>
-              <p className="mt-5 text-base leading-relaxed text-[color:var(--landing-blue-soft)]">
-                Dê um link para seu cliente B2B comprar sozinho. Gerencie vendedores e pedidos em uma tela única. Sem
-                complicação.
+              <p className="mt-6 max-w-[36rem] text-base font-normal leading-relaxed text-[#333] sm:text-[17px]">
+                Envie para o seu cliente B2B. Ele escolhe os produtos e faz o pedido sozinho. Você recebe tudo organizado no seu
+                painel.
               </p>
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+
+              <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Button
                   size="lg"
                   asChild
-                  className="h-11 rounded-[4px] border-0 bg-white px-8 text-sm font-semibold text-black shadow-none hover:bg-[#e8e8e8]"
+                  className={`h-11 ${r} border-0 bg-[#0056b3] px-8 text-sm font-semibold text-white shadow-none hover:bg-[#004494]`}
                 >
-                  <Link to="/signup">Criar minha conta</Link>
+                  <Link to="/signup">Criar meu link de vendas</Link>
                 </Button>
                 <Button
                   size="lg"
                   variant="outline"
                   asChild
-                  className="h-11 rounded-[4px] border-[color:var(--landing-blue-line)] bg-transparent text-[color:var(--landing-blue-soft)] shadow-none hover:bg-[color:var(--landing-blue-fill)] hover:text-white"
+                  className={`h-11 ${r} ${borderClean} bg-white text-sm font-semibold text-[#002B5B] shadow-none hover:bg-[#002B5B]/[0.03]`}
                 >
                   <Link to="/login">Entrar</Link>
                 </Button>
               </div>
-              <div className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-xs text-[color:var(--landing-blue-soft)]">
+              <div className="mt-8 flex flex-wrap gap-x-7 gap-y-2 text-xs font-normal text-[#333]">
                 <span className="inline-flex items-center gap-1.5">
-                  <Check className="h-3.5 w-3.5 text-[color:var(--landing-blue-bright)]" strokeWidth={2} />
+                  <Check className="h-3.5 w-3.5 shrink-0 text-[#0056b3]" strokeWidth={2} />
                   14 dias grátis
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <Check className="h-3.5 w-3.5 text-[color:var(--landing-blue-bright)]" strokeWidth={2} />
+                  <Check className="h-3.5 w-3.5 shrink-0 text-[#0056b3]" strokeWidth={2} />
                   Sem cartão
                 </span>
               </div>
             </div>
 
-            <div className="grid gap-6">
-              <figure className={`overflow-hidden rounded-[4px] ${borderSubtle} ${surfacePanel}`}>
-                <img
-                  src={catalogClientPreview}
-                  alt="Catálogo B2B — tela real do sistema"
-                  width={1200}
-                  height={900}
-                  className="block w-full h-auto object-cover object-top"
-                />
-              </figure>
-              <div className="grid gap-6 sm:grid-cols-2">
-                <p className="text-sm leading-relaxed text-[color:var(--landing-blue-soft)]">
-                  O cliente clica no seu link, escolhe os produtos e o pedido aparece no seu painel. Só isso.
-                </p>
-                <ClienteAcessaCard />
-              </div>
-            </div>
+            <HeroProdutoVisual />
           </div>
         </div>
       </section>
 
-      <section id="fluxo" className={borderSection}>
-        <div className="container mx-auto max-w-6xl px-4 py-14 lg:py-16">
-          <div className="grid gap-10 lg:grid-cols-12 lg:gap-8">
+      <section id="fluxo" className="border-b border-[#E0E7FF]">
+        <div className="container mx-auto max-w-6xl px-4 py-20 text-left lg:py-24">
+          <div className="grid gap-12 lg:grid-cols-12 lg:gap-10">
             <div className="lg:col-span-4">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-[color:var(--landing-blue-bright)]">
-                Fluxo
-              </h2>
-              <p className="mt-3 text-lg font-medium text-white">Do link do cliente ao pedido na lista</p>
-              <p className="mt-2 text-sm text-[color:var(--landing-blue-soft)]">Três passos. Sem etapas extras na landing.</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#0056b3]">Fluxo</p>
+              <h2 className="landing-heading mt-4 text-xl">Do link ao pedido no painel</h2>
+              <p className="mt-3 text-sm font-normal text-[#333]">Três etapas.</p>
             </div>
             <div className="lg:col-span-8">
               <FluxoTable />
@@ -223,71 +258,60 @@ function Landing() {
         </div>
       </section>
 
-      <section id="operacao" className={borderSection}>
-        <div className="container mx-auto max-w-6xl px-4 py-14 lg:py-16">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-[color:var(--landing-blue-bright)]">
-            Painel
-          </h2>
-          <p className="mt-3 max-w-2xl text-lg font-medium text-white">Uma grade para o que você controla no sistema.</p>
-          <div className="mt-10 grid gap-px rounded-[4px] border border-[color:var(--landing-blue-line)] bg-[color:var(--landing-blue-line)] md:grid-cols-3">
-            {operacaoBlocos.map(({ icon: Icon, titulo, texto }) => (
-              <div key={titulo} className={`${surfacePanel} p-6 lg:p-8`}>
-                <Icon className="h-5 w-5 text-[color:var(--landing-blue-bright)]" strokeWidth={1.5} />
-                <h3 className="mt-4 text-sm font-semibold text-white">{titulo}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-[color:var(--landing-blue-soft)]">{texto}</p>
+      <section id="entrega" className="border-b border-[#E0E7FF]">
+        <div className="container mx-auto max-w-6xl px-4 py-20 text-left lg:py-24">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#0056b3]">Entrega</p>
+          <h2 className="landing-heading mt-4 max-w-2xl text-xl">O que está no produto</h2>
+          <div className="mt-14 grid gap-4 md:grid-cols-3 md:gap-0 md:border md:border-[#E0E7FF] md:bg-[#E0E7FF] [&>*]:md:border-r [&>*]:md:border-[#E0E7FF] [&>*]:md:bg-white [&>*]:last:md:border-r-0">
+            {entregaCols.map(({ titulo, texto }) => (
+              <div key={titulo} className={`${r} border border-[#E0E7FF] bg-white p-6 md:rounded-none md:border-0 md:bg-transparent md:p-10`}>
+                <h3 className="landing-heading text-base">{titulo}</h3>
+                <p className="mt-4 text-sm font-normal leading-relaxed text-[#333]">{texto}</p>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      <section id="pricing" className={borderSection}>
-        <div className="container mx-auto max-w-6xl px-4 py-14 lg:py-16">
+      <section id="pricing" className="border-b border-[#E0E7FF]">
+        <div className="container mx-auto max-w-6xl px-4 py-20 text-left lg:py-24">
           <div className="max-w-xl">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-[color:var(--landing-blue-bright)]">
-              Preços
-            </h2>
-            <p className="mt-3 text-lg font-medium text-white">Valores mensais. Sem texto promocional longo.</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#0056b3]">Preços</p>
+            <h2 className="landing-heading mt-4 text-xl">Planos mensais</h2>
           </div>
-          <div className="mt-10 grid gap-4 md:grid-cols-3">
+          <div className="mt-14 grid gap-5 md:grid-cols-3">
             {plans.map((p) => (
               <div
                 key={p.name}
-                className={`flex flex-col rounded-[4px] border p-6 lg:p-7 ${
-                  p.highlight
-                    ? "border-[color:var(--landing-blue-bright)] bg-[color:var(--landing-blue-fill-strong)]"
-                    : "border-[color:var(--landing-blue-line-faint)] bg-[#0f0f0f]"
-                }`}
+                className={`flex flex-col ${r} bg-white p-6 lg:p-8 ${p.highlight ? "border-2 border-[#0056b3]" : borderClean}`}
               >
                 {p.highlight && (
-                  <span className="mb-4 inline-block w-fit rounded-[4px] border border-[color:var(--landing-blue-line)] bg-[color:var(--landing-blue-fill)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[color:var(--landing-blue-soft)]">
+                  <span className={`mb-4 inline-block w-fit ${r} border border-[#E0E7FF] bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#0056b3]`}>
                     Mais usado
                   </span>
                 )}
-                <h3 className="text-base font-semibold text-white">{p.name}</h3>
-                <p className="mt-2 min-h-[40px] text-sm text-[color:var(--landing-blue-soft)]">{p.desc}</p>
-                <div className="mt-6 flex items-baseline gap-1 border-t border-[color:var(--landing-blue-line-faint)] pt-6">
-                  <span className="text-2xl font-semibold tabular-nums text-white">{p.price}</span>
-                  {p.price !== "Custom" && (
-                    <span className="text-sm text-[color:var(--landing-blue-soft)]">/mês</span>
-                  )}
+                <h3 className="landing-heading text-base">{p.name}</h3>
+                <p className="mt-3 min-h-[44px] text-sm font-normal text-[#333]">{p.desc}</p>
+                <div className="mt-8 flex items-baseline gap-1 border-t border-[#E0E7FF] pt-8">
+                  <span className="landing-heading text-2xl tabular-nums">{p.price}</span>
+                  {p.price !== "Custom" && <span className="text-sm font-normal text-[#333]">/mês</span>}
                 </div>
-                <ul className="mt-6 flex flex-col gap-2.5 text-sm text-[color:var(--landing-blue-soft)]">
+                <ul className="mt-6 flex flex-col gap-2.5 text-sm font-normal text-[#333]">
                   {p.features.map((f) => (
                     <li key={f} className="flex gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-[color:var(--landing-blue-bright)]" strokeWidth={2} />
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#0056b3]" strokeWidth={2} />
                       <span>{f}</span>
                     </li>
                   ))}
                 </ul>
-                <div className="mt-auto pt-8">
+                <div className="mt-auto pt-10">
                   <Button
                     asChild
                     variant="outline"
-                    className={`h-10 w-full rounded-[4px] border shadow-none ${
+                    className={`h-10 w-full ${r} shadow-none ${
                       p.highlight
-                        ? "border-transparent bg-white text-black hover:bg-[#e8e8e8]"
-                        : "border-[color:var(--landing-blue-line)] bg-transparent text-[color:var(--landing-blue-soft)] hover:bg-[color:var(--landing-blue-fill)] hover:text-white"
+                        ? "border-0 bg-[#0056b3] font-semibold text-white hover:bg-[#004494]"
+                        : `${borderClean} bg-white font-semibold text-[#002B5B] hover:bg-[#002B5B]/[0.03]`
                     }`}
                   >
                     <Link to="/signup">{p.cta}</Link>
@@ -299,25 +323,23 @@ function Landing() {
         </div>
       </section>
 
-      <section className="">
-        <div className="container mx-auto max-w-6xl px-4 py-14 lg:py-16">
-          <div
-            className={`rounded-[4px] ${borderSubtle} bg-[color:var(--landing-blue-fill)] px-6 py-10 lg:px-10 lg:py-12`}
-          >
-            <div className="grid gap-8 lg:grid-cols-2 lg:items-center lg:gap-12">
+      <section>
+        <div className="container mx-auto max-w-6xl px-4 py-20 lg:py-24">
+          <div className={`${r} ${borderClean} bg-white px-8 py-12 lg:px-12 lg:py-14`}>
+            <div className="grid gap-10 text-left lg:grid-cols-2 lg:items-center lg:gap-16">
               <div>
-                <h2 className="text-xl font-semibold text-white lg:text-2xl">Teste com sua equipe e com um link real.</h2>
-                <p className="mt-3 text-sm text-[color:var(--landing-blue-soft)]">
-                  Conta em minutos. Você configura catálogo e envia o link quando estiver pronto.
+                <h2 className="landing-heading text-xl lg:text-2xl">Configure o link e envie para os clientes.</h2>
+                <p className="mt-4 text-sm font-normal leading-relaxed text-[#333]">
+                  Conta em minutos. Catálogo no ar; link quando você quiser.
                 </p>
               </div>
               <div className="flex justify-start lg:justify-end">
                 <Button
                   size="lg"
                   asChild
-                  className="h-11 rounded-[4px] bg-white px-8 text-sm font-semibold text-black shadow-none hover:bg-[#e8e8e8]"
+                  className={`h-11 ${r} border-0 bg-[#0056b3] px-8 text-sm font-semibold text-white shadow-none hover:bg-[#004494]`}
                 >
-                  <Link to="/signup">Criar minha conta</Link>
+                  <Link to="/signup">Criar meu link de vendas</Link>
                 </Button>
               </div>
             </div>

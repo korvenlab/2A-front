@@ -23,13 +23,13 @@ const slides = [
       <div className="mt-6 flex gap-3">
         <button
           type="button"
-          className="flex items-center gap-2 rounded-[6px] border border-[color:var(--landing-blue-line)] bg-[color:var(--landing-blue-fill)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[color:var(--landing-blue-fill-strong)]"
+          className="flex items-center gap-2 rounded-[6px] border border-[color:var(--landing-blue-line)] bg-[color:var(--landing-blue-fill)] px-4 py-2.5 text-sm font-medium text-neutral-900 hover:bg-[color:var(--landing-blue-fill-strong)]"
         >
           <Apple className="h-5 w-5" /> App Store
         </button>
         <button
           type="button"
-          className="flex items-center gap-2 rounded-[6px] border border-[color:var(--landing-blue-line)] bg-[color:var(--landing-blue-fill)] px-4 py-2.5 text-sm font-medium text-white hover:bg-[color:var(--landing-blue-fill-strong)]"
+          className="flex items-center gap-2 rounded-[6px] border border-[color:var(--landing-blue-line)] bg-[color:var(--landing-blue-fill)] px-4 py-2.5 text-sm font-medium text-neutral-900 hover:bg-[color:var(--landing-blue-fill-strong)]"
         >
           <Smartphone className="h-5 w-5" /> Google Play
         </button>
@@ -54,11 +54,11 @@ export function LoginCarousel() {
 
   return (
     <div
-      className="login-split-brand relative flex min-h-screen w-full flex-col bg-[#0a0a0a]"
+      className="login-split-brand relative flex min-h-screen w-full flex-col bg-white"
       style={{
         backgroundImage: `
-          linear-gradient(rgba(96, 165, 250, 0.07) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(96, 165, 250, 0.07) 1px, transparent 1px)
+          linear-gradient(rgba(59, 130, 246, 0.06) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(59, 130, 246, 0.06) 1px, transparent 1px)
         `,
         backgroundSize: "56px 56px",
       }}
@@ -74,7 +74,7 @@ export function LoginCarousel() {
           >
             <div className="flex flex-1 flex-col justify-center px-10 pb-6 pt-14 lg:px-14 lg:pt-16">
               <div className="mx-auto w-full max-w-2xl">
-                <div className="overflow-hidden rounded-[6px] border border-[color:var(--landing-blue-line)] bg-[#111]">
+                <div className="overflow-hidden rounded-[6px] border border-[color:var(--landing-blue-line)] bg-neutral-50 shadow-sm">
                   <img
                     src={s.image}
                     alt=""
@@ -85,18 +85,18 @@ export function LoginCarousel() {
               </div>
             </div>
 
-            <div className="relative border-t border-[color:var(--landing-blue-line-faint)] bg-[#0a0a0a] px-10 py-10 lg:px-14">
+            <div className="relative border-t border-[color:var(--landing-blue-line-faint)] bg-white px-10 py-10 lg:px-14">
               <div className="mx-auto max-w-lg">
-                <div className="flex items-center gap-2 border-l-2 border-[color:var(--landing-blue-bright)] pl-3">
-                  <Icon className="h-4 w-4 shrink-0 text-[color:var(--landing-blue-bright)]" strokeWidth={1.5} />
-                  <span className="text-[11px] font-medium uppercase tracking-wider text-[color:var(--landing-blue-soft)]">
+                <div className="flex items-center gap-2 border-l-2 border-[color:var(--landing-blue-deep)] pl-3">
+                  <Icon className="h-4 w-4 shrink-0 text-[color:var(--landing-blue-deep)]" strokeWidth={1.5} />
+                  <span className="text-[11px] font-medium uppercase tracking-wider text-neutral-500">
                     {s.eyebrow}
                   </span>
                 </div>
-                <h2 className="mt-4 text-2xl font-semibold leading-snug tracking-tight text-white lg:text-[1.65rem]">
+                <h2 className="mt-4 text-2xl font-semibold leading-snug tracking-tight text-neutral-900 lg:text-[1.65rem]">
                   {s.title}
                 </h2>
-                <p className="mt-3 text-sm leading-relaxed text-[color:var(--landing-blue-soft)] lg:text-[15px]">{s.description}</p>
+                <p className="mt-3 text-sm leading-relaxed text-neutral-600 lg:text-[15px]">{s.description}</p>
                 {s.cta}
               </div>
             </div>
@@ -111,7 +111,7 @@ export function LoginCarousel() {
             type="button"
             onClick={() => setIdx(i)}
             className={`h-2 rounded-[3px] transition-all ${
-              i === idx ? "w-8 bg-[color:var(--landing-blue-bright)]" : "w-2 bg-[color:var(--landing-blue-line)] hover:bg-[color:var(--landing-blue-soft)]"
+              i === idx ? "w-8 bg-[color:var(--landing-blue-deep)]" : "w-2 bg-neutral-300 hover:bg-neutral-400"
             }`}
             aria-label={`Slide ${i + 1}`}
           />

@@ -5,7 +5,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/lib/auth-context";
-import { LoginCarousel } from "@/components/auth/LoginCarousel";
+import { LoginTechnicalAside } from "@/components/auth/LoginTechnicalAside";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 const REMEMBER_KEY = "2avendas.rememberedEmail";
 
 const loginInputClass =
-  "mt-1.5 h-11 rounded-[6px] border-[color:var(--landing-blue-line)] bg-white text-neutral-950 placeholder:text-sky-400/90 shadow-none focus-visible:border-[color:var(--landing-blue-deep)] focus-visible:ring-0";
+  "login-tech-input mt-1.5 h-11 rounded-none border border-[color:var(--tech-input-border)] bg-[color:var(--tech-bg)] px-3 text-sm font-medium text-[color:var(--tech-title)] placeholder:text-[color:var(--tech-label)] shadow-none focus-visible:ring-0";
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search: Record<string, unknown>): { redirect?: string; invite?: string } => ({
@@ -104,131 +104,132 @@ function LoginPage() {
   };
 
   return (
-    <div className="login-split-brand min-h-screen grid bg-[#f0f7ff] lg:grid-cols-2 lg:bg-white">
-      <div className="hidden lg:block">
-        <LoginCarousel />
+    <div className="login-split-brand tech-font-ui min-h-screen bg-[color:var(--tech-bg)] text-[color:var(--tech-sub)]">
+      <div className="border-b border-white/10 px-5 py-6 lg:hidden">
+        <p className="tech-font-mono text-[9px] font-semibold uppercase tracking-[2.5px] text-[color:var(--tech-label)]">
+          Pedidos link B2B
+        </p>
+        <p className="mt-2 text-xs leading-relaxed text-[color:var(--tech-sub)]">
+          Novos pedidos pelo link entram na fila do painel após o login.
+        </p>
       </div>
 
-      <div className="flex flex-col justify-center border-[color:var(--landing-blue-line-faint)] bg-white px-6 py-10 lg:border-l lg:px-16">
-        <div className="mx-auto w-full max-w-md">
-          <div className="mb-8 lg:hidden">
-            <Logo />
-          </div>
-          <div className="mb-8 hidden lg:block">
-            <Logo />
-          </div>
+      <div className="grid min-h-[calc(100vh-1px)] lg:grid-cols-[minmax(0,1fr)_min(100%,440px)]">
+        <LoginTechnicalAside />
 
-          <h1 className="text-2xl font-medium tracking-tight text-[color:var(--landing-blue-deep)]">Entrar</h1>
-
-          <form onSubmit={onSubmit} className="mt-6 space-y-4">
-            <div>
-              <Label htmlFor="email" className="text-sm font-normal text-sky-800/75">
-                E-mail
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="voce@empresa.com"
-                required
-                className={loginInputClass}
-              />
+        <div className="flex flex-col justify-center border-l border-white/10 px-6 py-12 lg:min-h-screen lg:px-12 xl:px-14">
+          <div className="mx-auto w-full max-w-[360px] text-left">
+            <div className="mb-10">
+              <Logo light />
             </div>
-            <div>
-              <Label htmlFor="password" className="text-sm font-normal text-sky-800/75">
-                Senha
-              </Label>
-              <div className="relative mt-1.5">
+
+            <h1 className="tech-font-mono text-xl font-semibold uppercase tracking-[2.5px] text-[color:var(--tech-title)]">
+              Acesso
+            </h1>
+
+            <form onSubmit={onSubmit} className="mt-8 space-y-5">
+              <div>
+                <Label htmlFor="email" className="tech-font-ui text-xs font-medium text-[color:var(--tech-label)]">
+                  E-mail
+                </Label>
                 <Input
-                  id="password"
-                  type={showPwd ? "text" : "password"}
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="voce@empresa.com"
                   required
-                  className={cn(loginInputClass, "mt-0 pr-10")}
+                  className={loginInputClass}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPwd((s) => !s)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[color:var(--landing-blue)] hover:text-[color:var(--landing-blue-deep)]"
-                  aria-label={showPwd ? "Ocultar" : "Mostrar"}
-                >
-                  {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
               </div>
-              <div className="mt-2 flex justify-end">
-                <Link
-                  to="/forgot-password"
-                  className="text-xs font-normal text-[color:var(--landing-blue-deep)] underline-offset-2 hover:text-[color:var(--landing-blue)] hover:underline"
-                >
-                  Esqueci minha senha
-                </Link>
+              <div>
+                <Label htmlFor="password" className="tech-font-ui text-xs font-medium text-[color:var(--tech-label)]">
+                  Senha
+                </Label>
+                <div className="relative mt-1.5">
+                  <Input
+                    id="password"
+                    type={showPwd ? "text" : "password"}
+                    autoComplete="current-password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    className={cn(loginInputClass, "mt-0 pr-10")}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPwd((s) => !s)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[color:var(--tech-label)] hover:text-[color:var(--tech-title)]"
+                    aria-label={showPwd ? "Ocultar" : "Mostrar"}
+                  >
+                    {showPwd ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <div className="mt-2 flex justify-end">
+                  <Link
+                    to="/forgot-password"
+                    className="tech-font-ui text-[11px] text-[color:var(--tech-label)] underline-offset-2 hover:text-[color:var(--tech-sub)] hover:underline"
+                  >
+                    Esqueci minha senha
+                  </Link>
+                </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="remember"
-                checked={remember}
-                onCheckedChange={(v) => setRemember(!!v)}
-                className="border-[color:var(--landing-blue-deep)] text-white shadow-none focus-visible:ring-[color:var(--landing-blue)] data-[state=checked]:border-transparent data-[state=checked]:bg-[color:var(--landing-blue-deep)] data-[state=checked]:text-white"
-              />
-              <Label htmlFor="remember" className="cursor-pointer text-sm font-normal text-sky-800/70">
-                Lembrar e-mail
-              </Label>
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="remember"
+                  checked={remember}
+                  onCheckedChange={(v) => setRemember(!!v)}
+                  className="rounded-none border-[color:var(--tech-input-border)] bg-[color:var(--tech-bg)] shadow-none focus-visible:ring-1 focus-visible:ring-white/30 data-[state=checked]:border-white data-[state=checked]:bg-white data-[state=checked]:text-black"
+                />
+                <Label htmlFor="remember" className="tech-font-ui cursor-pointer text-xs font-normal text-[color:var(--tech-label)]">
+                  Lembrar e-mail
+                </Label>
+              </div>
+
+              <Button
+                type="submit"
+                className="tech-font-ui h-11 w-full rounded-none border-0 bg-white text-sm font-semibold uppercase tracking-[2px] text-black shadow-none hover:bg-[#e8e8e8]"
+                disabled={submitting}
+              >
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "ENTRAR"}
+              </Button>
+            </form>
+
+            <div className="my-8 flex items-center gap-3">
+              <div className="h-px flex-1 bg-[color:var(--tech-input-border)]" />
+              <span className="tech-font-mono text-[10px] uppercase tracking-[2px] text-[color:var(--tech-label)]">ou</span>
+              <div className="h-px flex-1 bg-[color:var(--tech-input-border)]" />
             </div>
 
             <Button
-              type="submit"
-              className="h-11 w-full rounded-[6px] border-0 bg-[color:var(--landing-blue-deep)] font-semibold text-white shadow-none hover:bg-[color:var(--landing-blue)]"
+              variant="outline"
+              className="tech-font-ui h-11 w-full rounded-none border border-[color:var(--tech-input-border)] bg-transparent text-sm font-medium text-[color:var(--tech-sub)] shadow-none hover:border-white/25 hover:bg-white/[0.04] hover:text-[color:var(--tech-title)]"
+              onClick={onGoogle}
               disabled={submitting}
             >
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Entrar"}
+              <GoogleIcon /> Continuar com Google
             </Button>
-          </form>
 
-          <div className="my-6 flex items-center gap-3">
-            <div className="h-px flex-1 bg-[color:var(--landing-blue-line-faint)]" />
-            <span className="text-xs uppercase tracking-wide text-sky-700/65">ou</span>
-            <div className="h-px flex-1 bg-[color:var(--landing-blue-line-faint)]" />
+            <p className="mt-10 text-left text-xs leading-relaxed text-[color:var(--tech-sub)]">
+              {inviteToken ? (
+                <>
+                  Primeiro acesso?{" "}
+                  <Link to="/signup" search={{ invite: inviteToken }} className="text-[color:var(--tech-title)] underline-offset-2 hover:underline">
+                    Criar conta com o convite
+                  </Link>
+                </>
+              ) : (
+                <>
+                  Ainda não tem conta?{" "}
+                  <Link to="/signup" className="text-[color:var(--tech-title)] underline-offset-2 hover:underline">
+                    Cadastre sua representação
+                  </Link>
+                </>
+              )}
+            </p>
           </div>
-
-          <Button
-            variant="outline"
-            className="h-11 w-full rounded-[6px] border border-[color:var(--landing-blue-deep)] bg-white font-medium text-neutral-900 shadow-none hover:bg-[color:var(--landing-blue-fill)]"
-            onClick={onGoogle}
-            disabled={submitting}
-          >
-            <GoogleIcon /> Continuar com Google
-          </Button>
-
-          <p className="mt-8 text-center text-sm text-sky-800/75">
-            {inviteToken ? (
-              <>
-                Primeiro acesso?{" "}
-                <Link
-                  to="/signup"
-                  search={{ invite: inviteToken }}
-                  className="font-medium text-[color:var(--landing-blue-deep)] hover:text-[color:var(--landing-blue)] hover:underline"
-                >
-                  Criar conta com o convite
-                </Link>
-              </>
-            ) : (
-              <>
-                Ainda não tem conta de representação?{" "}
-                <Link
-                  to="/signup"
-                  className="font-medium text-[color:var(--landing-blue-deep)] hover:text-[color:var(--landing-blue)] hover:underline"
-                >
-                  Cadastre sua representação
-                </Link>
-              </>
-            )}
-          </p>
         </div>
       </div>
     </div>
