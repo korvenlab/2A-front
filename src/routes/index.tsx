@@ -123,7 +123,7 @@ function LinkProtagonistField() {
 
 function HeroProdutoVisual() {
   return (
-    <div className={`${r} ${borderOuterNavy} bg-white p-5 md:p-7`}>
+    <div className={`${r} ${borderOuterNavy} w-full bg-white p-6 md:p-8`}>
       <HeroSystemFlow />
     </div>
   );
@@ -159,9 +159,8 @@ function Landing() {
 
       <section id="produto" className="border-b border-[#E0E7FF]">
         <div className="container mx-auto max-w-6xl px-4 py-20 text-left lg:py-28">
-          <div className="grid gap-14 lg:grid-cols-2 lg:items-start lg:gap-x-14 xl:gap-x-20">
-            {/* Coluna única: mesma linha vertical para rótulo, link, título, texto e CTAs */}
-            <div className="max-w-xl lg:max-w-none lg:pr-8">
+          <div className="flex flex-col gap-14 lg:gap-16">
+            <div className="max-w-xl lg:max-w-2xl lg:pr-8">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#0056b3]">Link de pedidos</p>
               <div className="mt-5">
                 <LinkProtagonistField />
