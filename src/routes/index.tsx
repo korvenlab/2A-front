@@ -2,13 +2,13 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@/components/ui/button";
 import { LandingHeader } from "@/components/landing/Header";
 import { LandingFooter } from "@/components/landing/Footer";
+import { DataFlowAnimation } from "@/components/landing/DataFlowAnimation";
 import { Check } from "lucide-react";
-import catalogClientPreview from "@/assets/image_77364b.png";
 
-/** Clean Tech — marinho #002B5B estrutura, royal #0056b3 ação, corpo #333 */
+/** Marinho #002B5B contorno forte; #E0E7FF itens internos; página #F8FAFC */
 const r = "rounded-[4px]";
-const borderClean = "border border-[#E0E7FF]";
-const borderGrayFlat = "border border-[#D1D5DB]";
+const borderInner = "border border-[#E0E7FF]";
+const borderOuterNavy = "border border-[#002B5B]";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -76,16 +76,11 @@ const plans = [
   },
 ];
 
-const pedidosRecebidosMock = [
-  { id: "#2041", via: "Link", estado: "Novo" },
-  { id: "#2038", via: "Link", estado: "Em análise" },
-];
-
-/** Campo travado: prefixo fixo + slug + cursor */
+/** Campo travado: prefixo fixo + slug + cursor — borda interna lavanda */
 function LinkProtagonistField() {
   return (
     <div
-      className={`flex max-w-2xl items-center ${r} ${borderGrayFlat} bg-[#F9FAFB] px-4 py-3.5 font-mono text-[15px] leading-none text-[#333]`}
+      className={`flex max-w-2xl items-center ${r} ${borderInner} bg-white px-4 py-3.5 font-mono text-[15px] leading-none text-[#333]`}
       role="img"
       aria-label="Endereço do link: 24vendas.com barra sua-representacao"
     >
@@ -96,87 +91,29 @@ function LinkProtagonistField() {
   );
 }
 
-function FlatCatalogScreenshot() {
-  return (
-    <div className={`${r} overflow-hidden ${borderGrayFlat} bg-white`}>
-      <img
-        src={catalogClientPreview}
-        alt="Captura do catálogo no sistema — sem mockup decorativo"
-        width={1200}
-        height={900}
-        className="block max-h-[min(56vh,560px)] w-full object-cover object-top"
-      />
-    </div>
-  );
-}
-
-function PedidosRecebidosLista() {
-  return (
-    <div className={`w-full max-w-md ${r} ${borderClean} bg-white`}>
-      <div className="border-b border-[#E0E7FF] px-4 py-2.5">
-        <p className="text-xs font-semibold text-[#002B5B]">Pedidos recebidos</p>
-      </div>
-      <ul className="divide-y divide-[#E0E7FF]">
-        {pedidosRecebidosMock.map((row) => (
-          <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm font-normal text-[#333]">
-            <span className="font-semibold tabular-nums text-[#002B5B]">{row.id}</span>
-            <span>{row.via}</span>
-            <span className="text-xs font-medium text-[#0056b3]">{row.estado}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-/** Linha reta royal: botão “Enviar link” → lista Pedidos recebidos */
-function FluxoEnviarParaPedidos() {
-  return (
-    <div className="flex w-full flex-col gap-4 sm:flex-row sm:items-center sm:gap-0">
-      <button
-        type="button"
-        disabled
-        className={`${r} shrink-0 border border-[#002B5B] bg-white px-5 py-2.5 text-sm font-semibold text-[#002B5B]`}
-      >
-        Enviar link
-      </button>
-
-      <div className="flex shrink-0 items-center sm:px-4" aria-hidden>
-        <div className="h-9 w-px bg-[#0056b3] sm:hidden" />
-        <div className="hidden h-px w-14 bg-[#0056b3] sm:block" />
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <PedidosRecebidosLista />
-      </div>
-    </div>
-  );
-}
-
 function HeroProdutoVisual() {
   return (
-    <div className="flex flex-col gap-10 text-left">
-      <FlatCatalogScreenshot />
-      <FluxoEnviarParaPedidos />
+    <div className={`${r} ${borderOuterNavy} bg-white p-5 md:p-7`}>
+      <DataFlowAnimation />
     </div>
   );
 }
 
 function FluxoTable() {
   return (
-    <div className={`overflow-hidden ${r} ${borderClean} bg-white`}>
+    <div className={`overflow-hidden ${r} border-2 border-[#002B5B] bg-white`}>
       <table className="w-full border-collapse text-left text-sm font-normal">
         <thead>
-          <tr className="border-b border-[#E0E7FF] bg-white">
-            <th className="landing-heading w-12 px-3 py-2.5 text-sm">#</th>
-            <th className="landing-heading px-3 py-2.5 text-sm">Etapa</th>
+          <tr className="border-b border-[#E0E7FF] bg-[#EFF6FF]">
+            <th className="landing-heading w-12 px-3 py-3 text-sm">#</th>
+            <th className="landing-heading px-3 py-3 text-sm">Etapa</th>
           </tr>
         </thead>
         <tbody className="text-[#333]">
           {fluxoPedido.map((row) => (
             <tr key={row.etapa} className="border-b border-[#E0E7FF] last:border-0">
-              <td className="px-3 py-2.5 tabular-nums font-semibold text-[#002B5B]">{row.etapa}</td>
-              <td className="px-3 py-2.5">{row.texto}</td>
+              <td className="px-3 py-3 tabular-nums text-sm font-bold text-[#0056b3]">{row.etapa}</td>
+              <td className="px-3 py-3">{row.texto}</td>
             </tr>
           ))}
         </tbody>
@@ -187,21 +124,20 @@ function FluxoTable() {
 
 function Landing() {
   return (
-    <div className="landing-clean-tech flex min-h-screen flex-col bg-white antialiased selection:bg-[#E0E7FF]">
+    <div className="landing-clean-tech flex min-h-screen flex-col antialiased selection:bg-[#E0E7FF]">
       <LandingHeader technical />
 
       <section id="produto" className="border-b border-[#E0E7FF]">
         <div className="container mx-auto max-w-6xl px-4 py-20 text-left lg:py-28">
-          <div className="mb-14 max-w-3xl lg:mb-20">
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#0056b3]">Link de pedidos</p>
-            <div className="mt-5">
-              <LinkProtagonistField />
-            </div>
-          </div>
+          <div className="grid gap-14 lg:grid-cols-2 lg:items-start lg:gap-x-14 xl:gap-x-20">
+            {/* Coluna única: mesma linha vertical para rótulo, link, título, texto e CTAs */}
+            <div className="max-w-xl lg:max-w-none lg:pr-8">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#0056b3]">Link de pedidos</p>
+              <div className="mt-5">
+                <LinkProtagonistField />
+              </div>
 
-          <div className="grid gap-16 lg:grid-cols-2 lg:items-start lg:gap-x-16 lg:gap-y-20">
-            <div className="max-w-xl">
-              <h1 className="landing-heading text-[1.7rem] leading-[1.2] tracking-tight sm:text-[2rem] lg:text-[2.35rem] lg:leading-[1.15]">
+              <h1 className="landing-heading mt-9 text-[1.7rem] leading-[1.2] tracking-tight sm:text-[2rem] lg:text-[2.35rem] lg:leading-[1.15]">
                 Seu catálogo agora é um link de vendas.
               </h1>
               <p className="mt-6 max-w-[36rem] text-base font-normal leading-relaxed text-[#333] sm:text-[17px]">
@@ -213,7 +149,7 @@ function Landing() {
                 <Button
                   size="lg"
                   asChild
-                  className={`h-11 ${r} border-0 bg-[#0056b3] px-8 text-sm font-semibold text-white shadow-none hover:bg-[#004494]`}
+                  className={`h-11 ${r} justify-start border-0 bg-[#0056b3] px-8 text-sm font-semibold text-white shadow-none hover:bg-[#004494] sm:justify-center`}
                 >
                   <Link to="/signup">Criar meu link de vendas</Link>
                 </Button>
@@ -221,7 +157,7 @@ function Landing() {
                   size="lg"
                   variant="outline"
                   asChild
-                  className={`h-11 ${r} ${borderClean} bg-white text-sm font-semibold text-[#002B5B] shadow-none hover:bg-[#002B5B]/[0.03]`}
+                  className={`h-11 ${r} justify-start ${borderInner} bg-white text-sm font-semibold text-[#002B5B] shadow-none hover:bg-[#002B5B]/[0.03] sm:justify-center`}
                 >
                   <Link to="/login">Entrar</Link>
                 </Button>
@@ -244,8 +180,8 @@ function Landing() {
       </section>
 
       <section id="fluxo" className="border-b border-[#E0E7FF]">
-        <div className="container mx-auto max-w-6xl px-4 py-20 text-left lg:py-24">
-          <div className="grid gap-12 lg:grid-cols-12 lg:gap-10">
+        <div className="container mx-auto max-w-6xl px-4 py-24 text-left lg:py-32">
+          <div className="grid gap-16 lg:grid-cols-12 lg:gap-12">
             <div className="lg:col-span-4">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#0056b3]">Fluxo</p>
               <h2 className="landing-heading mt-4 text-xl">Do link ao pedido no painel</h2>
@@ -259,12 +195,15 @@ function Landing() {
       </section>
 
       <section id="entrega" className="border-b border-[#E0E7FF]">
-        <div className="container mx-auto max-w-6xl px-4 py-20 text-left lg:py-24">
+        <div className="container mx-auto max-w-6xl px-4 py-24 text-left lg:py-32">
           <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#0056b3]">Entrega</p>
           <h2 className="landing-heading mt-4 max-w-2xl text-xl">O que está no produto</h2>
-          <div className="mt-14 grid gap-4 md:grid-cols-3 md:gap-0 md:border md:border-[#E0E7FF] md:bg-[#E0E7FF] [&>*]:md:border-r [&>*]:md:border-[#E0E7FF] [&>*]:md:bg-white [&>*]:last:md:border-r-0">
+          <div className={`mt-16 grid grid-cols-1 overflow-hidden ${r} ${borderOuterNavy} bg-white md:grid-cols-3`}>
             {entregaCols.map(({ titulo, texto }) => (
-              <div key={titulo} className={`${r} border border-[#E0E7FF] bg-white p-6 md:rounded-none md:border-0 md:bg-transparent md:p-10`}>
+              <div
+                key={titulo}
+                className="border-b border-[#E0E7FF] bg-white p-8 last:border-b-0 md:border-r md:border-b-0 md:last:border-r-0"
+              >
                 <h3 className="landing-heading text-base">{titulo}</h3>
                 <p className="mt-4 text-sm font-normal leading-relaxed text-[#333]">{texto}</p>
               </div>
@@ -274,19 +213,21 @@ function Landing() {
       </section>
 
       <section id="pricing" className="border-b border-[#E0E7FF]">
-        <div className="container mx-auto max-w-6xl px-4 py-20 text-left lg:py-24">
+        <div className="container mx-auto max-w-6xl px-4 py-24 text-left lg:py-32">
           <div className="max-w-xl">
             <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#0056b3]">Preços</p>
             <h2 className="landing-heading mt-4 text-xl">Planos mensais</h2>
           </div>
-          <div className="mt-14 grid gap-5 md:grid-cols-3">
+          <div className="mt-16 grid gap-6 md:grid-cols-3">
             {plans.map((p) => (
               <div
                 key={p.name}
-                className={`flex flex-col ${r} bg-white p-6 lg:p-8 ${p.highlight ? "border-2 border-[#0056b3]" : borderClean}`}
+                className={`flex flex-col ${r} bg-white p-6 lg:p-8 ${
+                  p.highlight ? "border-2 border-[#0056b3]" : borderOuterNavy
+                }`}
               >
                 {p.highlight && (
-                  <span className={`mb-4 inline-block w-fit ${r} border border-[#E0E7FF] bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#0056b3]`}>
+                  <span className={`mb-4 inline-block w-fit ${r} ${borderInner} bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#0056b3]`}>
                     Mais usado
                   </span>
                 )}
@@ -311,7 +252,7 @@ function Landing() {
                     className={`h-10 w-full ${r} shadow-none ${
                       p.highlight
                         ? "border-0 bg-[#0056b3] font-semibold text-white hover:bg-[#004494]"
-                        : `${borderClean} bg-white font-semibold text-[#002B5B] hover:bg-[#002B5B]/[0.03]`
+                        : `${borderInner} bg-white font-semibold text-[#002B5B] hover:bg-[#002B5B]/[0.03]`
                     }`}
                   >
                     <Link to="/signup">{p.cta}</Link>
@@ -324,8 +265,8 @@ function Landing() {
       </section>
 
       <section>
-        <div className="container mx-auto max-w-6xl px-4 py-20 lg:py-24">
-          <div className={`${r} ${borderClean} bg-white px-8 py-12 lg:px-12 lg:py-14`}>
+        <div className="container mx-auto max-w-6xl px-4 py-24 lg:py-32">
+          <div className={`${r} ${borderOuterNavy} bg-white px-8 py-12 lg:px-12 lg:py-14`}>
             <div className="grid gap-10 text-left lg:grid-cols-2 lg:items-center lg:gap-16">
               <div>
                 <h2 className="landing-heading text-xl lg:text-2xl">Configure o link e envie para os clientes.</h2>

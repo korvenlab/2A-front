@@ -7,7 +7,7 @@ export function LandingFooter({ technical }: { technical?: boolean }) {
       id="contact"
       className={cn(
         "border-t bg-white",
-        technical ? "border-[#E0E7FF] text-[#333]" : "border-border bg-secondary/40",
+        technical ? "border-[#002B5B] bg-white text-[#333]" : "border-border bg-secondary/40",
       )}
     >
       <div className="container mx-auto grid max-w-6xl gap-10 px-4 py-12 md:grid-cols-4">
@@ -60,7 +60,7 @@ export function LandingFooter({ technical }: { technical?: boolean }) {
       <div
         className={cn(
           "border-t py-6 text-center text-sm font-normal",
-          technical ? "border-[#E0E7FF] text-[#333]/75" : "border-border text-muted-foreground",
+          technical ? "border-[#002B5B] text-[#333]/75" : "border-border text-muted-foreground",
         )}
       >
         © {new Date().getFullYear()} 2AVendas — Todos os direitos reservados.

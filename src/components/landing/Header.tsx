@@ -10,7 +10,7 @@ export function LandingHeader({ technical }: { technical?: boolean }) {
     <header
       className={cn(
         "sticky top-0 z-40 w-full border-b bg-white",
-        technical ? "border-[#E0E7FF]" : "border-border/60 bg-background/95 backdrop-blur-md",
+        technical ? "border-[#002B5B] bg-white" : "border-border/60 bg-background/95 backdrop-blur-md",
       )}
     >
       <div className="container mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
