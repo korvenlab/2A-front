@@ -11,12 +11,13 @@ const PAUSE_START_MS = 400;
 
 /** Somente 2AVendas — sem referências a outros produtos. */
 const PHRASES = [
+  "Distribua funil e oportunidades entre a equipe externa…",
   "Gere um orçamento com itens do catálogo para enviar ao cliente…",
-  "Registre uma visita comercial e ligue ao funil de oportunidades…",
+  "Registre uma visita comercial e ligue ao pipeline…",
   "Acompanhe NF-e e status dos pedidos por cliente ou vendedor…",
   "Configure comissões por organização e convites com percentual padrão…",
-  "Veja eventos de outreach e próximos follow-ups na conta…",
-  "Cliente monta o pedido pelo seu link 2avendas.com — tudo no painel.",
+  "Veja eventos de outreach e próximos follow-ups…",
+  "Ative o portal: cliente monta pedido pelo link e você vê no painel.",
 ];
 
 type Props = {

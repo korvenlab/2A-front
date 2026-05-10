@@ -16,17 +16,17 @@ const borderOuterNavy = "border-2 border-[#002B5B]";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "2AVendas — Link de pedidos para catálogo B2B" },
+      { title: "2AVendas — Plataforma B2B para equipe, funil e pedidos" },
       {
         name: "description",
         content:
-          "Monte o link do catálogo. Cliente faz pedido sozinho; você vê tudo no dashboard — funil, orçamentos, visitas, NF-e, comissões e outreach.",
+          "Equipe externa, funil de vendas, orçamentos, visitas, pedidos com NF-e, comissões, outreach e portal com link — um painel para a operação comercial B2B.",
       },
-      { property: "og:title", content: "Catálogo como link de vendas — 2AVendas" },
+      { property: "og:title", content: "2AVendas — Operação comercial B2B num só lugar" },
       {
         property: "og:description",
         content:
-          "Link de pedidos, CRM, orçamentos e operação B2B num só painel.",
+          "Funil, pedidos, WhatsApp, portal com link, fiscal e remuneração da equipe integrados.",
       },
     ],
   }),
@@ -184,21 +184,21 @@ function Landing() {
                 variants={item}
                 className="text-xs font-semibold uppercase tracking-[0.14em] text-[#0056b3]"
               >
-                2AVendas · link de pedidos B2B
+                2AVendas · plataforma comercial B2B
               </motion.p>
               <motion.h1
                 variants={item}
                 className="landing-heading mt-6 text-balance text-[1.7rem] leading-[1.2] tracking-tight sm:text-[2rem] lg:text-[2.35rem] lg:leading-[1.15]"
               >
-                Seu catálogo agora é um link de vendas.
+                Da equipe ao pedido: tudo o que a sua representação precisa num só painel.
               </motion.h1>
               <motion.p
                 variants={item}
-                className="mx-auto mt-6 max-w-[36rem] text-base font-normal leading-relaxed text-[#333] sm:text-[17px]"
+                className="mx-auto mt-6 max-w-[38rem] text-base font-normal leading-relaxed text-[#333] sm:text-[17px]"
               >
-                Envie para o seu cliente B2B. Ele escolhe os produtos e faz o pedido sozinho. Você recebe tudo organizado no
-                painel — com funil, orçamentos, visitas comerciais, NF-e nos pedidos, comissões por vendedor e outreach no mesmo
-                lugar.
+                Organize vendedores e permissões, conduza negócios no funil, envie orçamentos e registre visitas. Acompanhe pedidos
+                com NF-e quando aplicável, comissões por organização e histórico de outreach — e ainda ofereça ao cliente um portal
+                com link para montar pedido sozinho, com avisos alinhados no WhatsApp.
               </motion.p>
 
               <motion.div variants={item} className="mt-9">
@@ -207,7 +207,7 @@ function Landing() {
 
               <motion.div variants={item} className="mt-8 space-y-3">
                 <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#002B5B]/80">
-                  Seu link público
+                  Portal com link de pedidos (exemplo)
                 </p>
                 <LinkProtagonistField />
               </motion.div>
@@ -219,7 +219,7 @@ function Landing() {
                     asChild
                     className={`flex h-11 ${r} w-full justify-center border-0 bg-[#0056b3] px-8 text-sm font-semibold text-white shadow-none transition-colors duration-200 hover:bg-[#004494] sm:w-auto`}
                   >
-                    <Link to="/signup">Criar meu link de vendas</Link>
+                    <Link to="/signup">Começar no 2AVendas</Link>
                   </Button>
                 </motion.div>
                 <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} transition={springBtn} className="w-full sm:w-auto sm:min-w-[10rem]">
