@@ -45,10 +45,16 @@ import {
   Package,
   Search,
   FileText,
+  Download,
+  Mail,
+  MessageCircle,
 } from "lucide-react";
 import { useMenuGate } from "@/hooks/use-menu-gate";
 import { userFacingDataError } from "@/lib/supabase-user-error";
 import { normalizeProductImageUrls } from "@/lib/product-images";
+import { downloadCsv } from "@/lib/csv-download";
+import { mailtoUrl, recordOutreach, whatsAppShareUrl } from "@/lib/outreach";
+import { SavedViewsBar } from "@/components/SavedViewsBar";
 
 export const Route = createFileRoute("/_authenticated/pedidos")({
   head: () => ({ meta: [{ title: "Pedidos — 2AVendas" }] }),
@@ -139,6 +145,7 @@ function OrdersPage() {
   const [nfeDateDraft, setNfeDateDraft] = useState("");
   const [nfeSaving, setNfeSaving] = useState(false);
   const [commissionBySeller, setCommissionBySeller] = useState<Record<string, number>>({});
+  const [statusFilter, setStatusFilter] = useState<string>("__all__");
 
   const load = async () => {
     setLoading(true);
@@ -236,6 +243,82 @@ function OrdersPage() {
         (p.supplier ?? "").toLowerCase().includes(q),
     );
   }, [products, productPickSearch]);
+
+  const ordersFiltered = useMemo(() => {
+    if (statusFilter === "__all__") return orders;
+    return orders.filter((o) => o.status === statusFilter);
+  }, [orders, statusFilter]);
+
+  const exportOrdersCsv = () => {
+    downloadCsv(
+      `pedidos-${new Date().toISOString().slice(0, 10)}.csv`,
+      [
+        "Pedido",
+        "Status",
+        "Cliente",
+        "Data",
+        "Total",
+        "Comissão_estimada",
+        "Email",
+        "Telefone",
+      ],
+      ordersFiltered.map((o) => {
+        const sid = o.seller_id;
+        const pct = sid && commissionBySeller[sid] != null ? commissionBySeller[sid] : 0;
+        const est = sid ? commissionFromTotal(o.total, pct) : null;
+        return [
+          String(o.order_number),
+          statusLabels[o.status] ?? o.status,
+          o.customers?.name ?? "",
+          o.created_at.slice(0, 19).replace("T", " "),
+          o.total,
+          est ?? "",
+          o.customers?.email ?? "",
+          o.customers?.phone ?? "",
+        ];
+      }),
+    );
+    toast.success("CSV gerado.");
+  };
+
+  const shareOrderEmail = async (o: Order) => {
+    const to = o.customers?.email?.trim();
+    if (!to) return toast.error("Cliente sem e-mail.");
+    if (!organization?.id) return;
+    const subject = `Pedido #${String(o.order_number).padStart(4, "0")} — ${organization.name}`;
+    const body = `Olá,\n\nSegue o pedido #${String(o.order_number).padStart(4, "0")} no valor de ${brl(o.total)} (${statusLabels[o.status]}).\n\n`;
+    window.location.href = mailtoUrl(to, subject, body);
+    const { error } = await recordOutreach(supabase, {
+      organization_id: organization.id,
+      channel: "email",
+      summary: `Pedido #${String(o.order_number).padStart(4, "0")} — e-mail`,
+      body,
+      customer_id: o.customer_id,
+      order_id: o.id,
+    });
+    if (error) toast.error("Abriremos o e-mail, mas o registro no sistema falhou.");
+    else toast.success("Envio registrado.");
+  };
+
+  const shareOrderWhatsApp = async (o: Order) => {
+    const phone = o.customers?.phone?.trim();
+    if (!phone) return toast.error("Cliente sem telefone.");
+    if (!organization?.id) return;
+    const msg = `Olá! Referente ao pedido #${String(o.order_number).padStart(4, "0")} (${organization.name}) — total ${brl(o.total)}.`;
+    const url = whatsAppShareUrl(phone, msg);
+    if (!url) return toast.error("Telefone inválido.");
+    window.open(url, "_blank", "noopener,noreferrer");
+    const { error } = await recordOutreach(supabase, {
+      organization_id: organization.id,
+      channel: "whatsapp",
+      summary: `Pedido #${String(o.order_number).padStart(4, "0")} — WhatsApp`,
+      body: msg,
+      customer_id: o.customer_id,
+      order_id: o.id,
+    });
+    if (error) toast.error("WhatsApp aberto, mas o registro no sistema falhou.");
+    else toast.success("Envio registrado.");
+  };
 
   const pickProductsGrouped = useMemo(() => {
     const map = new Map<string, ProductOpt[]>();
@@ -379,7 +462,7 @@ function OrdersPage() {
   };
 
   return (
-    <div className="p-6 lg:p-10 space-y-6">
+    <div className="p-6 lg:p-10 space-y-6 pb-28 lg:pb-10">
       <PageHeader
         title="Pedidos"
         description="Acompanhe e crie pedidos da representação."
@@ -604,6 +687,38 @@ function OrdersPage() {
         }
       />
 
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">Filtrar status</span>
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-[168px] h-9">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Todos os status</SelectItem>
+              {(Object.keys(statusLabels) as OrderStatus[]).map((s) => (
+                <SelectItem key={s} value={s}>
+                  {statusLabels[s]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {organization?.id && user?.id ? (
+          <SavedViewsBar<{ statusFilter: string }>
+            pageKey="pedidos"
+            userId={user.id}
+            orgId={organization.id}
+            snapshot={{ statusFilter }}
+            onApply={(p) => setStatusFilter(p.statusFilter)}
+          />
+        ) : null}
+        <Button type="button" variant="outline" size="sm" className="h-9 gap-1" onClick={exportOrdersCsv}>
+          <Download className="h-4 w-4" />
+          Exportar CSV
+        </Button>
+      </div>
+
       <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-12 flex justify-center">
@@ -613,6 +728,10 @@ function OrdersPage() {
           <div className="p-12 text-center text-muted-foreground">
             <ShoppingBag className="h-10 w-10 mx-auto mb-3 opacity-50" />
             Nenhum pedido ainda.
+          </div>
+        ) : ordersFiltered.length === 0 ? (
+          <div className="p-12 text-center text-muted-foreground">
+            Nenhum pedido com o status selecionado.
           </div>
         ) : (
           <Table>
@@ -626,12 +745,13 @@ function OrdersPage() {
                 <TableHead className="text-right whitespace-nowrap" title="Percentual configurado em Vendedores">
                   Comissão (est.)
                 </TableHead>
+                <TableHead className="text-center w-[88px]">Enviar</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right w-[100px]">NF-e</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {orders.map((o) => (
+              {ordersFiltered.map((o) => (
                 <TableRow key={o.id}>
                   <TableCell className="font-mono text-sm">
                     #{String(o.order_number).padStart(4, "0")}
@@ -693,6 +813,28 @@ function OrdersPage() {
                         </span>
                       );
                     })()}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex justify-center gap-0.5">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0"
+                        title="E-mail ao cliente"
+                        onClick={() => void shareOrderEmail(o)}
+                      >
+                        <Mail className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0"
+                        title="WhatsApp ao cliente"
+                        onClick={() => void shareOrderWhatsApp(o)}
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">

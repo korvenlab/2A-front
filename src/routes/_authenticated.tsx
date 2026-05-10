@@ -1,8 +1,9 @@
 import { createFileRoute, Outlet, useNavigate, Link, useRouterState } from "@tanstack/react-router";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
+import { GlobalSearchDialog } from "@/components/GlobalSearchDialog";
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -15,6 +16,7 @@ import {
   FileSpreadsheet,
   Columns3,
   CalendarDays,
+  Search,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -32,6 +34,8 @@ function AuthLayout() {
   const { isAuthenticated, loading, signingOut, signOut, profile, organization, menu, role } = useAuth();
   const navigate = useNavigate();
   const { location } = useRouterState();
+  const [searchOpen, setSearchOpen] = useState(false);
+  const staffSearch = role === "admin" || role === "vendedor";
 
   useEffect(() => {
     if (loading) return;
@@ -97,11 +101,23 @@ function AuthLayout() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col lg:flex-row">
+      {staffSearch && <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />}
       <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r border-border bg-card">
         <div className="p-6 border-b border-border">
           <Logo />
           {organization && (
             <p className="mt-3 text-xs text-muted-foreground truncate">{organization.name}</p>
+          )}
+          {staffSearch && (
+            <Button
+              variant="outline"
+              className="mt-4 w-full justify-start gap-2 text-muted-foreground"
+              onClick={() => setSearchOpen(true)}
+            >
+              <Search className="h-4 w-4" />
+              Buscar…
+              <kbd className="ml-auto hidden xl:inline text-[10px] font-sans opacity-70">Ctrl K</kbd>
+            </Button>
           )}
         </div>
         <nav className="flex-1 p-3 space-y-1">
@@ -144,9 +160,16 @@ function AuthLayout() {
         <header className="lg:hidden shrink-0 border-b border-border bg-card">
           <div className="flex items-center justify-between px-4 py-3 gap-3">
             <Logo />
-            <Button size="sm" variant="ghost" onClick={signOut}>
-              <LogOut className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-1">
+              {staffSearch && (
+                <Button size="sm" variant="ghost" onClick={() => setSearchOpen(true)} aria-label="Buscar">
+                  <Search className="h-4 w-4" />
+                </Button>
+              )}
+              <Button size="sm" variant="ghost" onClick={signOut}>
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
           {navItems.length > 0 ? (
             <nav className="flex gap-2 overflow-x-auto px-4 pb-3">

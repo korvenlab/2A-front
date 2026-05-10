@@ -49,6 +49,7 @@ import {
   Copy,
   LogIn,
   Trash2,
+  Download,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { brl, dt } from "@/lib/format";
@@ -56,6 +57,8 @@ import { invitePortalLoginUrl, inviteSignupUrl } from "@/lib/invite-links";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { useMenuGate } from "@/hooks/use-menu-gate";
 import { userFacingDataError } from "@/lib/supabase-user-error";
+import { downloadCsv } from "@/lib/csv-download";
+import { SavedViewsBar } from "@/components/SavedViewsBar";
 
 export const Route = createFileRoute("/_authenticated/clientes")({
   head: () => ({ meta: [{ title: "Clientes — 2AVendas" }] }),
@@ -195,6 +198,25 @@ function CustomersPage() {
     }
     return rows;
   }, [customers, clientSearch, ufFilter, industryFilter, sellerFilter, isAdmin]);
+
+  const exportClientsCsv = () => {
+    downloadCsv(
+      `clientes-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Nome", "Razao_social", "Email", "Telefone", "Documento", "Cidade", "UF", "Industria", "Notas"],
+      filteredCustomers.map((c) => [
+        c.name,
+        c.legal_name ?? "",
+        c.email ?? "",
+        c.phone ?? "",
+        c.document ?? "",
+        c.city ?? "",
+        c.state ?? "",
+        c.industry ?? "",
+        (c.notes ?? "").replace(/\s+/g, " ").slice(0, 500),
+      ]),
+    );
+    toast.success("CSV exportado.");
+  };
 
   const load = async () => {
     setLoading(true);
@@ -752,6 +774,31 @@ function CustomersPage() {
           </div>
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
             <div className="flex flex-wrap items-center gap-2">
+              {organization?.id && user?.id ? (
+                <>
+                  <SavedViewsBar<{
+                    clientSearch: string;
+                    ufFilter: string;
+                    industryFilter: string;
+                    sellerFilter: string;
+                  }>
+                    pageKey="clientes"
+                    userId={user.id}
+                    orgId={organization.id}
+                    snapshot={{ clientSearch, ufFilter, industryFilter, sellerFilter }}
+                    onApply={(p) => {
+                      setClientSearch(p.clientSearch);
+                      setUfFilter(p.ufFilter);
+                      setIndustryFilter(p.industryFilter);
+                      setSellerFilter(p.sellerFilter);
+                    }}
+                  />
+                  <Button type="button" variant="outline" size="sm" className="gap-1 h-9" onClick={exportClientsCsv}>
+                    <Download className="h-4 w-4" />
+                    Exportar CSV
+                  </Button>
+                </>
+              ) : null}
               {(clientSearch.trim() !== "" ||
                 ufFilter !== "__all__" ||
                 industryFilter !== "__all__" ||

@@ -498,6 +498,84 @@ export type Database = {
           },
         ]
       }
+      sales_outreach_events: {
+        Row: {
+          body: string | null
+          budget_id: string | null
+          channel: string
+          created_at: string
+          created_by: string | null
+          customer_id: string | null
+          id: string
+          opportunity_id: string | null
+          order_id: string | null
+          organization_id: string
+          summary: string
+        }
+        Insert: {
+          body?: string | null
+          budget_id?: string | null
+          channel: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          id?: string
+          opportunity_id?: string | null
+          order_id?: string | null
+          organization_id: string
+          summary: string
+        }
+        Update: {
+          body?: string | null
+          budget_id?: string | null
+          channel?: string
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string | null
+          id?: string
+          opportunity_id?: string | null
+          order_id?: string | null
+          organization_id?: string
+          summary?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_outreach_events_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_outreach_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_outreach_events_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "sales_opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_outreach_events_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_outreach_events_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feedback_messages: {
         Row: {
           body: string

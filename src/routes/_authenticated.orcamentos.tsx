@@ -33,9 +33,11 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Loader2, Trash2, FileSpreadsheet } from "lucide-react";
+import { Plus, Loader2, Trash2, FileSpreadsheet, Mail, MessageCircle, Download } from "lucide-react";
 import { useMenuGate } from "@/hooks/use-menu-gate";
 import { userFacingDataError } from "@/lib/supabase-user-error";
+import { mailtoUrl, recordOutreach, whatsAppShareUrl } from "@/lib/outreach";
+import { downloadCsv } from "@/lib/csv-download";
 
 export const Route = createFileRoute("/_authenticated/orcamentos")({
   head: () => ({ meta: [{ title: "Orçamentos — 2AVendas" }] }),
@@ -66,7 +68,7 @@ interface BudgetRow {
   customer_id: string;
   quote_date: string;
   seller_id: string | null;
-  customers: { name: string; legal_name: string | null } | null;
+  customers: { name: string; legal_name: string | null; email: string | null; phone: string | null } | null;
   budget_items: BudgetItemRow[] | null;
 }
 
@@ -110,7 +112,7 @@ function BudgetsPage() {
     let bq = supabase
       .from("budgets")
       .select(
-        "id,budget_number,customer_id,quote_date,seller_id,customers(name,legal_name),budget_items(unit_price_final,quantity,commission_pct)",
+        "id,budget_number,customer_id,quote_date,seller_id,customers(name,legal_name,email,phone),budget_items(unit_price_final,quantity,commission_pct)",
       )
       .eq("organization_id", organization.id)
       .order("quote_date", { ascending: false })
@@ -147,6 +149,7 @@ function BudgetsPage() {
     return rows.map((r) => ({
       id: r.id,
       budget_number: r.budget_number,
+      customer_id: r.customer_id,
       customerLabel: r.customers?.name ?? "—",
       quote_date: r.quote_date,
       commission: sumBudgetCommission(r.budget_items ?? []),
@@ -154,8 +157,62 @@ function BudgetsPage() {
         (s, it) => s + Number(it.unit_price_final) * Number(it.quantity),
         0,
       ),
+      custEmail: r.customers?.email?.trim() ?? "",
+      custPhone: r.customers?.phone?.trim() ?? "",
     }));
   }, [rows]);
+
+  const exportOrcamentosCsv = () => {
+    downloadCsv(
+      `orcamentos-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Numero", "Cliente", "Data", "Valor_itens", "Comissao_estimada"],
+      totalsVisible.map((r) => [
+        r.budget_number,
+        r.customerLabel,
+        r.quote_date,
+        r.linesValue,
+        r.commission,
+      ]),
+    );
+    toast.success("CSV exportado.");
+  };
+
+  const shareBudgetEmail = async (r: (typeof totalsVisible)[number]) => {
+    if (!r.custEmail) return toast.error("Cliente sem e-mail.");
+    if (!organization?.id) return;
+    const subject = `Orçamento #${String(r.budget_number).padStart(4, "0")} — ${organization.name}`;
+    const body = `Olá,\n\nSegue nossa proposta comercial #${String(r.budget_number).padStart(4, "0")} (${r.quote_date}), valor dos itens ${brl(r.linesValue)}.\n\n`;
+    window.location.href = mailtoUrl(r.custEmail, subject, body);
+    const { error } = await recordOutreach(supabase, {
+      organization_id: organization.id,
+      channel: "email",
+      summary: `Orçamento #${String(r.budget_number).padStart(4, "0")} — e-mail`,
+      body,
+      customer_id: r.customer_id,
+      budget_id: r.id,
+    });
+    if (error) toast.error("E-mail aberto; falha ao registrar no sistema.");
+    else toast.success("Envio registrado.");
+  };
+
+  const shareBudgetWhatsApp = async (r: (typeof totalsVisible)[number]) => {
+    if (!r.custPhone) return toast.error("Cliente sem telefone.");
+    if (!organization?.id) return;
+    const msg = `Olá! Orçamento #${String(r.budget_number).padStart(4, "0")} (${organization.name}) — ${brl(r.linesValue)} em ${r.quote_date}.`;
+    const url = whatsAppShareUrl(r.custPhone, msg);
+    if (!url) return toast.error("Telefone inválido.");
+    window.open(url, "_blank", "noopener,noreferrer");
+    const { error } = await recordOutreach(supabase, {
+      organization_id: organization.id,
+      channel: "whatsapp",
+      summary: `Orçamento #${String(r.budget_number).padStart(4, "0")} — WhatsApp`,
+      body: msg,
+      customer_id: r.customer_id,
+      budget_id: r.id,
+    });
+    if (error) toast.error("WhatsApp aberto; falha ao registrar no sistema.");
+    else toast.success("Envio registrado.");
+  };
 
   const resetForm = () => {
     setCustId("");
@@ -266,7 +323,7 @@ function BudgetsPage() {
   };
 
   return (
-    <div className="p-6 lg:p-10 space-y-6">
+    <div className="p-6 lg:p-10 space-y-6 pb-28 lg:pb-10">
       <PageHeader
         title="Orçamentos"
         description="Propostas comerciais, descontos por linha e comissão estimada por item."
@@ -446,6 +503,13 @@ function BudgetsPage() {
         }
       />
 
+      <div className="flex justify-end">
+        <Button type="button" variant="outline" size="sm" className="gap-1" onClick={exportOrcamentosCsv}>
+          <Download className="h-4 w-4" />
+          Exportar CSV
+        </Button>
+      </div>
+
       <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-12 flex justify-center">
@@ -465,6 +529,7 @@ function BudgetsPage() {
                 <TableHead>Data</TableHead>
                 <TableHead className="text-right">Valor itens</TableHead>
                 <TableHead className="text-right">Comissão est.</TableHead>
+                <TableHead className="text-center w-[88px]">Enviar</TableHead>
                 <TableHead className="w-14"></TableHead>
               </TableRow>
             </TableHeader>
@@ -479,6 +544,28 @@ function BudgetsPage() {
                     <Badge variant="secondary" className="font-normal">
                       {brl(r.commission)}
                     </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex justify-center gap-0.5">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0"
+                        title="E-mail ao cliente"
+                        onClick={() => void shareBudgetEmail(r)}
+                      >
+                        <Mail className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-8 w-8 p-0"
+                        title="WhatsApp ao cliente"
+                        onClick={() => void shareBudgetWhatsApp(r)}
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                   <TableCell className="text-right">
                     <Button variant="ghost" size="sm" onClick={() => deleteBudget(r.id)}>

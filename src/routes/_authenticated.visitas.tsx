@@ -217,7 +217,7 @@ function VisitsPage() {
   };
 
   return (
-    <div className="p-6 lg:p-10 space-y-6">
+    <div className="relative p-6 lg:p-10 space-y-6 pb-28 lg:pb-10">
       <PageHeader
         title="Visitas comerciais"
         description="Agende compromissos com clientes e acompanhe o status (agendada, realizada, cancelada)."
@@ -375,6 +375,16 @@ function VisitsPage() {
           </Table>
         )}
       </div>
+
+      <Button
+        type="button"
+        size="lg"
+        className="fixed bottom-6 right-4 z-40 h-14 w-14 rounded-full shadow-lg lg:hidden"
+        aria-label="Nova visita"
+        onClick={() => setOpen(true)}
+      >
+        <Plus className="h-6 w-6" />
+      </Button>
     </div>
   );
 }

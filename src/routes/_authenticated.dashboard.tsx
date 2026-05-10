@@ -1,11 +1,31 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { useMenuGate } from "@/hooks/use-menu-gate";
 import { supabase } from "@/integrations/supabase/client";
-import { brl } from "@/lib/format";
+import { brl, dt } from "@/lib/format";
 import { commissionFromTotal } from "@/lib/commission";
-import { TrendingUp, ShoppingBag, Users, DollarSign, Percent } from "lucide-react";
+import {
+  TrendingUp,
+  ShoppingBag,
+  Users,
+  DollarSign,
+  Percent,
+  CheckCircle2,
+  Circle,
+  X,
+  BarChart3,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard — 2AVendas" }] }),
@@ -25,6 +45,19 @@ function monthStartDate(): string {
   return start.toISOString();
 }
 
+function onboardDismissKey(userId: string, orgId: string): string {
+  return `2av_onboarding_dismiss:${userId}:${orgId}`;
+}
+
+type RecentOrder = {
+  id: string;
+  order_number: number;
+  status: string;
+  total: number;
+  created_at: string;
+  customers: { name: string } | null;
+};
+
 function Dashboard() {
   useMenuGate("dashboard");
   const { profile, role, user, organization } = useAuth();
@@ -36,9 +69,22 @@ function Dashboard() {
     { label: "Comissão estimada (mês)", value: "—", change: "carregando...", icon: Percent },
   ]);
 
+  const [onboarding, setOnboarding] = useState<{
+    dismissed: boolean;
+    hasCustomer: boolean;
+    hasProduct: boolean;
+    hasOrder: boolean;
+  } | null>(null);
+
+  const [funnelCounts, setFunnelCounts] = useState<{ stage: string; count: number; color: string | null }[]>([]);
+  const [ticketMedio, setTicketMedio] = useState<number | null>(null);
+  const [sellerRank, setSellerRank] = useState<{ id: string; label: string; total: number }[]>([]);
+  const [productMix, setProductMix] = useState<{ name: string; subtotal: number }[]>([]);
+  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
+
   useEffect(() => {
     const load = async () => {
-      if (!organization?.id) return;
+      if (!organization?.id || !user?.id) return;
       const startIso = monthStartDate();
 
       let ordersQuery = supabase
@@ -56,12 +102,103 @@ function Dashboard() {
         customersQuery = customersQuery.eq("assigned_seller_id", user.id);
       }
 
-      const [{ data: orders }, { count: customerCount }] = await Promise.all([ordersQuery, customersQuery]);
-      const rows = orders ?? [];
+      const dismissed = localStorage.getItem(onboardDismissKey(user.id, organization.id)) === "1";
+
+      let obCust = supabase
+        .from("customers")
+        .select("id", { head: true, count: "exact" })
+        .eq("organization_id", organization.id)
+        .limit(1);
+      let obOrd = supabase
+        .from("orders")
+        .select("id", { head: true, count: "exact" })
+        .eq("organization_id", organization.id)
+        .limit(1);
+      if (role === "vendedor" && user?.id) {
+        obCust = obCust.eq("assigned_seller_id", user.id);
+        obOrd = obOrd.eq("seller_id", user.id);
+      }
+      const onboardingCounts = Promise.all([
+        obCust,
+        supabase
+          .from("products")
+          .select("id", { head: true, count: "exact" })
+          .eq("organization_id", organization.id)
+          .eq("active", true)
+          .limit(1),
+        obOrd,
+      ]);
+
+      let recentQ = supabase
+        .from("orders")
+        .select("id,order_number,status,total,created_at,customers(name)")
+        .eq("organization_id", organization.id)
+        .order("created_at", { ascending: false })
+        .limit(6);
+      if (role === "vendedor" && user?.id) recentQ = recentQ.eq("seller_id", user.id);
+
+      const funnelPromise =
+        role !== "cliente"
+          ? (async () => {
+              const stageQuery = supabase
+                .from("pipeline_stages")
+                .select("id,name,sort_order,color")
+                .eq("organization_id", organization.id)
+                .order("sort_order");
+              let oppQuery = supabase
+                .from("sales_opportunities")
+                .select("id,stage_id,owner_id")
+                .eq("organization_id", organization.id);
+              if (role === "vendedor" && user?.id) {
+                oppQuery = oppQuery.or(`owner_id.eq.${user.id},owner_id.is.null`);
+              }
+              const [{ data: st }, { data: op }] = await Promise.all([stageQuery, oppQuery]);
+              const stages = (st ?? []) as { id: string; name: string; sort_order: number; color: string | null }[];
+              const opps = (op ?? []) as { stage_id: string }[];
+              const byStage = new Map<string, number>();
+              for (const o of opps) byStage.set(o.stage_id, (byStage.get(o.stage_id) ?? 0) + 1);
+              return stages.map((s) => ({
+                stage: s.name,
+                count: byStage.get(s.id) ?? 0,
+                color: s.color,
+              }));
+            })()
+          : Promise.resolve([]);
+
+      const [ordersPack, onboardRes, recentRes, funnelRows] = await Promise.all([
+        Promise.all([ordersQuery, customersQuery]).then(async ([or, cu]) => ({
+          data: (await or).data,
+          count: (await cu).count,
+        })),
+        onboardingCounts,
+        recentQ,
+        funnelPromise,
+      ]);
+
+      const orders = ordersPack.data ?? [];
+      const customerCount = ordersPack.count ?? 0;
+      const nc = onboardRes[0].count ?? 0;
+      const np = onboardRes[1].count ?? 0;
+      const no = onboardRes[2].count ?? 0;
+      const recentRows = recentRes.data;
+
+      setOnboarding({
+        dismissed,
+        hasCustomer: (nc ?? 0) > 0,
+        hasProduct: (np ?? 0) > 0,
+        hasOrder: (no ?? 0) > 0,
+      });
+
+      setRecentOrders((recentRows as RecentOrder[]) ?? []);
+      setFunnelCounts(funnelRows);
+
+      const rows = orders;
       const revenue = rows.reduce((acc, row) => acc + Number((row as { total?: number }).total ?? 0), 0);
       const ordersCount = rows.length;
       const clients = customerCount ?? 0;
       const conversion = clients > 0 ? `${((ordersCount / clients) * 100).toFixed(1)}%` : "0%";
+
+      setTicketMedio(ordersCount > 0 ? revenue / ordersCount : null);
 
       const commissionBySeller: Record<string, number> = {};
       if (role === "vendedor" && user?.id) {
@@ -119,12 +256,79 @@ function Dashboard() {
           icon: Percent,
         },
       ]);
+
+      const orderIds = rows.map((r) => (r as { id: string }).id);
+      if (orderIds.length > 0) {
+        const { data: items } = await supabase
+          .from("order_items")
+          .select("product_name,subtotal")
+          .in("order_id", orderIds.slice(0, 500));
+        const map = new Map<string, number>();
+        for (const it of items ?? []) {
+          const row = it as { product_name: string; subtotal: number };
+          const name = row.product_name?.trim() || "—";
+          map.set(name, (map.get(name) ?? 0) + Number(row.subtotal));
+        }
+        setProductMix(
+          [...map.entries()]
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 8)
+            .map(([name, subtotal]) => ({ name, subtotal })),
+        );
+      } else {
+        setProductMix([]);
+      }
+
+      if (role === "admin" && rows.length > 0) {
+        const sums = new Map<string, number>();
+        for (const row of rows) {
+          const sid = (row as { seller_id?: string | null }).seller_id;
+          if (!sid) continue;
+          sums.set(sid, (sums.get(sid) ?? 0) + Number((row as { total?: number }).total));
+        }
+        const ids = [...sums.keys()];
+        let labels = new Map<string, string>();
+        if (ids.length > 0) {
+          const { data: profs } = await supabase.from("profiles").select("id,full_name,email").in("id", ids);
+          for (const p of profs ?? []) {
+            const pr = p as { id: string; full_name: string | null; email: string | null };
+            labels.set(pr.id, pr.full_name?.trim() || pr.email?.trim() || pr.id);
+          }
+        }
+        setSellerRank(
+          [...sums.entries()]
+            .map(([id, total]) => ({ id, label: labels.get(id) ?? id, total }))
+            .sort((a, b) => b.total - a.total)
+            .slice(0, 8),
+        );
+      } else {
+        setSellerRank([]);
+      }
     };
     void load();
   }, [organization?.id, role, user?.id]);
 
+  const dismissOnboarding = () => {
+    if (!user?.id || !organization?.id) return;
+    localStorage.setItem(onboardDismissKey(user.id, organization.id), "1");
+    setOnboarding((o) => (o ? { ...o, dismissed: true } : o));
+  };
+
+  const showOnboarding =
+    onboarding &&
+    !onboarding.dismissed &&
+    !(onboarding.hasCustomer && onboarding.hasProduct && onboarding.hasOrder);
+
+  const statusPt: Record<string, string> = {
+    rascunho: "Rascunho",
+    enviado: "Enviado",
+    aprovado: "Aprovado",
+    faturado: "Faturado",
+    cancelado: "Cancelado",
+  };
+
   return (
-    <div className="p-6 lg:p-10 space-y-8">
+    <div className="p-6 lg:p-10 space-y-8 pb-28 lg:pb-10">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Olá, {profile?.full_name?.split(" ")[0] ?? "vendedor"} 👋</h1>
         <p className="mt-1 text-muted-foreground">
@@ -135,6 +339,65 @@ function Dashboard() {
               : "Visão da sua operação."}
         </p>
       </div>
+
+      {showOnboarding && (
+        <div className="rounded-2xl border border-primary/25 bg-primary/5 p-5 shadow-sm relative">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute right-2 top-2 h-8 w-8"
+            onClick={dismissOnboarding}
+            aria-label="Ocultar checklist"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Primeiros passos</h2>
+          <p className="mt-1 text-sm text-muted-foreground max-w-2xl">
+            Complete o essencial para sua operação rodar com fluxo comercial (cliente → catálogo → pedido).
+          </p>
+          <ul className="mt-4 space-y-3">
+            <li className="flex items-start gap-3">
+              {onboarding?.hasCustomer ? (
+                <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+              ) : (
+                <Circle className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+              )}
+              <div>
+                <p className="font-medium">Cadastre um cliente B2B</p>
+                <Button variant="link" className="h-auto p-0 text-sm" asChild>
+                  <Link to="/clientes">Abrir Clientes</Link>
+                </Button>
+              </div>
+            </li>
+            <li className="flex items-start gap-3">
+              {onboarding?.hasProduct ? (
+                <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+              ) : (
+                <Circle className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+              )}
+              <div>
+                <p className="font-medium">Publique um produto no catálogo</p>
+                <Button variant="link" className="h-auto p-0 text-sm" asChild>
+                  <Link to="/catalogo">Abrir Catálogo</Link>
+                </Button>
+              </div>
+            </li>
+            <li className="flex items-start gap-3">
+              {onboarding?.hasOrder ? (
+                <CheckCircle2 className="h-5 w-5 text-green-600 shrink-0 mt-0.5" />
+              ) : (
+                <Circle className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+              )}
+              <div>
+                <p className="font-medium">Registre seu primeiro pedido</p>
+                <Button variant="link" className="h-auto p-0 text-sm" asChild>
+                  <Link to="/pedidos">Abrir Pedidos</Link>
+                </Button>
+              </div>
+            </li>
+          </ul>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         {stats.map((s) => (
@@ -151,11 +414,117 @@ function Dashboard() {
         ))}
       </div>
 
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold">Funil (oportunidades ativas)</h2>
+          </div>
+          {funnelCounts.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Sem dados de funil ou sem permissão.</p>
+          ) : (
+            <ul className="space-y-2">
+              {funnelCounts.map((f) => (
+                <li key={f.stage} className="flex items-center justify-between gap-3 text-sm">
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span
+                      className="h-2 w-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: f.color ?? "var(--muted)" }}
+                    />
+                    <span className="truncate">{f.stage}</span>
+                  </span>
+                  <Badge variant="secondary">{f.count}</Badge>
+                </li>
+              ))}
+            </ul>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Distribuição atual das oportunidades por estágio (CRM). Ajuste estágios em Funil / CRM.
+          </p>
+        </div>
+
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
+          <h2 className="text-lg font-semibold">Pedidos do mês — métricas</h2>
+          <dl className="grid gap-3 text-sm">
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">Ticket médio</dt>
+              <dd className="font-semibold tabular-nums">{ticketMedio != null ? brl(ticketMedio) : "—"}</dd>
+            </div>
+          </dl>
+          {role === "admin" && sellerRank.length > 0 && (
+            <div className="pt-2 border-t border-border">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                Vendas no mês por vendedor
+              </p>
+              <ul className="space-y-1.5 text-sm">
+                {sellerRank.map((s, i) => (
+                  <li key={s.id} className="flex justify-between gap-2">
+                    <span className="truncate text-muted-foreground">
+                      {i + 1}. {s.label}
+                    </span>
+                    <span className="font-medium tabular-nums shrink-0">{brl(s.total)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-        <h2 className="text-lg font-semibold">Pedidos recentes</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Em breve: lista completa de pedidos com filtros, status e ações.
-        </p>
+        <h2 className="text-lg font-semibold mb-4">Mix de produtos (pedidos do mês)</h2>
+        {productMix.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Sem linhas de pedido neste mês.</p>
+        ) : (
+          <ul className="space-y-2 text-sm">
+            {productMix.map((p) => (
+              <li key={p.name} className="flex justify-between gap-4">
+                <span className="truncate">{p.name}</span>
+                <span className="tabular-nums text-muted-foreground shrink-0">{brl(p.subtotal)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+        <div className="p-6 border-b border-border">
+          <h2 className="text-lg font-semibold">Pedidos recentes</h2>
+          <p className="mt-1 text-sm text-muted-foreground">Últimos registros com cliente e status.</p>
+        </div>
+        {recentOrders.length === 0 ? (
+          <p className="p-8 text-sm text-muted-foreground text-center">Nenhum pedido encontrado.</p>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>#</TableHead>
+                <TableHead>Cliente</TableHead>
+                <TableHead>Data</TableHead>
+                <TableHead className="text-right">Total</TableHead>
+                <TableHead>Status</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {recentOrders.map((o) => (
+                <TableRow key={o.id}>
+                  <TableCell className="font-mono text-sm">#{String(o.order_number).padStart(4, "0")}</TableCell>
+                  <TableCell>{o.customers?.name ?? "—"}</TableCell>
+                  <TableCell className="text-muted-foreground">{dt(o.created_at)}</TableCell>
+                  <TableCell className="text-right font-medium">{brl(o.total)}</TableCell>
+                  <TableCell>
+                    <Badge variant="secondary">{statusPt[o.status] ?? o.status}</Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+        <div className="p-4 border-t border-border bg-muted/30">
+          <Button variant="outline" size="sm" asChild>
+            <Link to="/pedidos">Ver todos os pedidos</Link>
+          </Button>
+        </div>
       </div>
     </div>
   );

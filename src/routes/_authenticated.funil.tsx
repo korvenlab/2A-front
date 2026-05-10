@@ -42,9 +42,15 @@ import {
   History,
   Package,
   Trash2,
+  Download,
+  Mail,
+  MessageCircle,
 } from "lucide-react";
 import { useMenuGate } from "@/hooks/use-menu-gate";
 import { userFacingDataError } from "@/lib/supabase-user-error";
+import { downloadCsv } from "@/lib/csv-download";
+import { SavedViewsBar } from "@/components/SavedViewsBar";
+import { mailtoUrl, recordOutreach, whatsAppShareUrl } from "@/lib/outreach";
 
 export const Route = createFileRoute("/_authenticated/funil")({
   head: () => ({ meta: [{ title: "Funil de vendas — 2AVendas" }] }),
@@ -75,6 +81,8 @@ interface ProductPick {
 interface OppCustomer {
   name: string;
   legal_name: string | null;
+  email: string | null;
+  phone: string | null;
 }
 
 interface OpportunityRow {
@@ -165,7 +173,7 @@ function FunilPage() {
     const oppQuery = supabase
       .from("sales_opportunities")
       .select(
-        "id,title,stage_id,customer_id,owner_id,priority,expected_close_date,notes,value_total,created_at,customers(name,legal_name)",
+        "id,title,stage_id,customer_id,owner_id,priority,expected_close_date,notes,value_total,created_at,customers(name,legal_name,email,phone)",
       )
       .eq("organization_id", organization.id)
       .order("priority", { ascending: false })
@@ -433,6 +441,64 @@ function FunilPage() {
     });
   }, [filteredOpps]);
 
+  const stageNameById = useMemo(() => new Map(stages.map((s) => [s.id, s.name])), [stages]);
+
+  const exportFunilCsv = () => {
+    downloadCsv(
+      `funil-oportunidades-${new Date().toISOString().slice(0, 10)}.csv`,
+      ["Titulo", "Estágio", "Cliente", "Valor", "Prioridade", "Fechamento_esperado", "Criado_em"],
+      listaSorted.map((o) => [
+        o.title,
+        stageNameById.get(o.stage_id) ?? o.stage_id,
+        o.customers?.name ?? "",
+        o.value_total,
+        o.priority,
+        o.expected_close_date ?? "",
+        o.created_at.slice(0, 19).replace("T", " "),
+      ]),
+    );
+    toast.success("CSV exportado.");
+  };
+
+  const shareOppEmail = async (o: OpportunityRow) => {
+    const to = o.customers?.email?.trim();
+    if (!to) return toast.error("Cliente sem e-mail.");
+    if (!organization?.id) return;
+    const subject = `${o.title} — ${organization.name}`;
+    const body = `Olá,\n\nPassando sobre a oportunidade “${o.title}” (${brl(o.value_total)}).\n\n`;
+    window.location.href = mailtoUrl(to, subject, body);
+    const { error } = await recordOutreach(supabase, {
+      organization_id: organization.id,
+      channel: "email",
+      summary: `Funil: ${o.title} — e-mail`,
+      body,
+      customer_id: o.customer_id,
+      opportunity_id: o.id,
+    });
+    if (error) toast.error("E-mail aberto; falha ao registrar no sistema.");
+    else toast.success("Envio registrado.");
+  };
+
+  const shareOppWhatsApp = async (o: OpportunityRow) => {
+    const phone = o.customers?.phone?.trim();
+    if (!phone) return toast.error("Cliente sem telefone.");
+    if (!organization?.id) return;
+    const msg = `Olá! Sobre ${o.title} (${organization.name}) — valor ${brl(o.value_total)}.`;
+    const url = whatsAppShareUrl(phone, msg);
+    if (!url) return toast.error("Telefone inválido.");
+    window.open(url, "_blank", "noopener,noreferrer");
+    const { error } = await recordOutreach(supabase, {
+      organization_id: organization.id,
+      channel: "whatsapp",
+      summary: `Funil: ${o.title} — WhatsApp`,
+      body: msg,
+      customer_id: o.customer_id,
+      opportunity_id: o.id,
+    });
+    if (error) toast.error("WhatsApp aberto; falha ao registrar no sistema.");
+    else toast.success("Envio registrado.");
+  };
+
   if (loading && stages.length === 0) {
     return (
       <div className="flex justify-center p-16">
@@ -447,7 +513,20 @@ function FunilPage() {
         title="Funil de vendas"
         description="Oportunidades vinculadas a clientes e produtos, com estágios e histórico de mudanças."
         action={
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 items-center justify-end">
+            {organization?.id && user?.id ? (
+              <SavedViewsBar<{ view: "kanban" | "lista" }>
+                pageKey="funil"
+                userId={user.id}
+                orgId={organization.id}
+                snapshot={{ view }}
+                onApply={(p) => setView(p.view)}
+              />
+            ) : null}
+            <Button type="button" variant="outline" size="sm" className="gap-1" onClick={exportFunilCsv}>
+              <Download className="h-4 w-4" />
+              CSV
+            </Button>
             <div className="flex rounded-lg border border-border p-0.5 bg-muted/40">
               <Button
                 type="button"
@@ -541,6 +620,26 @@ function FunilPage() {
                         <History className="h-4 w-4" />
                       </Button>
                     </div>
+                    <div className="flex gap-1 mt-1">
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="flex-1 h-8 text-[11px]"
+                        title="E-mail"
+                        onClick={() => void shareOppEmail(o)}
+                      >
+                        <Mail className="h-3 w-3 mr-1" /> Email
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="flex-1 h-8 text-[11px]"
+                        title="WhatsApp"
+                        onClick={() => void shareOppWhatsApp(o)}
+                      >
+                        <MessageCircle className="h-3 w-3 mr-1" /> Zap
+                      </Button>
+                    </div>
                   </div>
                 ))}
               </CardContent>
@@ -584,6 +683,24 @@ function FunilPage() {
                     </Select>
                   </TableCell>
                   <TableCell className="text-right space-x-1">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8"
+                      title="E-mail ao cliente"
+                      onClick={() => void shareOppEmail(o)}
+                    >
+                      <Mail className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8"
+                      title="WhatsApp ao cliente"
+                      onClick={() => void shareOppWhatsApp(o)}
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                    </Button>
                     <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(o)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
