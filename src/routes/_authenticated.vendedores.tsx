@@ -1,20 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { dt } from "@/lib/format";
+import { inviteSignupUrl } from "@/lib/invite-links";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -32,7 +26,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Plus, Loader2, UserCog, Copy, Trash2, LogIn } from "lucide-react";
+import { Plus, Loader2, UserCog, Copy, Trash2 } from "lucide-react";
 import { useMenuGate } from "@/hooks/use-menu-gate";
 import { userFacingDataError } from "@/lib/supabase-user-error";
 
@@ -47,7 +41,8 @@ interface Seller {
   email: string | null;
   customer_count: number;
 }
-interface Invitation {
+
+interface SellerInvitation {
   id: string;
   email: string;
   token: string;
@@ -61,14 +56,14 @@ function SellersPage() {
   useMenuGate("vendedores");
   const { organization, user, menu, role } = useAuth();
   const [sellers, setSellers] = useState<Seller[]>([]);
-  const [invites, setInvites] = useState<Invitation[]>([]);
+  const [invites, setInvites] = useState<SellerInvitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
-  const [invitePurpose, setInvitePurpose] = useState<"client_catalog" | "seller_signup">("client_catalog");
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
+    if (!organization?.id) return;
     setLoading(true);
     const { data: rs, error } = await supabase
       .from("user_roles")
@@ -96,6 +91,7 @@ function SellersPage() {
       const { data: cs } = await supabase
         .from("customers")
         .select("assigned_seller_id")
+        .eq("organization_id", organization.id)
         .in("assigned_seller_id", ids);
       (cs ?? []).forEach((c: { assigned_seller_id: string | null }) => {
         if (c.assigned_seller_id)
@@ -115,17 +111,18 @@ function SellersPage() {
       .from("seller_invitations")
       .select("id,email,token,purpose,accepted_at,expires_at,created_at")
       .eq("organization_id", organization.id)
+      .eq("purpose", "seller_signup")
       .order("created_at", { ascending: false });
-    setInvites((inv as Invitation[]) ?? []);
+    setInvites((inv as SellerInvitation[]) ?? []);
     setLoading(false);
   };
 
   useEffect(() => {
-    if (!organization?.id || !menu.vendedores) return;
+    if (!organization?.id || !menu.vendedores || role !== "admin") return;
     void load();
-  }, [organization?.id, menu.vendedores]);
+  }, [organization?.id, menu.vendedores, role]);
 
-  const invite = async () => {
+  const inviteSeller = async () => {
     if (!email.trim()) return toast.error("Informe um e-mail");
     if (!organization) {
       toast.error(
@@ -137,32 +134,24 @@ function SellersPage() {
       toast.error("Sessão inválida. Faça login novamente.");
       return;
     }
-    if (role !== "admin" && invitePurpose === "seller_signup") {
-      return toast.error("Somente admin pode criar convite de vendedor.");
-    }
     setSaving(true);
     try {
       const { error } = await supabase.from("seller_invitations").insert({
         organization_id: organization.id,
         invited_by: user.id,
         email: email.trim().toLowerCase(),
-        purpose: invitePurpose,
+        purpose: "seller_signup",
       });
       if (error) {
         toast.error(userFacingDataError(error));
         return;
       }
-      toast.success(
-        invitePurpose === "seller_signup"
-          ? "Convite de representante criado com sucesso."
-          : "Link de produtos criado com sucesso.",
-      );
+      toast.success("Convite de vendedor criado com sucesso.");
       setEmail("");
-      setInvitePurpose("client_catalog");
       setOpen(false);
       await load();
     } catch (e) {
-      console.error("[vendedores] invite", e);
+      console.error("[vendedores] inviteSeller", e);
       toast.error(e instanceof Error ? e.message : "Erro inesperado ao criar o convite.");
     } finally {
       setSaving(false);
@@ -179,83 +168,58 @@ function SellersPage() {
     await load();
   };
 
-  /** Cliente novo: cadastro em `/signup` (com `invite_token` nos metadados). */
-  const inviteSignupUrl = (token: string) =>
-    `${window.location.origin}/signup?invite=${encodeURIComponent(token)}`;
-
-  /** Cliente que já tem conta: login com redirecionamento ao portal + aceite do convite na outra representação. */
-  const invitePortalLoginUrl = (token: string) => {
-    const portalPath = `/portal?invite=${encodeURIComponent(token)}`;
-    return `${window.location.origin}/login?redirect=${encodeURIComponent(portalPath)}`;
-  };
-
   const copyToClipboard = (text: string, message = "Link copiado") => {
     navigator.clipboard.writeText(text);
     toast.success(message);
   };
 
+  if (role !== "admin") {
+    return (
+      <div className="p-6 lg:p-10 space-y-6">
+        <PageHeader
+          title="Vendedores"
+          description="Somente administradores gerenciam a equipe de vendedores aqui. Para convidar clientes ao catálogo, use a página Clientes e o botão Convidar cliente."
+        />
+        <div className="rounded-2xl border border-border bg-card p-8 text-center space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Convites para <strong className="text-foreground">clientes</strong> ficam em{" "}
+            <strong className="text-foreground">Clientes</strong>.
+          </p>
+          <Button asChild>
+            <Link to="/clientes">Ir para Clientes</Link>
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 lg:p-10 space-y-8">
       <PageHeader
-        title={role === "admin" ? "Vendedores" : "Gerar link de produtos"}
-        description={
-          role === "admin"
-            ? "Gestão da equipe comercial (representantes): convites e lista de vendedores. Clientes B2B ficam em Clientes."
-            : "Crie links para clientes acessarem o catálogo dos seus representantes."
-        }
+        title="Vendedores"
+        description="Representantes da sua empresa: equipe ativa e convites para novos vendedores. A carteira de clientes B2B está na página Clientes."
         action={
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
               <Button>
-                <Plus className="h-4 w-4" /> {role === "admin" ? "Novo convite ou link" : "Gerar link para cliente"}
+                <Plus className="h-4 w-4" /> Convidar vendedor
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Gerar convite</DialogTitle>
+                <DialogTitle>Convidar vendedor</DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-2">
                 <div className="grid gap-2">
-                  <Label>Tipo de convite</Label>
-                  <Select
-                    value={invitePurpose}
-                    onValueChange={(v) =>
-                      setInvitePurpose(v as "client_catalog" | "seller_signup")
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o tipo" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="client_catalog">Cliente (link de produtos)</SelectItem>
-                      {role === "admin" && (
-                        <SelectItem value="seller_signup">
-                          Representante (acesso vendedor)
-                        </SelectItem>
-                      )}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="grid gap-2">
-                  <Label>
-                    {invitePurpose === "seller_signup"
-                      ? "E-mail do representante"
-                      : "E-mail do cliente"}
-                  </Label>
+                  <Label>E-mail do representante</Label>
                   <Input
                     type="email"
-                    placeholder={
-                      invitePurpose === "seller_signup"
-                        ? "representante@exemplo.com"
-                        : "cliente@exemplo.com"
-                    }
+                    placeholder="representante@exemplo.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
                   <p className="text-xs text-muted-foreground">
-                    {invitePurpose === "seller_signup"
-                      ? "O representante deve abrir o link e criar conta para entrar como vendedor."
-                      : "Envie o link de cadastro para quem ainda não tem conta. Quem já usa o 2AVendas com outra representação deve receber o link “já tenho conta”: ao entrar, a conta passa a ver também o catálogo da sua empresa (sem perder a anterior)."}
+                    O convidado abre o link e cria conta para entrar como vendedor da sua organização.
                   </p>
                 </div>
               </div>
@@ -265,7 +229,7 @@ function SellersPage() {
                 </Button>
                 <Button
                   type="button"
-                  onClick={invite}
+                  onClick={inviteSeller}
                   disabled={saving}
                   className="inline-flex items-center gap-2"
                 >
@@ -298,7 +262,7 @@ function SellersPage() {
                 <TableRow>
                   <TableHead>Vendedor</TableHead>
                   <TableHead>E-mail</TableHead>
-                  <TableHead className="text-right">Clientes</TableHead>
+                  <TableHead className="text-right">Clientes na carteira</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -319,12 +283,12 @@ function SellersPage() {
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Convites e links
+          Convites para vendedores
         </h2>
         <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
           {invites.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
-              Nenhum convite pendente.
+              Nenhum convite de vendedor pendente.
             </div>
           ) : (
             <Table>
@@ -344,18 +308,13 @@ function SellersPage() {
                     <TableRow key={i.id}>
                       <TableCell className="font-medium">{i.email}</TableCell>
                       <TableCell>
-                        <div className="flex items-center gap-2">
-                          <Badge variant={i.purpose === "seller_signup" ? "default" : "secondary"}>
-                            {i.purpose === "seller_signup" ? "Representante" : "Cliente"}
-                          </Badge>
-                          <Badge
-                            variant={
-                              accepted ? "default" : expired ? "destructive" : "secondary"
-                            }
-                          >
-                            {accepted ? "Aceito" : expired ? "Expirado" : "Pendente"}
-                          </Badge>
-                        </div>
+                        <Badge
+                          variant={
+                            accepted ? "default" : expired ? "destructive" : "secondary"
+                          }
+                        >
+                          {accepted ? "Aceito" : expired ? "Expirado" : "Pendente"}
+                        </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {dt(i.expires_at)}
@@ -363,42 +322,16 @@ function SellersPage() {
                       <TableCell className="text-right">
                         {!accepted && (
                           <div className="flex justify-end gap-1">
-                            {i.purpose === "client_catalog" ? (
-                              <>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  title="Copiar link — cliente novo (cadastro)"
-                                  onClick={() =>
-                                    copyToClipboard(inviteSignupUrl(i.token), "Link de cadastro copiado")
-                                  }
-                                >
-                                  <Copy className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  title="Copiar link — cliente que já tem conta"
-                                  onClick={() =>
-                                    copyToClipboard(
-                                      invitePortalLoginUrl(i.token),
-                                      "Link para quem já tem conta copiado",
-                                    )
-                                  }
-                                >
-                                  <LogIn className="h-4 w-4" />
-                                </Button>
-                              </>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                title="Copiar link"
-                                onClick={() => copyToClipboard(inviteSignupUrl(i.token))}
-                              >
-                                <Copy className="h-4 w-4" />
-                              </Button>
-                            )}
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              title="Copiar link de cadastro"
+                              onClick={() =>
+                                copyToClipboard(inviteSignupUrl(i.token), "Link copiado")
+                              }
+                            >
+                              <Copy className="h-4 w-4" />
+                            </Button>
                             <Button
                               size="sm"
                               variant="ghost"

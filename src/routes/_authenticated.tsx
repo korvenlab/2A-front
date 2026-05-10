@@ -57,11 +57,12 @@ function AuthLayout() {
   const navItems = useMemo(() => {
     const items: NavEntry[] = [];
     /** Admin: equipe fica ao lado de Clientes (evita “sumir” no scroll horizontal no mobile). */
+    /** Só administrador: gestão de equipe. Convites para clientes ficam em Clientes. */
     let vendedoresEntry: NavEntry | null = null;
-    if (menu.vendedores) {
+    if (menu.vendedores && role === "admin") {
       vendedoresEntry = {
         to: "/vendedores",
-        label: role === "admin" ? "Vendedores" : "Gerar link de produtos",
+        label: "Vendedores",
         icon: UserCog,
         highlight: true,
       };
