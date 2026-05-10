@@ -23,13 +23,13 @@ const slides = [
       <div className="mt-6 flex gap-3">
         <button
           type="button"
-          className="flex items-center gap-2 rounded-[6px] border border-[color:var(--landing-blue-line)] bg-[color:var(--landing-blue-fill)] px-4 py-2.5 text-sm font-medium text-neutral-900 hover:bg-[color:var(--landing-blue-fill-strong)]"
+          className="flex items-center gap-2 rounded-xl border border-[color:var(--landing-blue-line)] bg-[color:var(--landing-blue-fill)] px-4 py-2.5 text-sm font-medium text-[#003366] hover:bg-[color:var(--landing-blue-fill-strong)]"
         >
           <Apple className="h-5 w-5" /> App Store
         </button>
         <button
           type="button"
-          className="flex items-center gap-2 rounded-[6px] border border-[color:var(--landing-blue-line)] bg-[color:var(--landing-blue-fill)] px-4 py-2.5 text-sm font-medium text-neutral-900 hover:bg-[color:var(--landing-blue-fill-strong)]"
+          className="flex items-center gap-2 rounded-xl border border-[color:var(--landing-blue-line)] bg-[color:var(--landing-blue-fill)] px-4 py-2.5 text-sm font-medium text-[#003366] hover:bg-[color:var(--landing-blue-fill-strong)]"
         >
           <Smartphone className="h-5 w-5" /> Google Play
         </button>
@@ -65,7 +65,7 @@ export function LoginCarousel() {
           >
             <div className="flex flex-1 flex-col justify-center px-10 pb-6 pt-14 lg:px-14 lg:pt-16">
               <div className="mx-auto w-full max-w-2xl">
-                <div className="overflow-hidden rounded-[4px] border-2 border-[#002B5B] bg-white shadow-[4px_4px_0_0_#002B5B]">
+                <div className="landing-magic-float overflow-hidden rounded-[22px] border border-[rgba(0,122,255,0.22)] bg-white">
                   <img
                     src={s.image}
                     alt=""
@@ -84,7 +84,7 @@ export function LoginCarousel() {
                     {s.eyebrow}
                   </span>
                 </div>
-                <h2 className="mt-4 text-2xl font-semibold leading-snug tracking-tight text-neutral-900 lg:text-[1.65rem]">
+                <h2 className="mt-4 text-2xl font-semibold leading-snug tracking-tight text-[#003366] lg:text-[1.65rem]">
                   {s.title}
                 </h2>
                 <p className="mt-3 text-sm leading-relaxed text-neutral-600 lg:text-[15px]">{s.description}</p>

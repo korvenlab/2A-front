@@ -26,20 +26,20 @@ function FlowStep({
 }) {
   return (
     <div className={`flex flex-col items-center gap-2.5 text-center ${pulseClass}`}>
-      <Icon className="h-9 w-9 text-[#0056b3]" strokeWidth={1.5} aria-hidden />
-      <span className="max-w-[9rem] text-xs font-medium leading-snug text-[#002B5B]">{label}</span>
+      <Icon className="h-9 w-9 text-[#007AFF]" strokeWidth={1.5} aria-hidden />
+      <span className="max-w-[9rem] text-xs font-medium leading-snug text-[#003366]">{label}</span>
     </div>
   );
 }
 
 /**
  * Fluxo minimalista no login: Link gerado → Pedido do cliente → Painel de gestão.
- * Linha azul em loop suave; ícones em stroke royal.
+ * Linha em loop suave (#007AFF); ícones e texto alinhados à landing (Single Column Focus).
  */
 export function LoginFlowAside() {
   return (
-    <aside className="hidden min-h-screen flex-col justify-center border-r-2 border-[#002B5B] bg-white lg:flex lg:px-12 xl:px-16">
-      <p className="max-w-md text-lg font-normal leading-relaxed tracking-tight text-[#002B5B]">
+    <aside className="hidden min-h-screen flex-col justify-center border-r border-[rgba(0,122,255,0.15)] bg-[#FFFFFF] lg:flex lg:px-12 xl:px-16">
+      <p className="max-w-md text-lg font-normal leading-relaxed tracking-tight text-[#003366]">
         Sua operação B2B centralizada: Vendedores, Funil e Pedidos via Link.
       </p>
 

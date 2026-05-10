@@ -184,6 +184,18 @@
   --tech-input-border: #222222;
 }
 
+/* Carousel signup/login — alinha accent #007AFF à landing Single Column Focus */
+.login-split-brand {
+  --landing-blue: #007aff;
+  --landing-blue-bright: #339dff;
+  --landing-blue-soft: #66b3ff;
+  --landing-blue-deep: #007aff;
+  --landing-blue-line: rgba(0, 122, 255, 0.22);
+  --landing-blue-line-faint: rgba(0, 122, 255, 0.12);
+  --landing-blue-fill: rgba(0, 122, 255, 0.1);
+  --landing-blue-fill-strong: rgba(0, 122, 255, 0.16);
+}
+
 /* UI sans: Inter com tracking levemente negativo (precisão) */
 .tech-font-ui {
   font-family: "Inter", ui-sans-serif, system-ui, sans-serif;
@@ -209,10 +221,10 @@
     0 0 18px rgba(255, 255, 255, 0.06);
 }
 
-/* Login claro — borda nítida; foco royal 2px */
+/* Login — Single Column Focus (#007AFF / #003366), inputs respiram */
 .login-input-clean {
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
+  border: 1px solid rgba(0, 122, 255, 0.18);
+  border-radius: 12px;
   background-color: #ffffff;
   box-shadow: none;
 }
@@ -220,7 +232,7 @@
 .login-input-clean:focus-visible {
   outline: none;
   border-width: 2px;
-  border-color: #0056b3;
+  border-color: #007aff;
 }
 
 /* Fluxo lateral do login (~9s) */
@@ -243,13 +255,29 @@
 }
 
 .login-flow-line-h {
-  background: linear-gradient(90deg, #e0e7ff 0%, #0056b3 42%, #0056b3 58%, #e0e7ff 100%);
+  background: linear-gradient(
+    90deg,
+    #e8ecf2 0%,
+    #ffffff 24%,
+    #007aff 46%,
+    #007aff 54%,
+    #ffffff 76%,
+    #e8ecf2 100%
+  );
   background-size: 200% 100%;
   animation: login-flow-line-move 9s linear infinite;
 }
 
 .login-flow-line-v {
-  background: linear-gradient(180deg, #e0e7ff 0%, #0056b3 42%, #0056b3 58%, #e0e7ff 100%);
+  background: linear-gradient(
+    180deg,
+    #e8ecf2 0%,
+    #ffffff 24%,
+    #007aff 46%,
+    #007aff 54%,
+    #ffffff 76%,
+    #e8ecf2 100%
+  );
   background-size: 100% 220%;
   animation: login-flow-line-move-v 9s linear infinite;
 }

@@ -12,6 +12,9 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
 
+const signupInputClass =
+  "login-input-clean mt-1.5 h-11 rounded-xl px-3 text-sm font-normal text-[#003366] placeholder:text-[#9CA3AF] focus-visible:ring-0";
+
 export const Route = createFileRoute("/signup")({
   validateSearch: (search: Record<string, unknown>) => ({
     invite: typeof search.invite === "string" ? search.invite : undefined,
@@ -218,141 +221,218 @@ function SignupPage() {
   const disableSubmit = submitting || (hasInvite && invitePeekLoading);
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2 bg-background">
-      <div className="hidden lg:block">
+    <div className="grid min-h-screen grid-cols-1 bg-[#FFFFFF] font-sans antialiased lg:grid-cols-2">
+      <div className="hidden border-r border-[rgba(0,122,255,0.15)] lg:block">
         <LoginCarousel />
       </div>
-      <div className="flex flex-col justify-center px-6 py-10 lg:px-16">
-        <div className="mx-auto w-full max-w-md">
-          <Logo />
-          <h1 className="mt-8 text-3xl font-bold tracking-tight">{headline}</h1>
-          <p className="mt-2 text-sm text-muted-foreground">{sub}</p>
 
-          <form onSubmit={onSubmit} className="mt-6 space-y-4">
-            <div>
-              <Label htmlFor="fullName">Seu nome</Label>
-              <Input id="fullName" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="mt-1.5 h-11" />
-            </div>
-
-            {!hasInvite && (
-              <div>
-                <Label htmlFor="org">Empresa da representação</Label>
-                <Input
-                  id="org"
-                  value={organizationName}
-                  onChange={(e) => setOrganizationName(e.target.value)}
-                  required
-                  className="mt-1.5 h-11"
-                />
-                <p className="mt-1 text-xs text-muted-foreground">Administradores e vendedores compartilham esta mesma empresa operacional (tenant).</p>
-              </div>
-            )}
-
-            {hasInvite && invitePurpose === "client_catalog" && (
-              <Tabs defaultValue="empresa" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
-                  <TabsTrigger value="empresa">Empresa</TabsTrigger>
-                  <TabsTrigger value="industria">Indústria</TabsTrigger>
-                </TabsList>
-                <TabsContent value="empresa" className="space-y-4 pt-3 outline-none">
-                  <div>
-                    <Label htmlFor="clientTrade">Nome da empresa (nome fantasia)</Label>
-                    <Input
-                      id="clientTrade"
-                      value={clientTradeName}
-                      onChange={(e) => setClientTradeName(e.target.value)}
-                      required
-                      className="mt-1.5 h-11"
-                      placeholder="Como a empresa prefere ser chamada"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="clientLegal">Razão social</Label>
-                    <Input
-                      id="clientLegal"
-                      value={clientLegalName}
-                      onChange={(e) => setClientLegalName(e.target.value)}
-                      required
-                      className="mt-1.5 h-11"
-                      placeholder="Denominação conforme contrato ou CNPJ"
-                    />
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Campo distinto do nome fantasia; ambos aparecem para a representação na carteira de clientes.
-                    </p>
-                  </div>
-                  <p className="text-xs text-muted-foreground border-l-2 border-primary/25 pl-3 py-1">
-                    Já tem cadastro em outra representação? Não crie outra conta com o mesmo e-mail — peça o link “para quem já tem conta” e entre pelo login para vincular esta empresa também.
-                  </p>
-                </TabsContent>
-                <TabsContent value="industria" className="space-y-3 pt-3 outline-none">
-                  <div>
-                    <Label htmlFor="clientIndustry">Segmento ou indústria</Label>
-                    <Input
-                      id="clientIndustry"
-                      value={clientIndustry}
-                      onChange={(e) => setClientIndustry(e.target.value)}
-                      className="mt-1.5 h-11"
-                      placeholder="Ex.: food service, varejo farmacêutico, metalúrgica…"
-                    />
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      Opcional no cadastro; ajuda a representação a contextualizar sua operação.
-                    </p>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            )}
-
-            {hasInvite && invitePurpose === "seller_signup" && (
-              <div>
-                <Label htmlFor="staffOrg">Empresa / equipe comercial (opcional)</Label>
-                <Input
-                  id="staffOrg"
-                  value={staffOrganizationName}
-                  onChange={(e) => setStaffOrganizationName(e.target.value)}
-                  className="mt-1.5 h-11"
-                  placeholder="Mesma representação do convite se deixar em branco"
-                />
-              </div>
-            )}
-
-            {hasInvite && !invitePeekLoading && invitePurpose === null && (
-              <div>
-                <Label htmlFor="orgLegacy">Nome da empresa</Label>
-                <Input
-                  id="orgLegacy"
-                  value={organizationName}
-                  onChange={(e) => setOrganizationName(e.target.value)}
-                  required
-                  className="mt-1.5 h-11"
-                />
-                <p className="mt-1 text-xs text-muted-foreground">Não foi possível ler o tipo de convite; use o nome orientado pelo representante.</p>
-              </div>
-            )}
-
-            <div>
-              <Label htmlFor="email">E-mail</Label>
-              <Input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required className="mt-1.5 h-11" />
-            </div>
-            <div>
-              <Label htmlFor="password">Senha</Label>
-              <Input id="password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required className="mt-1.5 h-11" />
-              <p className="mt-1 text-xs text-muted-foreground">Mínimo 8 caracteres.</p>
-            </div>
-            <Button type="submit" className="w-full h-11 shadow-md" disabled={disableSubmit}>
-              {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar conta"}
-            </Button>
-          </form>
-
-          <p className="mt-8 text-center text-sm text-muted-foreground">
-            Já tem conta?{" "}
-            <Link
-              to="/login"
-              search={hasInvite ? { invite: search.invite } : undefined}
-              className="font-semibold text-primary hover:underline"
-            >
-              Entrar
-            </Link>
+      <div className="flex min-h-0 flex-col">
+        <div className="border-b border-[#E8ECF2] bg-[#F9F9F9] px-5 py-4 lg:hidden">
+          <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#007AFF]">2AVendas</p>
+          <p className="mt-2 text-sm leading-relaxed text-[#003366]">
+            Cadastro rápido: representação própria ou conta via convite de cliente ou vendedor.
           </p>
+        </div>
+
+        <div className="flex flex-1 flex-col justify-center px-6 py-10 lg:px-16">
+          <div className="landing-magic-float mx-auto w-full max-w-[420px] rounded-[22px] border border-[rgba(0,122,255,0.22)] bg-white p-8 md:p-10">
+            <div className="mb-6 flex justify-start">
+              <Logo light={false} />
+            </div>
+
+            <h1 className="text-2xl font-semibold tracking-tight text-[#003366]">{headline}</h1>
+            <p className="mt-2 text-sm text-[#475569]">{sub}</p>
+            <Link
+              to="/"
+              className="mt-3 inline-block text-xs font-mono uppercase tracking-[0.18em] text-[#007AFF] underline-offset-4 hover:underline"
+            >
+              Voltar ao início
+            </Link>
+
+            <form onSubmit={onSubmit} className="mt-8 space-y-4">
+              <div>
+                <Label htmlFor="fullName" className="text-sm font-medium text-[#003366]">
+                  Seu nome
+                </Label>
+                <Input
+                  id="fullName"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                  className={signupInputClass}
+                />
+              </div>
+
+              {!hasInvite && (
+                <div>
+                  <Label htmlFor="org" className="text-sm font-medium text-[#003366]">
+                    Empresa da representação
+                  </Label>
+                  <Input
+                    id="org"
+                    value={organizationName}
+                    onChange={(e) => setOrganizationName(e.target.value)}
+                    required
+                    className={signupInputClass}
+                  />
+                  <p className="mt-1 text-xs text-[#64748B]">
+                    Administradores e vendedores compartilham esta mesma empresa operacional (tenant).
+                  </p>
+                </div>
+              )}
+
+              {hasInvite && invitePurpose === "client_catalog" && (
+                <Tabs defaultValue="empresa" className="w-full">
+                  <TabsList className="grid h-auto w-full grid-cols-2 rounded-xl border border-[rgba(0,122,255,0.15)] bg-[#F9F9F9] p-1">
+                    <TabsTrigger
+                      value="empresa"
+                      className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#003366] data-[state=active]:shadow-sm"
+                    >
+                      Empresa
+                    </TabsTrigger>
+                    <TabsTrigger
+                      value="industria"
+                      className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#003366] data-[state=active]:shadow-sm"
+                    >
+                      Indústria
+                    </TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="empresa" className="space-y-4 pt-3 outline-none">
+                    <div>
+                      <Label htmlFor="clientTrade" className="text-sm font-medium text-[#003366]">
+                        Nome da empresa (nome fantasia)
+                      </Label>
+                      <Input
+                        id="clientTrade"
+                        value={clientTradeName}
+                        onChange={(e) => setClientTradeName(e.target.value)}
+                        required
+                        className={signupInputClass}
+                        placeholder="Como a empresa prefere ser chamada"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="clientLegal" className="text-sm font-medium text-[#003366]">
+                        Razão social
+                      </Label>
+                      <Input
+                        id="clientLegal"
+                        value={clientLegalName}
+                        onChange={(e) => setClientLegalName(e.target.value)}
+                        required
+                        className={signupInputClass}
+                        placeholder="Denominação conforme contrato ou CNPJ"
+                      />
+                      <p className="mt-1 text-xs text-[#64748B]">
+                        Campo distinto do nome fantasia; ambos aparecem para a representação na carteira de clientes.
+                      </p>
+                    </div>
+                    <p className="border-l-2 border-[rgba(0,122,255,0.28)] py-1 pl-3 text-xs text-[#64748B]">
+                      Já tem cadastro em outra representação? Não crie outra conta com o mesmo e-mail — peça o link “para quem já tem conta” e entre pelo login para vincular esta empresa também.
+                    </p>
+                  </TabsContent>
+                  <TabsContent value="industria" className="space-y-3 pt-3 outline-none">
+                    <div>
+                      <Label htmlFor="clientIndustry" className="text-sm font-medium text-[#003366]">
+                        Segmento ou indústria
+                      </Label>
+                      <Input
+                        id="clientIndustry"
+                        value={clientIndustry}
+                        onChange={(e) => setClientIndustry(e.target.value)}
+                        className={signupInputClass}
+                        placeholder="Ex.: food service, varejo farmacêutico, metalúrgica…"
+                      />
+                      <p className="mt-1 text-xs text-[#64748B]">
+                        Opcional no cadastro; ajuda a representação a contextualizar sua operação.
+                      </p>
+                    </div>
+                  </TabsContent>
+                </Tabs>
+              )}
+
+              {hasInvite && invitePurpose === "seller_signup" && (
+                <div>
+                  <Label htmlFor="staffOrg" className="text-sm font-medium text-[#003366]">
+                    Empresa / equipe comercial (opcional)
+                  </Label>
+                  <Input
+                    id="staffOrg"
+                    value={staffOrganizationName}
+                    onChange={(e) => setStaffOrganizationName(e.target.value)}
+                    className={signupInputClass}
+                    placeholder="Mesma representação do convite se deixar em branco"
+                  />
+                </div>
+              )}
+
+              {hasInvite && !invitePeekLoading && invitePurpose === null && (
+                <div>
+                  <Label htmlFor="orgLegacy" className="text-sm font-medium text-[#003366]">
+                    Nome da empresa
+                  </Label>
+                  <Input
+                    id="orgLegacy"
+                    value={organizationName}
+                    onChange={(e) => setOrganizationName(e.target.value)}
+                    required
+                    className={signupInputClass}
+                  />
+                  <p className="mt-1 text-xs text-[#64748B]">
+                    Não foi possível ler o tipo de convite; use o nome orientado pelo representante.
+                  </p>
+                </div>
+              )}
+
+              <div>
+                <Label htmlFor="email" className="text-sm font-medium text-[#003366]">
+                  E-mail
+                </Label>
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className={signupInputClass}
+                />
+              </div>
+              <div>
+                <Label htmlFor="password" className="text-sm font-medium text-[#003366]">
+                  Senha
+                </Label>
+                <Input
+                  id="password"
+                  type="password"
+                  autoComplete="new-password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className={signupInputClass}
+                />
+                <p className="mt-1 text-xs text-[#64748B]">Mínimo 8 caracteres.</p>
+              </div>
+              <Button
+                type="submit"
+                className="h-11 w-full rounded-xl border-0 bg-[#007AFF] text-sm font-semibold text-white shadow-none hover:bg-[#0066DB]"
+                disabled={disableSubmit}
+              >
+                {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar conta"}
+              </Button>
+            </form>
+
+            <p className="mt-8 text-center text-sm text-[#475569]">
+              Já tem conta?{" "}
+              <Link
+                to="/login"
+                search={hasInvite ? { invite: search.invite } : undefined}
+                className="font-semibold text-[#007AFF] underline-offset-2 hover:underline"
+              >
+                Entrar
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
     </div>
