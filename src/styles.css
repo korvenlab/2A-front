@@ -326,6 +326,36 @@
   animation: landing-cursor-blink 1.05s step-end infinite;
 }
 
+/* Barra de IA na landing: brilho azul suave ao foco */
+@keyframes landing-magic-glow {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 1px rgba(0, 86, 179, 0.32),
+      0 0 20px rgba(0, 86, 179, 0.16),
+      0 0 42px rgba(0, 86, 179, 0.07);
+  }
+  50% {
+    box-shadow:
+      0 0 0 1px rgba(0, 86, 179, 0.48),
+      0 0 30px rgba(0, 86, 179, 0.26),
+      0 0 54px rgba(0, 86, 179, 0.11);
+  }
+}
+
+.landing-magic-shell[data-focused="true"] {
+  animation: landing-magic-glow 2.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-magic-shell[data-focused="true"] {
+    animation: none;
+    box-shadow:
+      0 0 0 1px rgba(0, 86, 179, 0.42),
+      0 0 18px rgba(0, 86, 179, 0.18);
+  }
+}
+
 /* Hero sistema (~6s): painéis em sequência + feixes + dado / WhatsApp / dashboard */
 .hero-sys-root {
   contain: layout style;
