@@ -20,7 +20,9 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -33,9 +35,19 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Plus, Loader2, ShoppingBag, Trash2 } from "lucide-react";
+import {
+  Plus,
+  Loader2,
+  ShoppingBag,
+  Trash2,
+  Building2,
+  Package,
+  Search,
+  FileText,
+} from "lucide-react";
 import { useMenuGate } from "@/hooks/use-menu-gate";
 import { userFacingDataError } from "@/lib/supabase-user-error";
+import { normalizeProductImageUrls } from "@/lib/product-images";
 
 export const Route = createFileRoute("/_authenticated/pedidos")({
   head: () => ({ meta: [{ title: "Pedidos — 2AVendas" }] }),
@@ -52,8 +64,12 @@ interface Order {
   notes: string | null;
   created_at: string;
   customer_id: string;
+  nfe_key: string | null;
+  nfe_issued_at: string | null;
   customers: {
     name: string;
+    legal_name: string | null;
+    industry: string | null;
     email: string | null;
     phone: string | null;
     document: string | null;
@@ -65,17 +81,24 @@ interface Order {
 interface CustomerOpt {
   id: string;
   name: string;
+  legal_name: string | null;
 }
 interface ProductOpt {
   id: string;
   name: string;
   price: number;
+  category: string | null;
+  supplier: string | null;
+  image_url: string | null;
+  image_urls: unknown;
 }
 interface DraftItem {
   product_id: string;
   product_name: string;
   unit_price: number;
   quantity: number;
+  supplier: string | null;
+  thumb_url: string | null;
 }
 
 const statusLabels: Record<OrderStatus, string> = {
@@ -107,13 +130,19 @@ function OrdersPage() {
   const [notes, setNotes] = useState<string>("");
   const [items, setItems] = useState<DraftItem[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<string>("");
+  const [productPickSearch, setProductPickSearch] = useState("");
+  const [customerPickSearch, setCustomerPickSearch] = useState("");
+  const [nfeTarget, setNfeTarget] = useState<Order | null>(null);
+  const [nfeKeyDraft, setNfeKeyDraft] = useState("");
+  const [nfeDateDraft, setNfeDateDraft] = useState("");
+  const [nfeSaving, setNfeSaving] = useState(false);
 
   const load = async () => {
     setLoading(true);
     let ordersQuery = supabase
       .from("orders")
       .select(
-        "id,order_number,status,total,notes,created_at,customer_id,customers(name,email,phone,document,city,state,address)",
+        "id,order_number,status,total,notes,created_at,customer_id,nfe_key,nfe_issued_at,customers(name,legal_name,industry,email,phone,document,city,state,address)",
       )
       .order("created_at", { ascending: false });
     if (role === "vendedor" && user?.id) {
@@ -123,11 +152,15 @@ function OrdersPage() {
     if (error) toast.error(userFacingDataError(error));
     setOrders((data as unknown as Order[]) ?? []);
 
-    const customersQuery = supabase.from("customers").select("id,name").order("name");
+    const customersQuery = supabase
+      .from("customers")
+      .select("id,name,legal_name")
+      .order("name");
     const productsQuery = supabase
       .from("products")
-      .select("id,name,price")
+      .select("id,name,price,category,supplier,image_url,image_urls")
       .eq("active", true)
+      .order("category")
       .order("name");
     const [{ data: cs }, { data: ps }] = await Promise.all([
       role === "vendedor" && user?.id
@@ -147,6 +180,42 @@ function OrdersPage() {
     load();
   }, [organization?.id, user?.id, role]);
 
+  const pickCustomersFiltered = useMemo(() => {
+    const q = customerPickSearch.trim().toLowerCase();
+    if (!q) return customers;
+    return customers.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        (c.legal_name ?? "").toLowerCase().includes(q),
+    );
+  }, [customers, customerPickSearch]);
+
+  const pickProductsFiltered = useMemo(() => {
+    const q = productPickSearch.trim().toLowerCase();
+    if (!q) return products;
+    return products.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        (p.category ?? "").toLowerCase().includes(q) ||
+        (p.supplier ?? "").toLowerCase().includes(q),
+    );
+  }, [products, productPickSearch]);
+
+  const pickProductsGrouped = useMemo(() => {
+    const map = new Map<string, ProductOpt[]>();
+    for (const p of pickProductsFiltered) {
+      const k = p.category?.trim() || "Sem categoria";
+      if (!map.has(k)) map.set(k, []);
+      map.get(k)!.push(p);
+    }
+    const keys = [...map.keys()].sort((a, b) => {
+      if (a === "Sem categoria") return 1;
+      if (b === "Sem categoria") return -1;
+      return a.localeCompare(b, "pt-BR");
+    });
+    return keys.map((k) => [k, map.get(k)!] as const);
+  }, [pickProductsFiltered]);
+
   const total = useMemo(
     () => items.reduce((s, it) => s + it.unit_price * it.quantity, 0),
     [items],
@@ -154,6 +223,7 @@ function OrdersPage() {
 
   const reset = () => {
     setCustomerId("");
+    setCustomerPickSearch("");
     setNotes("");
     setItems([]);
     setSelectedProduct("");
@@ -162,6 +232,8 @@ function OrdersPage() {
   const addItem = () => {
     const p = products.find((x) => x.id === selectedProduct);
     if (!p) return;
+    const thumb = normalizeProductImageUrls(p.image_urls, p.image_url)[0] ?? null;
+    const supplier = p.supplier?.trim() || null;
     if (items.find((i) => i.product_id === p.id)) {
       setItems(
         items.map((i) =>
@@ -171,7 +243,14 @@ function OrdersPage() {
     } else {
       setItems([
         ...items,
-        { product_id: p.id, product_name: p.name, unit_price: p.price, quantity: 1 },
+        {
+          product_id: p.id,
+          product_name: p.name,
+          unit_price: p.price,
+          quantity: 1,
+          supplier,
+          thumb_url: thumb,
+        },
       ]);
     }
     setSelectedProduct("");
@@ -222,8 +301,45 @@ function OrdersPage() {
 
   const changeStatus = async (id: string, status: OrderStatus) => {
     const { error } = await supabase.from("orders").update({ status }).eq("id", id);
+    if (error) {
+      const msg = userFacingDataError(error);
+      toast.error(msg ?? "Não foi possível alterar o status.");
+      if (/estoque|Estoque|stock/i.test(msg ?? "")) {
+        toast.info(
+          "Reduza quantidades no pedido ou repor estoque no catálogo antes de avançar o status.",
+        );
+      }
+    } else load();
+  };
+
+  const openNfeDialog = (o: Order) => {
+    setNfeTarget(o);
+    setNfeKeyDraft(o.nfe_key?.trim() ?? "");
+    setNfeDateDraft(o.nfe_issued_at ? o.nfe_issued_at.slice(0, 10) : "");
+  };
+
+  const saveNfe = async () => {
+    if (!nfeTarget) return;
+    setNfeSaving(true);
+    const keyTrim = nfeKeyDraft.trim();
+    const issued =
+      nfeDateDraft.trim() === ""
+        ? null
+        : new Date(nfeDateDraft + "T12:00:00.000Z").toISOString();
+    const { error } = await supabase
+      .from("orders")
+      .update({
+        nfe_key: keyTrim === "" ? null : keyTrim,
+        nfe_issued_at: issued,
+      })
+      .eq("id", nfeTarget.id);
+    setNfeSaving(false);
     if (error) toast.error(userFacingDataError(error));
-    else load();
+    else {
+      toast.success("Dados de NF-e atualizados.");
+      setNfeTarget(null);
+      load();
+    }
   };
 
   return (
@@ -236,7 +352,10 @@ function OrdersPage() {
             open={open}
             onOpenChange={(v) => {
               setOpen(v);
-              if (!v) reset();
+              if (!v) {
+                reset();
+                setProductPickSearch("");
+              }
             }}
           >
             <DialogTrigger asChild>
@@ -251,33 +370,83 @@ function OrdersPage() {
               <div className="grid gap-4 py-2 max-h-[70vh] overflow-y-auto">
                 <div className="grid gap-2">
                   <Label>Cliente *</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    <Input
+                      value={customerPickSearch}
+                      onChange={(e) => setCustomerPickSearch(e.target.value)}
+                      placeholder="Buscar por nome fantasia ou razão social da empresa…"
+                      className="h-10 pl-9 mb-2"
+                    />
+                  </div>
                   <Select value={customerId} onValueChange={setCustomerId}>
                     <SelectTrigger>
-                      <SelectValue placeholder="Selecione um cliente" />
+                      <SelectValue placeholder="Escolha um cliente na lista" />
                     </SelectTrigger>
-                    <SelectContent>
-                      {customers.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
+                    <SelectContent className="max-h-[min(320px,55vh)]">
+                      {pickCustomersFiltered.length === 0 ? (
+                        <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                          Nenhum cliente encontrado para essa busca.
+                        </div>
+                      ) : (
+                        pickCustomersFiltered.map((c) => (
+                          <SelectItem key={c.id} value={c.id} className="py-2.5">
+                            <span className="flex flex-col gap-0.5 text-left">
+                              <span className="font-medium leading-tight">{c.name}</span>
+                              {c.legal_name?.trim() ? (
+                                <span className="text-xs font-normal text-muted-foreground">
+                                  Razão social: {c.legal_name.trim()}
+                                </span>
+                              ) : null}
+                            </span>
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="grid gap-2">
                   <Label>Adicionar produto</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    <Input
+                      value={productPickSearch}
+                      onChange={(e) => setProductPickSearch(e.target.value)}
+                      placeholder="Filtrar por nome, categoria ou indústria…"
+                      className="h-10 pl-9 mb-2"
+                    />
+                  </div>
                   <div className="flex gap-2">
                     <Select value={selectedProduct} onValueChange={setSelectedProduct}>
                       <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Escolha um produto" />
+                        <SelectValue placeholder="Escolha um produto (por categoria)" />
                       </SelectTrigger>
-                      <SelectContent>
-                        {products.map((p) => (
-                          <SelectItem key={p.id} value={p.id}>
-                            {p.name} — {brl(p.price)}
-                          </SelectItem>
-                        ))}
+                      <SelectContent className="max-h-[min(380px,65vh)]">
+                        {pickProductsFiltered.length === 0 ? (
+                          <div className="px-3 py-6 text-center text-sm text-muted-foreground">
+                            Nenhum produto encontrado.
+                          </div>
+                        ) : (
+                          pickProductsGrouped.map(([cat, list]) => (
+                            <SelectGroup key={cat}>
+                              <SelectLabel className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                {cat}
+                              </SelectLabel>
+                              {list.map((p) => (
+                                <SelectItem key={p.id} value={p.id} className="py-2.5">
+                                  <span className="flex flex-col gap-0.5 text-left">
+                                    <span className="font-medium leading-tight">{p.name}</span>
+                                    <span className="text-xs font-normal text-muted-foreground">
+                                      {p.supplier?.trim() ? `${p.supplier.trim()} · ` : ""}
+                                      {brl(p.price)}
+                                    </span>
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          ))
+                        )}
                       </SelectContent>
                     </Select>
                     <Button onClick={addItem} disabled={!selectedProduct}>
@@ -291,7 +460,7 @@ function OrdersPage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Produto</TableHead>
+                          <TableHead className="min-w-[200px]">Produto</TableHead>
                           <TableHead className="w-24">Qtd</TableHead>
                           <TableHead className="w-32">Preço</TableHead>
                           <TableHead className="w-28 text-right">Subtotal</TableHead>
@@ -301,8 +470,32 @@ function OrdersPage() {
                       <TableBody>
                         {items.map((it, idx) => (
                           <TableRow key={it.product_id}>
-                            <TableCell className="font-medium">
-                              {it.product_name}
+                            <TableCell>
+                              <div className="flex items-start gap-3">
+                                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
+                                  {it.thumb_url ? (
+                                    <img
+                                      src={it.thumb_url}
+                                      alt=""
+                                      className="h-full w-full object-cover"
+                                      loading="lazy"
+                                    />
+                                  ) : (
+                                    <div className="flex h-full w-full items-center justify-center">
+                                      <Package className="h-5 w-5 text-muted-foreground/40" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="min-w-0 pt-0.5">
+                                  <div className="font-semibold leading-snug">{it.product_name}</div>
+                                  {it.supplier && (
+                                    <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                                      <Building2 className="h-3 w-3 shrink-0 text-primary" aria-hidden />
+                                      <span className="truncate">{it.supplier}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
                             </TableCell>
                             <TableCell>
                               <Input
@@ -395,6 +588,7 @@ function OrdersPage() {
                 <TableHead>Data</TableHead>
                 <TableHead className="text-right">Total</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-right w-[100px]">NF-e</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -405,8 +599,20 @@ function OrdersPage() {
                   </TableCell>
                   <TableCell className="font-medium">
                     <div>{o.customers?.name ?? "—"}</div>
+                    {o.customers?.legal_name?.trim() ? (
+                      <div className="text-xs text-muted-foreground font-normal">
+                        RS: {o.customers.legal_name.trim()}
+                      </div>
+                    ) : null}
+                    {o.customers?.industry?.trim() ? (
+                      <div className="text-xs text-muted-foreground/90 font-normal">
+                        {o.customers.industry.trim()}
+                      </div>
+                    ) : null}
                     {o.customers?.document && (
-                      <div className="text-xs text-muted-foreground">{o.customers.document}</div>
+                      <div className="text-xs text-muted-foreground font-normal">
+                        {o.customers.document}
+                      </div>
                     )}
                   </TableCell>
                   <TableCell>
@@ -455,12 +661,59 @@ function OrdersPage() {
                       )}
                     </div>
                   </TableCell>
+                  <TableCell className="text-right">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1"
+                      title="Registrar NF-e emitida externamente"
+                      onClick={() => openNfeDialog(o)}
+                    >
+                      <FileText className="h-4 w-4" />
+                      {o.nfe_key?.trim() ? "Editar" : "Registrar"}
+                    </Button>
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         )}
       </div>
+
+      <Dialog open={nfeTarget !== null} onOpenChange={(o) => !o && setNfeTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>NF-e (registro manual)</DialogTitle>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground">
+            A emissão fiscal continua no seu ERP ou contador. Aqui você apenas associa a chave ao pedido{" "}
+            {nfeTarget ? `#${String(nfeTarget.order_number).padStart(4, "0")}` : ""}.
+          </p>
+          <div className="grid gap-3 py-2">
+            <div className="grid gap-2">
+              <Label>Chave NF-e (44 dígitos ou referência)</Label>
+              <Input
+                value={nfeKeyDraft}
+                onChange={(e) => setNfeKeyDraft(e.target.value)}
+                placeholder="Chave ou número do documento"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Data de emissão</Label>
+              <Input type="date" value={nfeDateDraft} onChange={(e) => setNfeDateDraft(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNfeTarget(null)}>
+              Cancelar
+            </Button>
+            <Button onClick={saveNfe} disabled={nfeSaving}>
+              {nfeSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

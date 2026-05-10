@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { brl, dt } from "@/lib/format";
@@ -17,6 +17,13 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 import {
   ShoppingCart,
@@ -29,10 +36,14 @@ import {
   PackageSearch,
   ChevronLeft,
   ChevronRight,
+  Building2,
 } from "lucide-react";
 import { useMenuGate } from "@/hooks/use-menu-gate";
 import { userFacingDataError } from "@/lib/supabase-user-error";
 import { normalizeProductImageUrls } from "@/lib/product-images";
+
+/** Persistência do catálogo da representação escolhida (cliente com várias vínculos). */
+const PORTAL_ORG_STORAGE_KEY = "2avendas.portalOrgId";
 
 export const Route = createFileRoute("/_authenticated/portal")({
   head: () => ({ meta: [{ title: "Portal B2B — 2AVendas" }] }),
@@ -48,6 +59,7 @@ interface Product {
   price: number;
   stock: number;
   category: string | null;
+  supplier: string | null;
   image_url: string | null;
   image_urls: unknown;
 }
@@ -104,12 +116,19 @@ function CatalogProductCard({
   const shown = gallery.length ? gallery[Math.min(idx, gallery.length - 1)] : null;
 
   return (
-    <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden flex flex-col">
-      <div className="aspect-square bg-muted relative flex items-center justify-center overflow-hidden">
+    <div className="group flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-[border-color,box-shadow] hover:border-primary/25 hover:shadow-md">
+      <div className="relative aspect-[4/5] overflow-hidden bg-gradient-to-b from-muted to-muted/70 ring-2 ring-border transition-[ring-color] group-hover:ring-primary/20">
         {shown ? (
-          <img src={shown} alt={p.name} loading="lazy" className="h-full w-full object-cover" />
+          <img
+            src={shown}
+            alt={p.name}
+            loading="lazy"
+            className="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
+          />
         ) : (
-          <Package className="h-12 w-12 text-muted-foreground/40" />
+          <div className="flex h-full w-full items-center justify-center">
+            <Package className="h-14 w-14 text-muted-foreground/35" />
+          </div>
         )}
         {gallery.length > 1 && (
           <>
@@ -158,11 +177,20 @@ function CatalogProductCard({
           </>
         )}
       </div>
-      <div className="p-4 flex flex-col flex-1">
+      {p.supplier?.trim() ? (
+        <div className="flex items-center gap-2 border-b border-border bg-primary/[0.06] px-3 py-2.5">
+          <Building2 className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+          <div className="min-w-0 flex-1">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Indústria</div>
+            <div className="truncate text-sm font-semibold text-foreground">{p.supplier.trim()}</div>
+          </div>
+        </div>
+      ) : null}
+      <div className="flex flex-1 flex-col p-4">
         {p.category && (
           <div className="text-xs uppercase tracking-wide text-muted-foreground">{p.category}</div>
         )}
-        <h3 className="font-semibold mt-1 line-clamp-2">{p.name}</h3>
+        <h3 className="mt-1 line-clamp-2 text-base font-semibold leading-snug">{p.name}</h3>
         <div className="mt-1 text-xs text-muted-foreground">
           SKU: {p.sku ?? "—"} • Estoque: {p.stock}
         </div>
@@ -199,6 +227,11 @@ function CatalogProductCard({
   );
 }
 
+interface LinkedOrg {
+  id: string;
+  name: string;
+}
+
 function Portal() {
   useMenuGate("portal");
   const { user, profile, organization } = useAuth();
@@ -206,7 +239,11 @@ function Portal() {
   const [orders, setOrders] = useState<OrderRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [customerId, setCustomerId] = useState<string | null>(null);
-  const [allowedSellerIds, setAllowedSellerIds] = useState<string[]>([]);
+  const [portalOrgId, setPortalOrgId] = useState<string | null>(null);
+  const [linkedOrgs, setLinkedOrgs] = useState<LinkedOrg[]>([]);
+  const [pinnedOrgId, setPinnedOrgId] = useState<string | null>(() =>
+    typeof window !== "undefined" ? sessionStorage.getItem(PORTAL_ORG_STORAGE_KEY) : null,
+  );
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [draftQtyByProduct, setDraftQtyByProduct] = useState<Record<string, number>>({});
@@ -215,103 +252,190 @@ function Portal() {
   const [notes, setNotes] = useState("");
   const [placing, setPlacing] = useState(false);
   const [tab, setTab] = useState<"catalog" | "orders">("catalog");
+  const inviteToastRef = useRef<string | null>(null);
   const inviteToken =
     typeof window !== "undefined"
       ? new URLSearchParams(window.location.search).get("invite")
       : null;
 
-  const ensureCustomer = async () => {
-    if (!user || !organization) return { customerId: null as string | null, sellerId: null as string | null };
-    let sellerFromToken: string | null = null;
-    if (inviteToken) {
-      const { data: inv } = await supabase
-        .from("seller_invitations")
-        .select("id, organization_id, invited_by, purpose, expires_at, accepted_at, email")
-        .eq("token", inviteToken)
-        .eq("purpose", "client_catalog")
-        .maybeSingle();
-      if (
-        inv &&
-        new Date(inv.expires_at).getTime() > Date.now() &&
-        inv.invited_by &&
-        (inv.email ?? "").toLowerCase() === (user.email ?? "").toLowerCase()
-      ) {
-        sellerFromToken = inv.invited_by;
-        if (!inv.accepted_at) {
-          await supabase.from("seller_invitations").update({ accepted_at: new Date().toISOString() }).eq("id", inv.id);
-        }
-      } else {
-        toast.error("Link inválido ou expirado.");
-      }
-    }
-    // Look for existing customer by user_id
+  const ensureCustomer = async (
+    orgId: string,
+    sellerHint: string | null,
+  ): Promise<{ customerId: string | null; sellerId: string | null }> => {
+    if (!user?.id) return { customerId: null, sellerId: null };
     const { data: existing } = await supabase
       .from("customers")
       .select("id, assigned_seller_id")
       .eq("user_id", user.id)
+      .eq("organization_id", orgId)
       .maybeSingle();
     if (existing) {
-      if (sellerFromToken && sellerFromToken !== existing.assigned_seller_id) {
+      if (sellerHint && !existing.assigned_seller_id) {
         await supabase
           .from("customers")
-          .update({ assigned_seller_id: sellerFromToken })
+          .update({ assigned_seller_id: sellerHint })
           .eq("id", existing.id);
       }
-      return { customerId: existing.id, sellerId: existing.assigned_seller_id ?? sellerFromToken ?? null };
+      return {
+        customerId: existing.id,
+        sellerId: existing.assigned_seller_id ?? sellerHint ?? null,
+      };
     }
-    // Create one tied to this user
-    const clientCompany =
+    const clientName =
       profile?.organization_client?.trim() ||
       profile?.full_name?.trim() ||
       user.email ||
       "Cliente";
+    const clientLegal = profile?.organization_client_legal?.trim() || null;
+    const clientIndustry = profile?.organization_client_industry?.trim() || null;
     const { data, error } = await supabase
       .from("customers")
       .insert({
-        organization_id: organization.id,
+        organization_id: orgId,
         user_id: user.id,
-        name: clientCompany,
+        name: clientName,
+        legal_name: clientLegal,
+        industry: clientIndustry,
         email: user.email ?? null,
-        assigned_seller_id: sellerFromToken,
+        assigned_seller_id: sellerHint,
       })
       .select("id")
       .single();
     if (error) {
       toast.error("Não foi possível criar seu cadastro: " + userFacingDataError(error));
-      return { customerId: null as string | null, sellerId: null as string | null };
+      return { customerId: null, sellerId: null };
     }
-    return { customerId: data.id, sellerId: sellerFromToken ?? null };
+    return { customerId: data.id, sellerId: sellerHint ?? null };
   };
 
   const load = async () => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
     setLoading(true);
-    const ensured = await ensureCustomer();
-    const cid = ensured.customerId;
-    const sellerId = ensured.sellerId;
-    setCustomerId(cid);
-    const { data: accessInvites } = await supabase
+    const emailLower = (user.email ?? "").toLowerCase();
+
+    let inviteOrgId: string | null = null;
+    let sellerFromInviteUrl: string | null = null;
+    if (inviteToken) {
+      const { data: invRow } = await supabase
+        .from("seller_invitations")
+        .select("id, organization_id, invited_by, purpose, expires_at, accepted_at, email")
+        .eq("token", inviteToken)
+        .eq("purpose", "client_catalog")
+        .maybeSingle();
+      const ok =
+        invRow &&
+        new Date(invRow.expires_at).getTime() > Date.now() &&
+        invRow.invited_by &&
+        (invRow.email ?? "").toLowerCase() === emailLower;
+      if (ok) {
+        sellerFromInviteUrl = invRow.invited_by;
+        inviteOrgId = invRow.organization_id;
+        if (!invRow.accepted_at) {
+          await supabase
+            .from("seller_invitations")
+            .update({ accepted_at: new Date().toISOString() })
+            .eq("id", invRow.id);
+        }
+      } else if (inviteToastRef.current !== inviteToken) {
+        inviteToastRef.current = inviteToken;
+        toast.error("Este convite não corresponde ao seu e-mail ou está expirado.");
+      }
+    }
+
+    const { data: inviteRows } = await supabase
       .from("seller_invitations")
-      .select("invited_by")
+      .select("organization_id, invited_by, accepted_at")
       .eq("purpose", "client_catalog")
-      .not("accepted_at", "is", null)
-      .eq("organization_id", organization?.id ?? "__none__")
-      .eq("email", (user?.email ?? "").toLowerCase());
+      .eq("email", emailLower);
+
+    const orgIdSet = new Set<string>();
+    for (const row of inviteRows ?? []) {
+      if (row.accepted_at && row.organization_id) orgIdSet.add(row.organization_id);
+    }
+
+    const { data: custRows } = await supabase
+      .from("customers")
+      .select("organization_id")
+      .eq("user_id", user.id);
+    for (const c of custRows ?? []) {
+      if (c.organization_id) orgIdSet.add(c.organization_id);
+    }
+
+    const orgIds = [...orgIdSet];
+    let orgList: LinkedOrg[] = [];
+    if (orgIds.length > 0) {
+      const { data: orgRows } = await supabase
+        .from("organizations")
+        .select("id, name")
+        .in("id", orgIds);
+      orgList = ((orgRows ?? []) as LinkedOrg[]).sort((a, b) =>
+        a.name.localeCompare(b.name, "pt-BR"),
+      );
+    }
+    setLinkedOrgs(orgList);
+
+    const linkedIdSet = new Set(orgList.map((o) => o.id));
+    let chosenOrgId: string | null = null;
+    if (inviteOrgId && linkedIdSet.has(inviteOrgId)) {
+      chosenOrgId = inviteOrgId;
+    } else if (pinnedOrgId && linkedIdSet.has(pinnedOrgId)) {
+      chosenOrgId = pinnedOrgId;
+    } else if (organization?.id && linkedIdSet.has(organization.id)) {
+      chosenOrgId = organization.id;
+    } else if (orgList[0]) {
+      chosenOrgId = orgList[0].id;
+    }
+
+    if (chosenOrgId && chosenOrgId !== pinnedOrgId && linkedIdSet.has(chosenOrgId)) {
+      setPinnedOrgId(chosenOrgId);
+      sessionStorage.setItem(PORTAL_ORG_STORAGE_KEY, chosenOrgId);
+    }
+
+    setPortalOrgId(chosenOrgId);
+
+    if (!chosenOrgId) {
+      setCustomerId(null);
+      setProducts([]);
+      setOrders([]);
+      setLoading(false);
+      return;
+    }
+
+    const sellerHintForOrg =
+      inviteOrgId === chosenOrgId ? sellerFromInviteUrl : null;
+    const ensured = await ensureCustomer(chosenOrgId, sellerHintForOrg);
+    const cid = ensured.customerId;
+    const sellerFromRow = ensured.sellerId;
+
+    setCustomerId(cid);
+
     const sellersFromInvites = Array.from(
       new Set(
-        (accessInvites ?? [])
-          .map((i: { invited_by: string | null }) => i.invited_by)
-          .filter((id): id is string => !!id),
+        (inviteRows ?? [])
+          .filter(
+            (r) =>
+              r.organization_id === chosenOrgId &&
+              r.accepted_at &&
+              typeof r.invited_by === "string" &&
+              r.invited_by,
+          )
+          .map((r) => r.invited_by as string),
       ),
     );
-    const effectiveSellers = sellerId
-      ? Array.from(new Set([...sellersFromInvites, sellerId]))
-      : sellersFromInvites;
-    setAllowedSellerIds(effectiveSellers);
+
+    const effectiveSellers = Array.from(
+      new Set([...sellersFromInvites, ...(sellerFromRow ? [sellerFromRow] : [])]),
+    );
+
     const productsQuery = supabase
       .from("products")
-      .select("id,owner_seller_id,name,sku,description,price,stock,category,image_url,image_urls")
+      .select("id,owner_seller_id,name,sku,description,price,stock,category,supplier,image_url,image_urls")
       .eq("active", true)
       .order("name");
+
     const [{ data: prods }, { data: ords }] = await Promise.all([
       effectiveSellers.length > 0
         ? productsQuery.in("owner_seller_id", effectiveSellers)
@@ -321,6 +445,7 @@ function Portal() {
             .from("orders")
             .select("id,order_number,status,total,notes,created_at")
             .eq("customer_id", cid)
+            .eq("organization_id", chosenOrgId)
             .order("created_at", { ascending: false })
         : Promise.resolve({ data: [] as OrderRow[] }),
     ]);
@@ -329,10 +454,19 @@ function Portal() {
     setLoading(false);
   };
 
+  const onPortalOrgChange = (nextId: string) => {
+    setPinnedOrgId(nextId);
+    sessionStorage.setItem(PORTAL_ORG_STORAGE_KEY, nextId);
+    setCart([]);
+    if (typeof window !== "undefined" && window.location.search.includes("invite=")) {
+      window.history.replaceState({}, "", `${window.location.pathname}${window.location.hash}`);
+    }
+  };
+
   useEffect(() => {
-    if (user && organization) load();
+    if (user?.id) load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id, organization?.id, inviteToken]);
+  }, [user?.id, organization?.id, inviteToken, pinnedOrgId]);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return products;
@@ -341,7 +475,8 @@ function Portal() {
       (p) =>
         p.name.toLowerCase().includes(q) ||
         (p.sku ?? "").toLowerCase().includes(q) ||
-        (p.category ?? "").toLowerCase().includes(q),
+        (p.category ?? "").toLowerCase().includes(q) ||
+        (p.supplier ?? "").toLowerCase().includes(q),
     );
   }, [products, search]);
 
@@ -397,7 +532,8 @@ function Portal() {
   const removeLine = (key: string) => setCart((c) => c.filter((l) => l.key !== key));
 
   const placeOrder = async () => {
-    if (!organization || !customerId) return toast.error("Cadastro do cliente não disponível");
+    const orderOrgId = portalOrgId ?? organization?.id;
+    if (!orderOrgId || !customerId) return toast.error("Cadastro do cliente não disponível");
     if (cart.length === 0) return toast.error("Adicione produtos ao carrinho");
     const orderSellerId = cart[0]?.product.owner_seller_id ?? null;
     if (!orderSellerId) {
@@ -407,7 +543,7 @@ function Portal() {
     const { data: order, error } = await supabase
       .from("orders")
       .insert({
-        organization_id: organization.id,
+        organization_id: orderOrgId,
         customer_id: customerId,
         seller_id: orderSellerId,
         status: "enviado",
@@ -444,9 +580,11 @@ function Portal() {
       <PageHeader
         title={`Olá, ${profile?.full_name?.split(" ")[0] ?? "cliente"}`}
         description={
-          allowedSellerIds.length > 1
-            ? `Você tem acesso a ${allowedSellerIds.length} empresas neste portal.`
-            : `Faça novos pedidos em ${organization?.name ?? "sua representação"}.`
+          linkedOrgs.length === 0
+            ? "Você ainda não tem vínculo com uma representação. Use o link enviado pelo seu representante ou confirme se o convite já foi aceito."
+            : linkedOrgs.length > 1
+              ? "Escolha abaixo qual representação deseja ver; produtos e pedidos são só da empresa selecionada."
+              : `Catálogo da representação ${linkedOrgs[0]?.name ?? organization?.name ?? ""}.`
         }
         action={
           <Sheet open={cartOpen} onOpenChange={setCartOpen}>
@@ -473,13 +611,30 @@ function Portal() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {cart.map((l) => (
+                    {cart.map((l) => {
+                      const cartThumb = normalizeProductImageUrls(l.product.image_urls, l.product.image_url)[0];
+                      return (
                       <div
                         key={l.key}
                         className="flex items-start gap-3 rounded-lg border border-border p-3"
                       >
+                        <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
+                          {cartThumb ? (
+                            <img src={cartThumb} alt="" className="h-full w-full object-cover" loading="lazy" />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center">
+                              <Package className="h-6 w-6 text-muted-foreground/40" />
+                            </div>
+                          )}
+                        </div>
                         <div className="flex-1 min-w-0">
                           <div className="font-medium truncate">{l.product.name}</div>
+                          {l.product.supplier?.trim() && (
+                            <div className="flex items-center gap-1 truncate text-xs text-muted-foreground">
+                              <Building2 className="h-3 w-3 shrink-0 text-primary/80" aria-hidden />
+                              <span className="truncate">{l.product.supplier.trim()}</span>
+                            </div>
+                          )}
                           {l.variation && (
                             <div className="text-xs text-muted-foreground">Variação: {l.variation}</div>
                           )}
@@ -521,7 +676,8 @@ function Portal() {
                           </Button>
                         </div>
                       </div>
-                    ))}
+                    );
+                    })}
                     <div className="pt-3">
                       <label className="text-sm font-medium">Observações</label>
                       <Textarea
@@ -555,6 +711,35 @@ function Portal() {
         }
       />
 
+      {linkedOrgs.length > 1 && portalOrgId ? (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 shadow-sm">
+          <Building2 className="h-5 w-5 shrink-0 text-primary" aria-hidden />
+          <div className="min-w-0 flex-1 space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Representação (catálogo e pedidos)
+            </p>
+            <Select value={portalOrgId} onValueChange={onPortalOrgChange}>
+              <SelectTrigger className="h-10 w-full max-w-md bg-background">
+                <SelectValue placeholder="Escolha a empresa" />
+              </SelectTrigger>
+              <SelectContent>
+                {linkedOrgs.map((o) => (
+                  <SelectItem key={o.id} value={o.id}>
+                    {o.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      ) : linkedOrgs.length === 1 && portalOrgId ? (
+        <div className="flex items-center gap-2 rounded-2xl border border-border bg-primary/[0.06] px-4 py-3 text-sm">
+          <Building2 className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+          <span className="text-muted-foreground">Catálogo de</span>
+          <span className="font-semibold text-foreground">{linkedOrgs[0].name}</span>
+        </div>
+      ) : null}
+
       <Tabs value={tab} onValueChange={(v) => setTab(v as "catalog" | "orders")}>
         <TabsList>
           <TabsTrigger value="catalog">
@@ -571,7 +756,7 @@ function Portal() {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar produto, SKU ou categoria..."
+              placeholder="Buscar produto, SKU, categoria ou indústria..."
               className="pl-9 h-11"
             />
           </div>

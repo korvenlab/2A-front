@@ -12,6 +12,9 @@ import {
   Loader2,
   Package,
   UserCog,
+  FileSpreadsheet,
+  Columns3,
+  CalendarDays,
 } from "lucide-react";
 
 export const Route = createFileRoute("/_authenticated")({
@@ -55,6 +58,10 @@ function AuthLayout() {
     const items: NavEntry[] = [];
     if (menu.dashboard) items.push({ to: "/dashboard", label: "Dashboard", icon: LayoutDashboard });
     if (menu.pedidos) items.push({ to: "/pedidos", label: "Pedidos", icon: ShoppingBag });
+    if (menu.orcamentos)
+      items.push({ to: "/orcamentos", label: "Orçamentos", icon: FileSpreadsheet });
+    if (menu.funil) items.push({ to: "/funil", label: "Funil / CRM", icon: Columns3 });
+    if (menu.visitas) items.push({ to: "/visitas", label: "Visitas", icon: CalendarDays });
     if (menu.clientes) items.push({ to: "/clientes", label: "Clientes", icon: Users });
     if (menu.catalogo) items.push({ to: "/catalogo", label: "Catálogo", icon: Package });
     if (menu.portal) items.push({ to: "/portal", label: "Portal de Compras", icon: Store });

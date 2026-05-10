@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { brl } from "@/lib/format";
@@ -26,8 +26,27 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
-import { Plus, Pencil, Loader2, PackageSearch, Download, Upload } from "lucide-react";
+import {
+  Plus,
+  Pencil,
+  Loader2,
+  PackageSearch,
+  Download,
+  Upload,
+  Building2,
+  Search,
+  LayoutGrid,
+  Table as TableIcon,
+  Layers,
+} from "lucide-react";
 import { useRef } from "react";
 import { useMenuGate } from "@/hooks/use-menu-gate";
 import { userFacingDataError } from "@/lib/supabase-user-error";
@@ -38,6 +57,7 @@ import {
   validateProductImageCount,
   isLikelyHttpUrl,
 } from "@/lib/product-images";
+import { cn } from "@/lib/utils";
 
 const PRODUCT_IMAGES_BUCKET = "product-images";
 
@@ -58,6 +78,104 @@ interface ProductRow {
   image_url: string | null;
   image_urls: unknown;
   active: boolean;
+  created_at: string;
+}
+
+type CatalogSortKey =
+  | "recent"
+  | "name"
+  | "category"
+  | "price_asc"
+  | "price_desc"
+  | "stock_asc"
+  | "stock_desc";
+
+type CatalogViewMode = "table" | "grid";
+
+type StockFilterKey = "__all__" | "in_stock" | "out_stock";
+
+function groupProductsByCategory(rows: ProductRow[]): [string, ProductRow[]][] {
+  const map = new Map<string, ProductRow[]>();
+  for (const p of rows) {
+    const k = p.category?.trim() || "Sem categoria";
+    if (!map.has(k)) map.set(k, []);
+    map.get(k)!.push(p);
+  }
+  const keys = [...map.keys()].sort((a, b) => {
+    if (a === "Sem categoria") return 1;
+    if (b === "Sem categoria") return -1;
+    return a.localeCompare(b, "pt-BR");
+  });
+  return keys.map((k) => [k, map.get(k)!] as const);
+}
+
+function CatalogProductGridCard({
+  p,
+  thumbs,
+  canManageCatalog,
+  onEdit,
+  onToggleActive,
+}: {
+  p: ProductRow;
+  thumbs: string[];
+  canManageCatalog: boolean;
+  onEdit: () => void;
+  onToggleActive: () => void;
+}) {
+  const cover = thumbs[0];
+  const cat = p.category?.trim();
+  return (
+    <div className="flex flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-sm transition-[border-color,box-shadow] hover:border-primary/20 hover:shadow-md">
+      <div className="relative aspect-square bg-gradient-to-b from-muted to-muted/60">
+        {cover ? (
+          <img src={cover} alt="" loading="lazy" className="h-full w-full object-cover" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <PackageSearch className="h-12 w-12 text-muted-foreground/35" aria-hidden />
+          </div>
+        )}
+        {thumbs.length > 1 && (
+          <span className="absolute right-2 top-2 rounded-md bg-background/95 px-2 py-0.5 text-[11px] font-semibold shadow ring-1 ring-border">
+            +{thumbs.length - 1} fotos
+          </span>
+        )}
+        {!p.active && (
+          <Badge variant="secondary" className="absolute left-2 top-2 text-[10px]">
+            Inativo
+          </Badge>
+        )}
+      </div>
+      {p.supplier?.trim() ? (
+        <div className="flex items-center gap-2 border-b border-border bg-primary/[0.06] px-3 py-2">
+          <Building2 className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
+          <span className="truncate text-xs font-semibold">{p.supplier.trim()}</span>
+        </div>
+      ) : null}
+      <div className="flex flex-1 flex-col gap-2 p-4">
+        <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          {cat || "Sem categoria"}
+        </div>
+        <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-snug">{p.name}</h3>
+        <div className="text-xs text-muted-foreground">SKU: {p.sku ?? "—"}</div>
+        <div className="mt-auto flex flex-wrap items-end justify-between gap-2 border-t border-border pt-3">
+          <div>
+            <div className="text-lg font-bold text-primary">{brl(p.price)}</div>
+            <div className="text-xs text-muted-foreground">Estoque {p.stock}</div>
+          </div>
+          {canManageCatalog ? (
+            <div className="flex items-center gap-2">
+              <Switch checked={p.active} onCheckedChange={onToggleActive} aria-label="Ativo" />
+              <Button size="sm" variant="outline" onClick={onEdit}>
+                <Pencil className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <Badge variant={p.active ? "default" : "secondary"}>{p.active ? "Ativo" : "Inativo"}</Badge>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 }
 
 interface ProductForm {
@@ -84,6 +202,69 @@ const emptyForm: ProductForm = {
   active: true,
 };
 
+/** Mini-galeria na tabela do catálogo: todas as fotos visíveis, capa destacada. */
+function CatalogTablePhotoMosaic({
+  urls,
+  productName,
+}: {
+  urls: string[];
+  productName: string;
+}) {
+  const u = urls.slice(0, MAX_PRODUCT_IMAGES);
+
+  if (u.length === 0) {
+    return (
+      <div className="flex h-[5.25rem] w-[7.75rem] items-center justify-center rounded-xl border-2 border-dashed border-border/80 bg-muted/40">
+        <PackageSearch className="h-8 w-8 text-muted-foreground/35" aria-hidden />
+      </div>
+    );
+  }
+
+  return (
+    <div className="grid w-[7.75rem] shrink-0 grid-cols-2 gap-1">
+      {u.map((url, i) => {
+        const single = u.length === 1;
+        const thirdWide = u.length === 3 && i === 2;
+        return (
+          <a
+            key={`${url}-${i}`}
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={cn(
+              "group relative block min-h-0 overflow-hidden rounded-lg border bg-muted shadow-sm outline-none transition-[box-shadow,transform] hover:z-10 hover:shadow-md focus-visible:ring-2 focus-visible:ring-ring",
+              single && "col-span-2 aspect-[5/3]",
+              !single && !thirdWide && "aspect-square",
+              thirdWide && "col-span-2 aspect-[2/1]",
+              i === 0 ? "border-2 border-primary/55 shadow-md" : "border border-border/90 ring-1 ring-border/50",
+            )}
+            title={
+              i === 0
+                ? `${productName} — foto de capa (abrir)`
+                : `${productName} — foto ${i + 1} (abrir)`
+            }
+          >
+            <img
+              src={url}
+              alt={i === 0 ? `${productName} — capa` : `${productName} — foto ${i + 1}`}
+              loading="lazy"
+              className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]"
+            />
+            <span
+              className={cn(
+                "pointer-events-none absolute bottom-1 left-1 rounded px-1 py-0.5 text-[10px] font-semibold tabular-nums shadow-sm",
+                i === 0 ? "bg-primary text-primary-foreground" : "bg-black/70 text-white",
+              )}
+            >
+              {i === 0 ? "Capa" : String(i + 1)}
+            </span>
+          </a>
+        );
+      })}
+    </div>
+  );
+}
+
 function CatalogPage() {
   useMenuGate("catalogo");
   const { organization, role, user, menu } = useAuth();
@@ -101,11 +282,21 @@ function CatalogPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const imageFileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const [catalogSearch, setCatalogSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState<string>("__all__");
+  const [supplierFilter, setSupplierFilter] = useState<string>("__all__");
+  const [stockFilter, setStockFilter] = useState<StockFilterKey>("__all__");
+  const [activeOnly, setActiveOnly] = useState(true);
+  const [sortKey, setSortKey] = useState<CatalogSortKey>("recent");
+  const [viewMode, setViewMode] = useState<CatalogViewMode>("table");
+
   const load = async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("products")
-      .select("id,name,sku,description,price,stock,category,supplier,image_url,image_urls,active")
+      .select(
+        "id,name,sku,description,price,stock,category,supplier,image_url,image_urls,active,created_at",
+      )
       .order("created_at", { ascending: false });
     if (error) toast.error(userFacingDataError(error));
     setProducts((data as ProductRow[]) ?? []);
@@ -115,6 +306,90 @@ function CatalogPage() {
   useEffect(() => {
     load();
   }, []);
+
+  const categoryOptions = useMemo(() => {
+    const s = new Set<string>();
+    for (const p of products) {
+      const c = p.category?.trim();
+      if (c) s.add(c);
+    }
+    return Array.from(s).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [products]);
+
+  const supplierOptions = useMemo(() => {
+    const s = new Set<string>();
+    for (const p of products) {
+      const x = p.supplier?.trim();
+      if (x) s.add(x);
+    }
+    return Array.from(s).sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [products]);
+
+  const filteredSortedProducts = useMemo(() => {
+    let rows = [...products];
+    if (activeOnly) rows = rows.filter((p) => p.active);
+    const q = catalogSearch.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter(
+        (p) =>
+          p.name.toLowerCase().includes(q) ||
+          (p.sku ?? "").toLowerCase().includes(q) ||
+          (p.category ?? "").toLowerCase().includes(q) ||
+          (p.supplier ?? "").toLowerCase().includes(q) ||
+          (p.description ?? "").toLowerCase().includes(q),
+      );
+    }
+    if (stockFilter === "in_stock") rows = rows.filter((p) => p.stock > 0);
+    if (stockFilter === "out_stock") rows = rows.filter((p) => p.stock <= 0);
+    if (categoryFilter !== "__all__") {
+      if (categoryFilter === "__none__") {
+        rows = rows.filter((p) => !p.category?.trim());
+      } else {
+        rows = rows.filter((p) => (p.category?.trim() ?? "") === categoryFilter);
+      }
+    }
+    if (supplierFilter !== "__all__") {
+      rows = rows.filter((p) => (p.supplier?.trim() ?? "") === supplierFilter);
+    }
+    rows.sort((a, b) => {
+      switch (sortKey) {
+        case "name":
+          return a.name.localeCompare(b.name, "pt-BR");
+        case "price_asc":
+          return a.price - b.price;
+        case "price_desc":
+          return b.price - a.price;
+        case "stock_asc":
+          return a.stock - b.stock;
+        case "stock_desc":
+          return b.stock - a.stock;
+        case "category":
+          return (
+            (a.category ?? "").localeCompare(b.category ?? "", "pt-BR") ||
+            a.name.localeCompare(b.name, "pt-BR")
+          );
+        case "recent":
+        default:
+          return (
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+      }
+    });
+    return rows;
+  }, [
+    products,
+    activeOnly,
+    catalogSearch,
+    categoryFilter,
+    supplierFilter,
+    stockFilter,
+    sortKey,
+  ]);
+
+  const groupedCatalog = useMemo(
+    () => groupProductsByCategory(filteredSortedProducts),
+    [filteredSortedProducts],
+  );
 
   const openNew = () => {
     setEditing(null);
@@ -320,7 +595,7 @@ function CatalogPage() {
       "Nome",
       "SKU",
       "Categoria",
-      "Fornecedor",
+      "Industria",
       "Preço",
       "Estoque",
       "Ativo",
@@ -410,7 +685,7 @@ function CatalogPage() {
       const iName = idx(["nome", "name", "produto"]);
       const iSku = idx(["sku", "código", "codigo"]);
       const iCat = idx(["categoria", "category"]);
-      const iSup = idx(["fornecedor", "fabricante", "supplier"]);
+      const iSup = idx(["fornecedor", "fabricante", "supplier", "industria", "indústria", "industria/fabricante"]);
       const iPrice = idx(["preço", "preco", "price"]);
       const iStock = idx(["estoque", "stock", "quantidade"]);
       const iActive = idx(["ativo", "active"]);
@@ -541,7 +816,7 @@ function CatalogPage() {
     <div className="p-6 lg:p-10 space-y-6">
       <PageHeader
         title="Catálogo"
-        description="Gerencie os produtos disponíveis para os pedidos."
+        description="Filtre por categoria e indústria, ordene e alterne entre tabela e grade. Os itens ficam agrupados por categoria para localizar mais rápido."
         action={
           <div className="flex flex-wrap gap-2">
             <input
@@ -607,11 +882,11 @@ function CatalogPage() {
                     </div>
                   </div>
                   <div className="grid gap-2">
-                    <Label>Fornecedor / Fabricante</Label>
+                    <Label>Indústria / fabricante</Label>
                     <Input
                       value={form.supplier ?? ""}
                       onChange={(e) => setForm({ ...form, supplier: e.target.value })}
-                      placeholder="Ex: Nestlé, Distribuidor X"
+                      placeholder="Ex.: marca industrial ou distribuidor oficial"
                     />
                   </div>
                   <div className="grid gap-2">
@@ -740,6 +1015,154 @@ function CatalogPage() {
         }
       />
 
+      {!loading ? (
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-4 lg:p-5">
+          <div className="flex flex-col gap-4 xl:flex-row xl:flex-wrap xl:items-end">
+            <div className="relative min-w-[min(100%,280px)] flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={catalogSearch}
+                onChange={(e) => setCatalogSearch(e.target.value)}
+                placeholder="Buscar nome, SKU, descrição, categoria ou indústria…"
+                className="h-10 pl-9"
+              />
+            </div>
+            <div className="grid gap-1.5 min-w-[160px]">
+              <span className="text-xs font-medium text-muted-foreground">Categoria</span>
+              <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                <SelectTrigger className="h-10 bg-background">
+                  <SelectValue placeholder="Todas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Todas as categorias</SelectItem>
+                  {products.some((p) => !p.category?.trim()) ? (
+                    <SelectItem value="__none__">Sem categoria</SelectItem>
+                  ) : null}
+                  {categoryOptions.map((c) => (
+                    <SelectItem key={c} value={c}>
+                      {c}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1.5 min-w-[160px]">
+              <span className="text-xs font-medium text-muted-foreground">Indústria</span>
+              <Select value={supplierFilter} onValueChange={setSupplierFilter}>
+                <SelectTrigger className="h-10 bg-background">
+                  <SelectValue placeholder="Todas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Todas as indústrias</SelectItem>
+                  {supplierOptions.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1.5 min-w-[160px]">
+              <span className="text-xs font-medium text-muted-foreground">Estoque</span>
+              <Select value={stockFilter} onValueChange={(v) => setStockFilter(v as StockFilterKey)}>
+                <SelectTrigger className="h-10 bg-background">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Todos</SelectItem>
+                  <SelectItem value="in_stock">Com estoque</SelectItem>
+                  <SelectItem value="out_stock">Sem estoque</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1.5 min-w-[180px]">
+              <span className="text-xs font-medium text-muted-foreground">Ordenar por</span>
+              <Select value={sortKey} onValueChange={(v) => setSortKey(v as CatalogSortKey)}>
+                <SelectTrigger className="h-10 bg-background">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="recent">Mais recentes</SelectItem>
+                  <SelectItem value="name">Nome (A–Z)</SelectItem>
+                  <SelectItem value="category">Categoria + nome</SelectItem>
+                  <SelectItem value="price_asc">Preço menor → maior</SelectItem>
+                  <SelectItem value="price_desc">Preço maior → menor</SelectItem>
+                  <SelectItem value="stock_asc">Estoque menor → maior</SelectItem>
+                  <SelectItem value="stock_desc">Estoque maior → menor</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-2">
+                <Switch id="catalog-active-only" checked={activeOnly} onCheckedChange={setActiveOnly} />
+                <Label htmlFor="catalog-active-only" className="text-sm font-normal">
+                  Somente ativos
+                </Label>
+              </div>
+              <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5">
+                <Button
+                  type="button"
+                  variant={viewMode === "table" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 gap-1.5 px-2.5"
+                  onClick={() => setViewMode("table")}
+                  aria-pressed={viewMode === "table"}
+                >
+                  <TableIcon className="h-4 w-4" /> Tabela
+                </Button>
+                <Button
+                  type="button"
+                  variant={viewMode === "grid" ? "secondary" : "ghost"}
+                  size="sm"
+                  className="h-8 gap-1.5 px-2.5"
+                  onClick={() => setViewMode("grid")}
+                  aria-pressed={viewMode === "grid"}
+                >
+                  <LayoutGrid className="h-4 w-4" /> Grade
+                </Button>
+              </div>
+              {(catalogSearch.trim() !== "" ||
+                categoryFilter !== "__all__" ||
+                supplierFilter !== "__all__" ||
+                stockFilter !== "__all__" ||
+                !activeOnly ||
+                sortKey !== "recent") && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground"
+                  onClick={() => {
+                    setCatalogSearch("");
+                    setCategoryFilter("__all__");
+                    setSupplierFilter("__all__");
+                    setStockFilter("__all__");
+                    setActiveOnly(true);
+                    setSortKey("recent");
+                  }}
+                >
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Mostrando <strong className="text-foreground">{filteredSortedProducts.length}</strong>
+              {products.length > 0 ? (
+                <>
+                  {" "}
+                  de {products.length} produtos · agrupados por categoria
+                </>
+              ) : (
+                <> produtos</>
+              )}
+            </p>
+          </div>
+        </div>
+      ) : null}
+
       <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-12 flex justify-center">
@@ -750,78 +1173,141 @@ function CatalogPage() {
             <PackageSearch className="h-10 w-10 mx-auto mb-3 opacity-50" />
             Nenhum produto cadastrado ainda.
           </div>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Produto</TableHead>
-                <TableHead>SKU</TableHead>
-                <TableHead className="text-right">Preço</TableHead>
-                <TableHead className="text-right">Estoque</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {products.map((p) => {
-                const thumbs = normalizeProductImageUrls(p.image_urls, p.image_url);
-                const thumb = thumbs[0];
-                return (
-                <TableRow key={p.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
-                        {thumb ? (
-                          <img
-                            src={thumb}
-                            alt={p.name}
-                            loading="lazy"
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div className="h-full w-full" />
-                        )}
-                        {thumbs.length > 1 && (
-                          <span className="absolute bottom-0 right-0 rounded-tl bg-background/90 px-1 text-[10px] font-medium border-t border-l border-border">
-                            +{thumbs.length - 1}
-                          </span>
-                        )}
-                      </div>
-                      <div>
-                        <div className="font-medium">{p.name}</div>
-                        {p.category && (
-                          <div className="text-xs text-muted-foreground">{p.category}</div>
-                        )}
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{p.sku ?? "—"}</TableCell>
-                  <TableCell className="text-right font-medium">{brl(p.price)}</TableCell>
-                  <TableCell className="text-right">{p.stock}</TableCell>
-                  <TableCell>
-                    {canManageCatalog ? (
-                      <Switch
-                        checked={p.active}
-                        onCheckedChange={() => toggleActive(p)}
+        ) : filteredSortedProducts.length === 0 ? (
+          <div className="p-12 text-center text-muted-foreground">
+            <PackageSearch className="h-10 w-10 mx-auto mb-3 opacity-50" />
+            Nenhum produto corresponde aos filtros.
+            <div className="mt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setCatalogSearch("");
+                  setCategoryFilter("__all__");
+                  setSupplierFilter("__all__");
+                  setStockFilter("__all__");
+                  setActiveOnly(true);
+                  setSortKey("recent");
+                }}
+              >
+                Limpar filtros
+              </Button>
+            </div>
+          </div>
+        ) : viewMode === "grid" ? (
+          <div className="space-y-10 p-4 md:p-6">
+            {groupedCatalog.map(([cat, rows]) => (
+              <section key={cat} className="space-y-4">
+                <div className="flex flex-wrap items-center gap-2 border-b border-border pb-2">
+                  <Layers className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                  <h2 className="text-sm font-semibold tracking-tight">{cat}</h2>
+                  <Badge variant="secondary" className="font-normal">
+                    {rows.length}
+                  </Badge>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+                  {rows.map((p) => {
+                    const thumbs = normalizeProductImageUrls(p.image_urls, p.image_url);
+                    return (
+                      <CatalogProductGridCard
+                        key={p.id}
+                        p={p}
+                        thumbs={thumbs}
+                        canManageCatalog={canManageCatalog}
+                        onEdit={() => openEdit(p)}
+                        onToggleActive={() => toggleActive(p)}
                       />
-                    ) : (
-                      <Badge variant={p.active ? "default" : "secondary"}>
-                        {p.active ? "Ativo" : "Inativo"}
-                      </Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {canManageCatalog && (
-                      <Button size="sm" variant="ghost" onClick={() => openEdit(p)}>
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </TableCell>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[8.5rem] min-w-[8.5rem] align-middle">Fotos</TableHead>
+                  <TableHead className="min-w-[200px] align-middle">Produto</TableHead>
+                  <TableHead>SKU</TableHead>
+                  <TableHead className="min-w-[120px]">Indústria</TableHead>
+                  <TableHead className="text-right">Preço</TableHead>
+                  <TableHead className="text-right">Estoque</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead></TableHead>
                 </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {groupedCatalog.map(([cat, rows]) => (
+                  <Fragment key={cat}>
+                    <TableRow className="border-border bg-muted/55 hover:bg-muted/55">
+                      <TableCell colSpan={8} className="py-2.5">
+                        <span className="inline-flex items-center gap-2 text-sm font-semibold">
+                          <Layers className="h-4 w-4 text-primary" aria-hidden />
+                          {cat}
+                          <Badge variant="outline" className="font-normal">
+                            {rows.length}
+                          </Badge>
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                    {rows.map((p) => {
+                      const thumbs = normalizeProductImageUrls(p.image_urls, p.image_url);
+                      return (
+                        <TableRow key={p.id}>
+                          <TableCell className="align-middle py-3">
+                            <CatalogTablePhotoMosaic urls={thumbs} productName={p.name} />
+                          </TableCell>
+                          <TableCell className="align-middle">
+                            <div className="min-w-0 space-y-1">
+                              <div className="font-semibold leading-snug">{p.name}</div>
+                              {thumbs.length > 1 && (
+                                <div className="text-[11px] text-muted-foreground">
+                                  {thumbs.length} fotos · capa + extras
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                          <TableCell className="align-middle text-muted-foreground">
+                            {p.sku ?? "—"}
+                          </TableCell>
+                          <TableCell className="align-middle">
+                            {p.supplier?.trim() ? (
+                              <div className="flex items-start gap-2">
+                                <Building2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+                                <span className="text-sm font-medium leading-snug">{p.supplier.trim()}</span>
+                              </div>
+                            ) : (
+                              <span className="text-sm text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right font-medium">{brl(p.price)}</TableCell>
+                          <TableCell className="text-right">{p.stock}</TableCell>
+                          <TableCell>
+                            {canManageCatalog ? (
+                              <Switch checked={p.active} onCheckedChange={() => toggleActive(p)} />
+                            ) : (
+                              <Badge variant={p.active ? "default" : "secondary"}>
+                                {p.active ? "Ativo" : "Inativo"}
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {canManageCatalog && (
+                              <Button size="sm" variant="ghost" onClick={() => openEdit(p)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </Fragment>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </div>
     </div>

@@ -3,13 +3,13 @@ import { useEffect, useState, type FormEvent } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/lib/auth-context";
 import { LoginCarousel } from "@/components/auth/LoginCarousel";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/signup")({
@@ -41,7 +41,9 @@ function SignupPage() {
   const navigate = useNavigate();
   const [fullName, setFullName] = useState("");
   const [organizationName, setOrganizationName] = useState("");
-  const [clientOrganizationName, setClientOrganizationName] = useState("");
+  const [clientTradeName, setClientTradeName] = useState("");
+  const [clientLegalName, setClientLegalName] = useState("");
+  const [clientIndustry, setClientIndustry] = useState("");
   const [staffOrganizationName, setStaffOrganizationName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -49,9 +51,27 @@ function SignupPage() {
   const [invitePurpose, setInvitePurpose] = useState<"client_catalog" | "seller_signup" | null>(null);
   const [invitePeekLoading, setInvitePeekLoading] = useState(false);
 
+  /** Cliente com conta que abre o link de cadastro: vai direto ao portal para aceitar o convite e vincular a representação. */
   useEffect(() => {
-    if (!loading && isAuthenticated) navigate({ to: "/dashboard" });
-  }, [isAuthenticated, loading, navigate]);
+    if (loading || !isAuthenticated) return;
+    if (!inviteToken) {
+      navigate({ to: "/dashboard" });
+      return;
+    }
+    if (invitePeekLoading) return;
+    if (invitePurpose === "client_catalog") {
+      window.location.replace(`/portal?invite=${encodeURIComponent(inviteToken)}`);
+      return;
+    }
+    navigate({ to: "/dashboard" });
+  }, [
+    isAuthenticated,
+    loading,
+    navigate,
+    inviteToken,
+    invitePurpose,
+    invitePeekLoading,
+  ]);
 
   useEffect(() => {
     if (!inviteToken) {
@@ -105,17 +125,27 @@ function SignupPage() {
       meta.staff_organization_name = orgTrim;
     } else if (invitePurpose === "client_catalog") {
       const schema = baseFieldsSchema.extend({
-        clientOrganizationName: z.string().trim().min(2, "Informe a empresa do cliente").max(100),
+        clientTradeName: z.string().trim().min(2, "Informe o nome da empresa").max(160),
+        clientLegalName: z.string().trim().min(2, "Informe a razão social").max(200),
+        clientIndustry: z.string().trim().max(160),
       });
-      const r = schema.safeParse({ fullName, email, password, clientOrganizationName });
+      const r = schema.safeParse({
+        fullName,
+        email,
+        password,
+        clientTradeName,
+        clientLegalName,
+        clientIndustry,
+      });
       if (!r.success) {
         toast.error(r.error.issues[0].message);
         return;
       }
       parsedBase = r.data;
-      const c = r.data.clientOrganizationName.trim();
-      meta.client_organization_name = c;
-      meta.organization_name = c;
+      meta.client_trade_name = r.data.clientTradeName.trim();
+      meta.client_legal_name = r.data.clientLegalName.trim();
+      const ind = r.data.clientIndustry.trim();
+      if (ind.length > 0) meta.client_industry = ind;
     } else if (invitePurpose === "seller_signup") {
       const schema = baseFieldsSchema.extend({
         staffOrganizationName: z.string().trim().max(100),
@@ -164,19 +194,6 @@ function SignupPage() {
     toast.success(
       hasInvite ? "Conta criada! Você já pode acessar com o papel do convite." : "Conta criada! Você já pode acessar.",
     );
-  };
-
-  const onGoogle = async () => {
-    if (hasInvite) {
-      toast.error("Cadastro com convite use e-mail e senha para vincular o link corretamente.");
-      return;
-    }
-    setSubmitting(true);
-    const { error } = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: `${window.location.origin}/dashboard`,
-    });
-    setSubmitting(false);
-    if (error) toast.error(error.message);
   };
 
   const headline = !hasInvite
@@ -232,17 +249,57 @@ function SignupPage() {
             )}
 
             {hasInvite && invitePurpose === "client_catalog" && (
-              <div>
-                <Label htmlFor="clientOrg">Empresa do cliente</Label>
-                <Input
-                  id="clientOrg"
-                  value={clientOrganizationName}
-                  onChange={(e) => setClientOrganizationName(e.target.value)}
-                  required
-                  className="mt-1.5 h-11"
-                />
-                <p className="mt-1 text-xs text-muted-foreground">Razão social ou nome que aparece para a representação na lista de clientes.</p>
-              </div>
+              <Tabs defaultValue="empresa" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="empresa">Empresa</TabsTrigger>
+                  <TabsTrigger value="industria">Indústria</TabsTrigger>
+                </TabsList>
+                <TabsContent value="empresa" className="space-y-4 pt-3 outline-none">
+                  <div>
+                    <Label htmlFor="clientTrade">Nome da empresa (nome fantasia)</Label>
+                    <Input
+                      id="clientTrade"
+                      value={clientTradeName}
+                      onChange={(e) => setClientTradeName(e.target.value)}
+                      required
+                      className="mt-1.5 h-11"
+                      placeholder="Como a empresa prefere ser chamada"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="clientLegal">Razão social</Label>
+                    <Input
+                      id="clientLegal"
+                      value={clientLegalName}
+                      onChange={(e) => setClientLegalName(e.target.value)}
+                      required
+                      className="mt-1.5 h-11"
+                      placeholder="Denominação conforme contrato ou CNPJ"
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Campo distinto do nome fantasia; ambos aparecem para a representação na carteira de clientes.
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground border-l-2 border-primary/25 pl-3 py-1">
+                    Já tem cadastro em outra representação? Não crie outra conta com o mesmo e-mail — peça o link “para quem já tem conta” e entre pelo login para vincular esta empresa também.
+                  </p>
+                </TabsContent>
+                <TabsContent value="industria" className="space-y-3 pt-3 outline-none">
+                  <div>
+                    <Label htmlFor="clientIndustry">Segmento ou indústria</Label>
+                    <Input
+                      id="clientIndustry"
+                      value={clientIndustry}
+                      onChange={(e) => setClientIndustry(e.target.value)}
+                      className="mt-1.5 h-11"
+                      placeholder="Ex.: food service, varejo farmacêutico, metalúrgica…"
+                    />
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Opcional no cadastro; ajuda a representação a contextualizar sua operação.
+                    </p>
+                  </div>
+                </TabsContent>
+              </Tabs>
             )}
 
             {hasInvite && invitePurpose === "seller_signup" && (
@@ -285,22 +342,6 @@ function SignupPage() {
               {submitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Criar conta"}
             </Button>
           </form>
-
-          <div className="my-6 flex items-center gap-3">
-            <div className="h-px flex-1 bg-border" />
-            <span className="text-xs uppercase text-muted-foreground">ou</span>
-            <div className="h-px flex-1 bg-border" />
-          </div>
-
-          <Button
-            variant="outline"
-            className="w-full h-11"
-            onClick={onGoogle}
-            disabled={submitting || hasInvite}
-            title={hasInvite ? "Use e-mail e senha quando houver convite" : undefined}
-          >
-            Cadastrar com Google
-          </Button>
 
           <p className="mt-8 text-center text-sm text-muted-foreground">
             Já tem conta?{" "}

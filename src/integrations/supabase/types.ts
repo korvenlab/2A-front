@@ -23,6 +23,8 @@ export type Database = {
           document: string | null
           email: string | null
           id: string
+          industry: string | null
+          legal_name: string | null
           name: string
           notes: string | null
           organization_id: string
@@ -39,6 +41,8 @@ export type Database = {
           document?: string | null
           email?: string | null
           id?: string
+          industry?: string | null
+          legal_name?: string | null
           name: string
           notes?: string | null
           organization_id: string
@@ -55,6 +59,8 @@ export type Database = {
           document?: string | null
           email?: string | null
           id?: string
+          industry?: string | null
+          legal_name?: string | null
           name?: string
           notes?: string | null
           organization_id?: string
@@ -66,6 +72,425 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "customers_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      budget_items: {
+        Row: {
+          budget_id: string
+          code: string | null
+          commission_pct: number
+          created_at: string
+          description: string
+          discount_d1: number
+          discount_d2: number
+          discount_d3: number
+          discount_d4: number
+          discount_d5: number
+          discount_d6: number
+          discount_d7: number
+          id: string
+          ipi_amount: number
+          line_order: number
+          list_price: number
+          product_id: string | null
+          quantity: number
+          st_amount: number
+          supplier_brand: string | null
+          unit_price_final: number
+          weight_gross_kg: number | null
+          weight_net_kg: number | null
+        }
+        Insert: {
+          budget_id: string
+          code?: string | null
+          commission_pct?: number
+          created_at?: string
+          description?: string
+          discount_d1?: number
+          discount_d2?: number
+          discount_d3?: number
+          discount_d4?: number
+          discount_d5?: number
+          discount_d6?: number
+          discount_d7?: number
+          id?: string
+          ipi_amount?: number
+          line_order?: number
+          list_price?: number
+          product_id?: string | null
+          quantity?: number
+          st_amount?: number
+          supplier_brand?: string | null
+          unit_price_final?: number
+          weight_gross_kg?: number | null
+          weight_net_kg?: number | null
+        }
+        Update: {
+          budget_id?: string
+          code?: string | null
+          commission_pct?: number
+          created_at?: string
+          description?: string
+          discount_d1?: number
+          discount_d2?: number
+          discount_d3?: number
+          discount_d4?: number
+          discount_d5?: number
+          discount_d6?: number
+          discount_d7?: number
+          id?: string
+          ipi_amount?: number
+          line_order?: number
+          list_price?: number
+          product_id?: string | null
+          quantity?: number
+          st_amount?: number
+          supplier_brand?: string | null
+          unit_price_final?: number
+          weight_gross_kg?: number | null
+          weight_net_kg?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budget_items_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "budgets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budget_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      budgets: {
+        Row: {
+          budget_number: number
+          buyer_role: string
+          carrier: string | null
+          created_at: string
+          created_by: string | null
+          customer_id: string
+          delivery_forecast: string | null
+          freight_type: string
+          id: string
+          notes_private: string | null
+          notes_public: string | null
+          organization_id: string
+          quote_date: string
+          seller_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          budget_number?: number
+          buyer_role?: string
+          carrier?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id: string
+          delivery_forecast?: string | null
+          freight_type?: string
+          id?: string
+          notes_private?: string | null
+          notes_public?: string | null
+          organization_id: string
+          quote_date?: string
+          seller_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          budget_number?: number
+          buyer_role?: string
+          carrier?: string | null
+          created_at?: string
+          created_by?: string | null
+          customer_id?: string
+          delivery_forecast?: string | null
+          freight_type?: string
+          id?: string
+          notes_private?: string | null
+          notes_public?: string | null
+          organization_id?: string
+          quote_date?: string
+          seller_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "budgets_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "budgets_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      opportunity_products: {
+        Row: {
+          created_at: string
+          id: string
+          line_total: number
+          opportunity_id: string
+          product_id: string
+          quantity: number
+          unit_price: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          opportunity_id: string
+          product_id: string
+          quantity?: number
+          unit_price?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          opportunity_id?: string
+          product_id?: string
+          quantity?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opportunity_products_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "sales_opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunity_products_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      opportunity_stage_events: {
+        Row: {
+          changed_by: string | null
+          created_at: string
+          from_stage_id: string | null
+          id: string
+          note: string | null
+          opportunity_id: string
+          to_stage_id: string
+        }
+        Insert: {
+          changed_by?: string | null
+          created_at?: string
+          from_stage_id?: string | null
+          id?: string
+          note?: string | null
+          opportunity_id: string
+          to_stage_id: string
+        }
+        Update: {
+          changed_by?: string | null
+          created_at?: string
+          from_stage_id?: string | null
+          id?: string
+          note?: string | null
+          opportunity_id?: string
+          to_stage_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "opportunity_stage_events_opportunity_id_fkey"
+            columns: ["opportunity_id"]
+            isOneToOne: false
+            referencedRelation: "sales_opportunities"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunity_stage_events_from_stage_id_fkey"
+            columns: ["from_stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "opportunity_stage_events_to_stage_id_fkey"
+            columns: ["to_stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pipeline_stages: {
+        Row: {
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+          organization_id: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          organization_id: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          organization_id?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pipeline_stages_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sales_opportunities: {
+        Row: {
+          created_at: string
+          customer_id: string
+          expected_close_date: string | null
+          id: string
+          notes: string | null
+          organization_id: string
+          owner_id: string | null
+          priority: number
+          stage_id: string
+          title: string
+          updated_at: string
+          value_total: number
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          expected_close_date?: string | null
+          id?: string
+          notes?: string | null
+          organization_id: string
+          owner_id?: string | null
+          priority?: number
+          stage_id: string
+          title: string
+          updated_at?: string
+          value_total?: number
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          notes?: string | null
+          expected_close_date?: string | null
+          id?: string
+          organization_id?: string
+          owner_id?: string | null
+          priority?: number
+          stage_id?: string
+          title?: string
+          updated_at?: string
+          value_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_opportunities_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_opportunities_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_opportunities_stage_id_fkey"
+            columns: ["stage_id"]
+            isOneToOne: false
+            referencedRelation: "pipeline_stages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      commercial_visits: {
+        Row: {
+          address: string | null
+          created_at: string
+          customer_id: string | null
+          duration_minutes: number
+          id: string
+          notes: string | null
+          organization_id: string
+          scheduled_at: string
+          seller_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          customer_id?: string | null
+          duration_minutes?: number
+          id?: string
+          notes?: string | null
+          organization_id: string
+          scheduled_at: string
+          seller_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          customer_id?: string | null
+          duration_minutes?: number
+          id?: string
+          notes?: string | null
+          organization_id?: string
+          scheduled_at?: string
+          seller_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "commercial_visits_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "commercial_visits_organization_id_fkey"
             columns: ["organization_id"]
             isOneToOne: false
             referencedRelation: "organizations"
@@ -119,6 +544,7 @@ export type Database = {
           product_id: string
           product_name: string
           quantity: number
+          stock_applied: boolean
           subtotal: number
           unit_price: number
         }
@@ -129,6 +555,7 @@ export type Database = {
           product_id: string
           product_name: string
           quantity?: number
+          stock_applied?: boolean
           subtotal?: number
           unit_price?: number
         }
@@ -139,6 +566,7 @@ export type Database = {
           product_id?: string
           product_name?: string
           quantity?: number
+          stock_applied?: boolean
           subtotal?: number
           unit_price?: number
         }
@@ -164,6 +592,8 @@ export type Database = {
           created_at: string
           customer_id: string
           id: string
+          nfe_issued_at: string | null
+          nfe_key: string | null
           notes: string | null
           order_number: number
           organization_id: string
@@ -176,6 +606,8 @@ export type Database = {
           created_at?: string
           customer_id: string
           id?: string
+          nfe_issued_at?: string | null
+          nfe_key?: string | null
           notes?: string | null
           order_number: number
           organization_id: string
@@ -188,6 +620,8 @@ export type Database = {
           created_at?: string
           customer_id?: string
           id?: string
+          nfe_issued_at?: string | null
+          nfe_key?: string | null
           notes?: string | null
           order_number?: number
           organization_id?: string
@@ -304,6 +738,8 @@ export type Database = {
           full_name: string | null
           id: string
           organization_client: string | null
+          organization_client_industry: string | null
+          organization_client_legal: string | null
           organization_staff: string | null
           organization_id: string | null
           updated_at: string
@@ -315,6 +751,8 @@ export type Database = {
           full_name?: string | null
           id: string
           organization_client?: string | null
+          organization_client_industry?: string | null
+          organization_client_legal?: string | null
           organization_staff?: string | null
           organization_id?: string | null
           updated_at?: string
@@ -326,6 +764,8 @@ export type Database = {
           full_name?: string | null
           id?: string
           organization_client?: string | null
+          organization_client_industry?: string | null
+          organization_client_legal?: string | null
           organization_staff?: string | null
           organization_id?: string | null
           updated_at?: string
@@ -349,6 +789,7 @@ export type Database = {
           id: string
           invited_by: string | null
           organization_id: string
+          purpose?: string
           token: string
         }
         Insert: {

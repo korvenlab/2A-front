@@ -15,9 +15,12 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedVisitasRouteImport } from './routes/_authenticated.visitas'
 import { Route as AuthenticatedVendedoresRouteImport } from './routes/_authenticated.vendedores'
 import { Route as AuthenticatedPortalRouteImport } from './routes/_authenticated.portal'
 import { Route as AuthenticatedPedidosRouteImport } from './routes/_authenticated.pedidos'
+import { Route as AuthenticatedOrcamentosRouteImport } from './routes/_authenticated.orcamentos'
+import { Route as AuthenticatedFunilRouteImport } from './routes/_authenticated.funil'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated.dashboard'
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated.clientes'
 import { Route as AuthenticatedCatalogoRouteImport } from './routes/_authenticated.catalogo'
@@ -51,6 +54,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedVisitasRoute = AuthenticatedVisitasRouteImport.update({
+  id: '/visitas',
+  path: '/visitas',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedVendedoresRoute = AuthenticatedVendedoresRouteImport.update({
   id: '/vendedores',
   path: '/vendedores',
@@ -64,6 +72,16 @@ const AuthenticatedPortalRoute = AuthenticatedPortalRouteImport.update({
 const AuthenticatedPedidosRoute = AuthenticatedPedidosRouteImport.update({
   id: '/pedidos',
   path: '/pedidos',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedOrcamentosRoute = AuthenticatedOrcamentosRouteImport.update({
+  id: '/orcamentos',
+  path: '/orcamentos',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
+const AuthenticatedFunilRoute = AuthenticatedFunilRouteImport.update({
+  id: '/funil',
+  path: '/funil',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -91,9 +109,12 @@ export interface FileRoutesByFullPath {
   '/catalogo': typeof AuthenticatedCatalogoRoute
   '/clientes': typeof AuthenticatedClientesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/funil': typeof AuthenticatedFunilRoute
+  '/orcamentos': typeof AuthenticatedOrcamentosRoute
   '/pedidos': typeof AuthenticatedPedidosRoute
   '/portal': typeof AuthenticatedPortalRoute
   '/vendedores': typeof AuthenticatedVendedoresRoute
+  '/visitas': typeof AuthenticatedVisitasRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -104,9 +125,12 @@ export interface FileRoutesByTo {
   '/catalogo': typeof AuthenticatedCatalogoRoute
   '/clientes': typeof AuthenticatedClientesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/funil': typeof AuthenticatedFunilRoute
+  '/orcamentos': typeof AuthenticatedOrcamentosRoute
   '/pedidos': typeof AuthenticatedPedidosRoute
   '/portal': typeof AuthenticatedPortalRoute
   '/vendedores': typeof AuthenticatedVendedoresRoute
+  '/visitas': typeof AuthenticatedVisitasRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -119,9 +143,12 @@ export interface FileRoutesById {
   '/_authenticated/catalogo': typeof AuthenticatedCatalogoRoute
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/funil': typeof AuthenticatedFunilRoute
+  '/_authenticated/orcamentos': typeof AuthenticatedOrcamentosRoute
   '/_authenticated/pedidos': typeof AuthenticatedPedidosRoute
   '/_authenticated/portal': typeof AuthenticatedPortalRoute
   '/_authenticated/vendedores': typeof AuthenticatedVendedoresRoute
+  '/_authenticated/visitas': typeof AuthenticatedVisitasRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -134,9 +161,12 @@ export interface FileRouteTypes {
     | '/catalogo'
     | '/clientes'
     | '/dashboard'
+    | '/funil'
+    | '/orcamentos'
     | '/pedidos'
     | '/portal'
     | '/vendedores'
+    | '/visitas'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -147,9 +177,12 @@ export interface FileRouteTypes {
     | '/catalogo'
     | '/clientes'
     | '/dashboard'
+    | '/funil'
+    | '/orcamentos'
     | '/pedidos'
     | '/portal'
     | '/vendedores'
+    | '/visitas'
   id:
     | '__root__'
     | '/'
@@ -161,9 +194,12 @@ export interface FileRouteTypes {
     | '/_authenticated/catalogo'
     | '/_authenticated/clientes'
     | '/_authenticated/dashboard'
+    | '/_authenticated/funil'
+    | '/_authenticated/orcamentos'
     | '/_authenticated/pedidos'
     | '/_authenticated/portal'
     | '/_authenticated/vendedores'
+    | '/_authenticated/visitas'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -219,6 +255,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/visitas': {
+      id: '/_authenticated/visitas'
+      path: '/visitas'
+      fullPath: '/visitas'
+      preLoaderRoute: typeof AuthenticatedVisitasRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/vendedores': {
       id: '/_authenticated/vendedores'
       path: '/vendedores'
@@ -238,6 +281,20 @@ declare module '@tanstack/react-router' {
       path: '/pedidos'
       fullPath: '/pedidos'
       preLoaderRoute: typeof AuthenticatedPedidosRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/orcamentos': {
+      id: '/_authenticated/orcamentos'
+      path: '/orcamentos'
+      fullPath: '/orcamentos'
+      preLoaderRoute: typeof AuthenticatedOrcamentosRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
+    '/_authenticated/funil': {
+      id: '/_authenticated/funil'
+      path: '/funil'
+      fullPath: '/funil'
+      preLoaderRoute: typeof AuthenticatedFunilRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
     '/_authenticated/dashboard': {
@@ -268,18 +325,24 @@ interface AuthenticatedRouteChildren {
   AuthenticatedCatalogoRoute: typeof AuthenticatedCatalogoRoute
   AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedFunilRoute: typeof AuthenticatedFunilRoute
+  AuthenticatedOrcamentosRoute: typeof AuthenticatedOrcamentosRoute
   AuthenticatedPedidosRoute: typeof AuthenticatedPedidosRoute
   AuthenticatedPortalRoute: typeof AuthenticatedPortalRoute
   AuthenticatedVendedoresRoute: typeof AuthenticatedVendedoresRoute
+  AuthenticatedVisitasRoute: typeof AuthenticatedVisitasRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedCatalogoRoute: AuthenticatedCatalogoRoute,
   AuthenticatedClientesRoute: AuthenticatedClientesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedFunilRoute: AuthenticatedFunilRoute,
+  AuthenticatedOrcamentosRoute: AuthenticatedOrcamentosRoute,
   AuthenticatedPedidosRoute: AuthenticatedPedidosRoute,
   AuthenticatedPortalRoute: AuthenticatedPortalRoute,
   AuthenticatedVendedoresRoute: AuthenticatedVendedoresRoute,
+  AuthenticatedVisitasRoute: AuthenticatedVisitasRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(

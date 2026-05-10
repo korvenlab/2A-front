@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { PageHeader } from "@/components/PageHeader";
@@ -30,8 +30,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { toast } from "sonner";
-import { Plus, Pencil, Loader2, UsersRound } from "lucide-react";
+import { Plus, Pencil, Loader2, Search, ShoppingBag, UsersRound } from "lucide-react";
+import { brl, dt } from "@/lib/format";
 import { useMenuGate } from "@/hooks/use-menu-gate";
 import { userFacingDataError } from "@/lib/supabase-user-error";
 
@@ -43,6 +51,8 @@ export const Route = createFileRoute("/_authenticated/clientes")({
 interface Customer {
   id: string;
   name: string;
+  legal_name: string | null;
+  industry: string | null;
   email: string | null;
   phone: string | null;
   document: string | null;
@@ -57,8 +67,26 @@ interface SellerOpt {
   email: string | null;
 }
 
+interface CustomerOrderRow {
+  id: string;
+  order_number: number;
+  status: string;
+  total: number;
+  created_at: string;
+}
+
+const orderStatusPt: Record<string, string> = {
+  rascunho: "Rascunho",
+  enviado: "Enviado",
+  aprovado: "Aprovado",
+  faturado: "Faturado",
+  cancelado: "Cancelado",
+};
+
 const empty: Omit<Customer, "id"> = {
   name: "",
+  legal_name: "",
+  industry: "",
   email: "",
   phone: "",
   document: "",
@@ -78,13 +106,75 @@ function CustomersPage() {
   const [editing, setEditing] = useState<Customer | null>(null);
   const [form, setForm] = useState<Omit<Customer, "id">>(empty);
   const [saving, setSaving] = useState(false);
+  const [clientSearch, setClientSearch] = useState("");
+  const [ufFilter, setUfFilter] = useState("__all__");
+  const [industryFilter, setIndustryFilter] = useState("__all__");
+  const [sellerFilter, setSellerFilter] = useState("__all__");
+  const [historyCustomer, setHistoryCustomer] = useState<Customer | null>(null);
+  const [historyOrders, setHistoryOrders] = useState<CustomerOrderRow[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const isAdmin = role === "admin";
+
+  const distinctStates = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of customers) {
+      const u = (c.state ?? "").trim().toUpperCase();
+      if (u) set.add(u);
+    }
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [customers]);
+
+  const distinctIndustries = useMemo(() => {
+    const set = new Set<string>();
+    for (const c of customers) {
+      const ind = c.industry?.trim();
+      if (ind) set.add(ind);
+    }
+    return [...set].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  }, [customers]);
+
+  const filteredCustomers = useMemo(() => {
+    let rows = customers;
+    const q = clientSearch.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter((c) => {
+        const hay = [
+          c.name,
+          c.legal_name ?? "",
+          c.email ?? "",
+          c.phone ?? "",
+          c.document ?? "",
+          c.city ?? "",
+          c.state ?? "",
+          c.industry ?? "",
+          c.notes ?? "",
+        ]
+          .join("\n")
+          .toLowerCase();
+        return hay.includes(q);
+      });
+    }
+    if (ufFilter !== "__all__") {
+      rows = rows.filter((c) => (c.state ?? "").trim().toUpperCase() === ufFilter);
+    }
+    if (industryFilter !== "__all__") {
+      if (industryFilter === "__none__") rows = rows.filter((c) => !c.industry?.trim());
+      else rows = rows.filter((c) => (c.industry?.trim() ?? "") === industryFilter);
+    }
+    if (isAdmin && sellerFilter !== "__all__") {
+      if (sellerFilter === "__none__") rows = rows.filter((c) => !c.assigned_seller_id);
+      else rows = rows.filter((c) => c.assigned_seller_id === sellerFilter);
+    }
+    return rows;
+  }, [customers, clientSearch, ufFilter, industryFilter, sellerFilter, isAdmin]);
 
   const load = async () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("customers")
-      .select("id,name,email,phone,document,city,state,notes,assigned_seller_id")
+      .select(
+        "id,name,legal_name,industry,email,phone,document,city,state,notes,assigned_seller_id",
+      )
       .order("name");
     if (error) toast.error(userFacingDataError(error));
     setCustomers((data as Customer[]) ?? []);
@@ -119,6 +209,37 @@ function CustomersPage() {
     load();
   }, [isAdmin]);
 
+  useEffect(() => {
+    if (!historyCustomer) {
+      setHistoryOrders([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      setHistoryLoading(true);
+      let q = supabase
+        .from("orders")
+        .select("id,order_number,status,total,created_at")
+        .eq("customer_id", historyCustomer.id)
+        .order("created_at", { ascending: false });
+      if (role === "vendedor" && user?.id) {
+        q = q.eq("seller_id", user.id);
+      }
+      const { data, error } = await q;
+      if (cancelled) return;
+      setHistoryLoading(false);
+      if (error) {
+        toast.error(userFacingDataError(error));
+        setHistoryOrders([]);
+      } else {
+        setHistoryOrders((data as CustomerOrderRow[]) ?? []);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [historyCustomer, role, user?.id]);
+
   const openNew = () => {
     setEditing(null);
     setForm({ ...empty, assigned_seller_id: isAdmin ? null : (user?.id ?? null) });
@@ -133,7 +254,11 @@ function CustomersPage() {
 
   const save = async () => {
     if (!form.name.trim()) {
-      toast.error("Nome é obrigatório");
+      toast.error("Nome da empresa é obrigatório");
+      return;
+    }
+    if (!form.legal_name?.trim()) {
+      toast.error("Razão social é obrigatória");
       return;
     }
     if (!organization) {
@@ -150,6 +275,8 @@ function CustomersPage() {
     try {
       const payload = {
         ...form,
+        legal_name: form.legal_name?.trim() || null,
+        industry: form.industry?.trim() || null,
         email: form.email || null,
         phone: form.phone || null,
         document: form.document || null,
@@ -189,8 +316,8 @@ function CustomersPage() {
         title="Clientes"
         description={
           isAdmin
-            ? "Carteira completa da representação."
-            : "Sua carteira de clientes."
+            ? "Carteira completa — busca e filtros por UF, indústria e vendedor."
+            : "Sua carteira — busca por nome, contato e localização."
         }
         action={
           <Dialog open={open} onOpenChange={setOpen}>
@@ -204,91 +331,121 @@ function CustomersPage() {
                 <DialogTitle>{editing ? "Editar cliente" : "Novo cliente"}</DialogTitle>
               </DialogHeader>
               <div className="grid gap-4 py-2">
-                <div className="grid gap-2">
-                  <Label>Nome / Razão social *</Label>
-                  <Input
-                    value={form.name}
-                    onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="grid gap-2">
-                    <Label>E-mail</Label>
-                    <Input
-                      type="email"
-                      value={form.email ?? ""}
-                      onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label>Telefone</Label>
-                    <Input
-                      value={form.phone ?? ""}
-                      onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="grid gap-2">
-                    <Label>CNPJ/CPF</Label>
-                    <Input
-                      value={form.document ?? ""}
-                      onChange={(e) => setForm({ ...form, document: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid gap-2 grid-cols-3 col-span-1">
-                    <div className="col-span-2 grid gap-2">
-                      <Label>Cidade</Label>
+                <Tabs defaultValue="identificacao" className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="identificacao">Identificação</TabsTrigger>
+                    <TabsTrigger value="industria">Indústria</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="identificacao" className="space-y-4 pt-3 outline-none">
+                    <div className="grid gap-2">
+                      <Label>Nome da empresa (nome fantasia) *</Label>
                       <Input
-                        value={form.city ?? ""}
-                        onChange={(e) => setForm({ ...form, city: e.target.value })}
+                        value={form.name}
+                        onChange={(e) => setForm({ ...form, name: e.target.value })}
+                        placeholder="Como o cliente prefere ser identificado"
                       />
                     </div>
                     <div className="grid gap-2">
-                      <Label>UF</Label>
+                      <Label>Razão social *</Label>
                       <Input
-                        maxLength={2}
-                        value={form.state ?? ""}
-                        onChange={(e) =>
-                          setForm({ ...form, state: e.target.value.toUpperCase() })
-                        }
+                        value={form.legal_name ?? ""}
+                        onChange={(e) => setForm({ ...form, legal_name: e.target.value })}
+                        placeholder="Denominação jurídica"
                       />
                     </div>
-                  </div>
-                </div>
-                {isAdmin && (
-                  <div className="grid gap-2">
-                    <Label>Vendedor responsável</Label>
-                    <Select
-                      value={form.assigned_seller_id ?? "none"}
-                      onValueChange={(v) =>
-                        setForm({
-                          ...form,
-                          assigned_seller_id: v === "none" ? null : v,
-                        })
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecionar" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="none">Sem vendedor</SelectItem>
-                        {sellers.map((s) => (
-                          <SelectItem key={s.user_id} value={s.user_id}>
-                            {s.full_name ?? s.email}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-                <div className="grid gap-2">
-                  <Label>Observações</Label>
-                  <Textarea
-                    value={form.notes ?? ""}
-                    onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  />
-                </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="grid gap-2">
+                        <Label>E-mail</Label>
+                        <Input
+                          type="email"
+                          value={form.email ?? ""}
+                          onChange={(e) => setForm({ ...form, email: e.target.value })}
+                        />
+                      </div>
+                      <div className="grid gap-2">
+                        <Label>Telefone</Label>
+                        <Input
+                          value={form.phone ?? ""}
+                          onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="grid gap-2">
+                        <Label>CNPJ/CPF</Label>
+                        <Input
+                          value={form.document ?? ""}
+                          onChange={(e) => setForm({ ...form, document: e.target.value })}
+                        />
+                      </div>
+                      <div className="grid gap-2 grid-cols-3 col-span-1">
+                        <div className="col-span-2 grid gap-2">
+                          <Label>Cidade</Label>
+                          <Input
+                            value={form.city ?? ""}
+                            onChange={(e) => setForm({ ...form, city: e.target.value })}
+                          />
+                        </div>
+                        <div className="grid gap-2">
+                          <Label>UF</Label>
+                          <Input
+                            maxLength={2}
+                            value={form.state ?? ""}
+                            onChange={(e) =>
+                              setForm({ ...form, state: e.target.value.toUpperCase() })
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    {isAdmin && (
+                      <div className="grid gap-2">
+                        <Label>Vendedor responsável</Label>
+                        <Select
+                          value={form.assigned_seller_id ?? "none"}
+                          onValueChange={(v) =>
+                            setForm({
+                              ...form,
+                              assigned_seller_id: v === "none" ? null : v,
+                            })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecionar" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">Sem vendedor</SelectItem>
+                            {sellers.map((s) => (
+                              <SelectItem key={s.user_id} value={s.user_id}>
+                                {s.full_name ?? s.email}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
+                    <div className="grid gap-2">
+                      <Label>Observações</Label>
+                      <Textarea
+                        value={form.notes ?? ""}
+                        onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                      />
+                    </div>
+                  </TabsContent>
+                  <TabsContent value="industria" className="space-y-3 pt-3 outline-none">
+                    <div className="grid gap-2">
+                      <Label>Segmento ou indústria</Label>
+                      <Input
+                        value={form.industry ?? ""}
+                        onChange={(e) => setForm({ ...form, industry: e.target.value })}
+                        placeholder="Ex.: agronegócio, cosméticos, TI corporativo…"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Opcional. Visível na carteira para contextualizar o cliente.
+                      </p>
+                    </div>
+                  </TabsContent>
+                </Tabs>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setOpen(false)}>
@@ -309,6 +466,107 @@ function CustomersPage() {
         }
       />
 
+      {!loading ? (
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-4 lg:p-5">
+          <div className="flex flex-col gap-4 xl:flex-row xl:flex-wrap xl:items-end">
+            <div className="relative min-w-[min(100%,280px)] flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={clientSearch}
+                onChange={(e) => setClientSearch(e.target.value)}
+                placeholder="Buscar nome, razão social, e-mail, telefone, documento, cidade…"
+                className="h-10 pl-9"
+              />
+            </div>
+            <div className="grid gap-1.5 min-w-[140px]">
+              <span className="text-xs font-medium text-muted-foreground">UF</span>
+              <Select value={ufFilter} onValueChange={setUfFilter}>
+                <SelectTrigger className="h-10 bg-background">
+                  <SelectValue placeholder="UF" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Todas</SelectItem>
+                  {distinctStates.map((uf) => (
+                    <SelectItem key={uf} value={uf}>
+                      {uf}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-1.5 min-w-[180px]">
+              <span className="text-xs font-medium text-muted-foreground">Indústria</span>
+              <Select value={industryFilter} onValueChange={setIndustryFilter}>
+                <SelectTrigger className="h-10 bg-background">
+                  <SelectValue placeholder="Indústria" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Todas</SelectItem>
+                  <SelectItem value="__none__">Sem indústria</SelectItem>
+                  {distinctIndustries.map((ind) => (
+                    <SelectItem key={ind} value={ind}>
+                      {ind}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {isAdmin && (
+              <div className="grid gap-1.5 min-w-[200px]">
+                <span className="text-xs font-medium text-muted-foreground">Vendedor</span>
+                <Select value={sellerFilter} onValueChange={setSellerFilter}>
+                  <SelectTrigger className="h-10 bg-background">
+                    <SelectValue placeholder="Vendedor" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__all__">Todos</SelectItem>
+                    <SelectItem value="__none__">Sem vendedor</SelectItem>
+                    {sellers.map((s) => (
+                      <SelectItem key={s.user_id} value={s.user_id}>
+                        {s.full_name ?? s.email ?? s.user_id}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+            <div className="flex flex-wrap items-center gap-2">
+              {(clientSearch.trim() !== "" ||
+                ufFilter !== "__all__" ||
+                industryFilter !== "__all__" ||
+                (isAdmin && sellerFilter !== "__all__")) && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="text-muted-foreground"
+                  onClick={() => {
+                    setClientSearch("");
+                    setUfFilter("__all__");
+                    setIndustryFilter("__all__");
+                    setSellerFilter("__all__");
+                  }}
+                >
+                  Limpar filtros
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Mostrando{" "}
+              <strong className="text-foreground">{filteredCustomers.length}</strong>
+              {customers.length > 0 ? (
+                <>
+                  {" "}
+                  de {customers.length} cliente{customers.length !== 1 ? "s" : ""}
+                </>
+              ) : null}
+            </p>
+          </div>
+        </div>
+      ) : null}
+
       <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
         {loading ? (
           <div className="p-12 flex justify-center">
@@ -319,6 +577,25 @@ function CustomersPage() {
             <UsersRound className="h-10 w-10 mx-auto mb-3 opacity-50" />
             Nenhum cliente cadastrado.
           </div>
+        ) : filteredCustomers.length === 0 ? (
+          <div className="p-12 text-center text-muted-foreground">
+            <UsersRound className="h-10 w-10 mx-auto mb-3 opacity-50" />
+            Nenhum cliente corresponde aos filtros.
+            <div className="mt-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setClientSearch("");
+                  setUfFilter("__all__");
+                  setIndustryFilter("__all__");
+                  setSellerFilter("__all__");
+                }}
+              >
+                Limpar filtros
+              </Button>
+            </div>
+          </div>
         ) : (
           <Table>
             <TableHeader>
@@ -327,14 +604,20 @@ function CustomersPage() {
                 <TableHead>Contato</TableHead>
                 <TableHead>Cidade/UF</TableHead>
                 {isAdmin && <TableHead>Vendedor</TableHead>}
-                <TableHead></TableHead>
+                <TableHead className="text-right w-[120px]">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {customers.map((c) => (
+              {filteredCustomers.map((c) => (
                 <TableRow key={c.id}>
                   <TableCell>
                     <div className="font-medium">{c.name}</div>
+                    {c.legal_name?.trim() ? (
+                      <div className="text-xs text-muted-foreground">RS: {c.legal_name}</div>
+                    ) : null}
+                    {c.industry?.trim() ? (
+                      <div className="text-xs text-muted-foreground/90">{c.industry.trim()}</div>
+                    ) : null}
                     {c.document && (
                       <div className="text-xs text-muted-foreground">{c.document}</div>
                     )}
@@ -351,7 +634,15 @@ function CustomersPage() {
                       {sellerLabel(c.assigned_seller_id)}
                     </TableCell>
                   )}
-                  <TableCell className="text-right">
+                  <TableCell className="text-right space-x-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      title="Histórico de pedidos"
+                      onClick={() => setHistoryCustomer(c)}
+                    >
+                      <ShoppingBag className="h-4 w-4" />
+                    </Button>
                     <Button size="sm" variant="ghost" onClick={() => openEdit(c)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
@@ -362,6 +653,47 @@ function CustomersPage() {
           </Table>
         )}
       </div>
+
+      <Sheet open={historyCustomer !== null} onOpenChange={(o) => !o && setHistoryCustomer(null)}>
+        <SheetContent className="sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>
+              Pedidos — {historyCustomer?.name ?? ""}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="mt-6 space-y-3">
+            {historyLoading ? (
+              <div className="flex justify-center py-10">
+                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              </div>
+            ) : historyOrders.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhum pedido encontrado para este cliente.</p>
+            ) : (
+              <ul className="space-y-3">
+                {historyOrders.map((o) => (
+                  <li
+                    key={o.id}
+                    className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm"
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-mono font-medium">
+                        #{String(o.order_number).padStart(4, "0")}
+                      </span>
+                      <span className="text-xs text-muted-foreground">{dt(o.created_at)}</span>
+                    </div>
+                    <div className="mt-1 flex items-center justify-between gap-2">
+                      <span className="text-muted-foreground">
+                        {orderStatusPt[o.status] ?? o.status}
+                      </span>
+                      <span className="font-semibold">{brl(o.total)}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

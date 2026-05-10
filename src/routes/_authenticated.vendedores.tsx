@@ -32,7 +32,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Plus, Loader2, UserCog, Copy, Trash2 } from "lucide-react";
+import { Plus, Loader2, UserCog, Copy, Trash2, LogIn } from "lucide-react";
 import { useMenuGate } from "@/hooks/use-menu-gate";
 import { userFacingDataError } from "@/lib/supabase-user-error";
 
@@ -179,13 +179,19 @@ function SellersPage() {
     await load();
   };
 
-  /** Cliente novo: cadastro em `/signup` (com `invite_token` nos metadados). `/portal` exige login — link antigo “não levava a lugar” para quem ainda não tinha conta. */
-  const inviteUrl = (token: string) =>
+  /** Cliente novo: cadastro em `/signup` (com `invite_token` nos metadados). */
+  const inviteSignupUrl = (token: string) =>
     `${window.location.origin}/signup?invite=${encodeURIComponent(token)}`;
 
-  const copyInvite = (token: string, _purpose: string) => {
-    navigator.clipboard.writeText(inviteUrl(token));
-    toast.success("Link copiado");
+  /** Cliente que já tem conta: login com redirecionamento ao portal + aceite do convite na outra representação. */
+  const invitePortalLoginUrl = (token: string) => {
+    const portalPath = `/portal?invite=${encodeURIComponent(token)}`;
+    return `${window.location.origin}/login?redirect=${encodeURIComponent(portalPath)}`;
+  };
+
+  const copyToClipboard = (text: string, message = "Link copiado") => {
+    navigator.clipboard.writeText(text);
+    toast.success(message);
   };
 
   return (
@@ -249,7 +255,7 @@ function SellersPage() {
                   <p className="text-xs text-muted-foreground">
                     {invitePurpose === "seller_signup"
                       ? "O representante deve abrir o link e criar conta para entrar como vendedor."
-                      : "O link abre o cadastro do cliente; ao criar a conta, ele fica vinculado ao representante que gerou o convite. Quem já tem conta pode entrar pelo login e usar o Portal de compras."}
+                      : "Envie o link de cadastro para quem ainda não tem conta. Quem já usa o 2AVendas com outra representação deve receber o link “já tenho conta”: ao entrar, a conta passa a ver também o catálogo da sua empresa (sem perder a anterior)."}
                   </p>
                 </div>
               </div>
@@ -357,13 +363,42 @@ function SellersPage() {
                       <TableCell className="text-right">
                         {!accepted && (
                           <div className="flex justify-end gap-1">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => copyInvite(i.token, i.purpose)}
-                            >
-                              <Copy className="h-4 w-4" />
-                            </Button>
+                            {i.purpose === "client_catalog" ? (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  title="Copiar link — cliente novo (cadastro)"
+                                  onClick={() =>
+                                    copyToClipboard(inviteSignupUrl(i.token), "Link de cadastro copiado")
+                                  }
+                                >
+                                  <Copy className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  title="Copiar link — cliente que já tem conta"
+                                  onClick={() =>
+                                    copyToClipboard(
+                                      invitePortalLoginUrl(i.token),
+                                      "Link para quem já tem conta copiado",
+                                    )
+                                  }
+                                >
+                                  <LogIn className="h-4 w-4" />
+                                </Button>
+                              </>
+                            ) : (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                title="Copiar link"
+                                onClick={() => copyToClipboard(inviteSignupUrl(i.token))}
+                              >
+                                <Copy className="h-4 w-4" />
+                              </Button>
+                            )}
                             <Button
                               size="sm"
                               variant="ghost"

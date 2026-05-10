@@ -16,8 +16,12 @@ export interface Profile {
   id: string;
   organization_id: string | null;
   full_name: string | null;
-  /** Empresa do cliente no cadastro (B2B que compra). Distinto da tenant da representação. */
+  /** Nome fantasia / nome de uso da empresa do cliente B2B. Distinto da tenant da representação. */
   organization_client: string | null;
+  /** Razão social da empresa do cliente B2B. */
+  organization_client_legal: string | null;
+  /** Segmento ou indústria declarada no cadastro do cliente B2B. */
+  organization_client_industry: string | null;
   /** Empresa da representação (admin/vendedor); alinhada ao tenant organizations. */
   organization_staff: string | null;
   email: string | null;
@@ -79,7 +83,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loadUserData = async (uid: string, accessToken?: string | null) => {
     const { data: prof } = await supabase
       .from("profiles")
-      .select("id, organization_id, full_name, organization_client, organization_staff, email, avatar_url")
+      .select(
+        "id, organization_id, full_name, organization_client, organization_client_legal, organization_client_industry, organization_staff, email, avatar_url",
+      )
       .eq("id", uid)
       .maybeSingle();
     setProfile((prof as Profile) ?? null);

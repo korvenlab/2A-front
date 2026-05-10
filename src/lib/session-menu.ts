@@ -8,6 +8,12 @@ export interface MenuFlags {
   catalogo: boolean;
   clientes: boolean;
   pedidos: boolean;
+  /** Orçamentos comerciais — espelha `orders:view` no backend. */
+  orcamentos: boolean;
+  /** Funil de vendas (CRM) — espelha `customers:view`. */
+  funil: boolean;
+  /** Visitas comerciais — mesmo público do CRM (`customers:view`). */
+  visitas: boolean;
   portal: boolean;
   vendedores: boolean;
 }
@@ -20,6 +26,9 @@ export function emptyMenu(): MenuFlags {
     catalogo: false,
     clientes: false,
     pedidos: false,
+    orcamentos: false,
+    funil: false,
+    visitas: false,
     portal: false,
     vendedores: false,
   };
@@ -32,6 +41,9 @@ export function fallbackMenuFromRole(role: FallbackRole | null): MenuFlags {
       catalogo: false,
       clientes: false,
       pedidos: false,
+      orcamentos: false,
+      funil: false,
+      visitas: false,
       portal: true,
       vendedores: false,
     };
@@ -42,6 +54,9 @@ export function fallbackMenuFromRole(role: FallbackRole | null): MenuFlags {
       catalogo: true,
       clientes: true,
       pedidos: true,
+      orcamentos: true,
+      funil: true,
+      visitas: true,
       portal: false,
       vendedores: true,
     };
@@ -51,6 +66,9 @@ export function fallbackMenuFromRole(role: FallbackRole | null): MenuFlags {
     catalogo: true,
     clientes: true,
     pedidos: true,
+    orcamentos: true,
+    funil: true,
+    visitas: true,
     portal: false,
     vendedores: false,
   };
@@ -80,6 +98,10 @@ export async function fetchSessionMenu(accessToken: string): Promise<MenuFlags |
       catalogo: !!m.catalogo,
       clientes: !!m.clientes,
       pedidos: !!m.pedidos,
+      orcamentos: !!m.orcamentos,
+      funil: !!m.funil,
+      /** API antiga sem `visitas`: espelha carteira de clientes (mesmo público do CRM). */
+      visitas: !!(m.visitas ?? m.clientes),
       portal: !!m.portal,
       vendedores: !!m.vendedores,
     };
@@ -93,6 +115,9 @@ export function firstAccessiblePath(menu: MenuFlags): string | null {
   const order: { key: MenuKey; path: string }[] = [
     { key: "dashboard", path: "/dashboard" },
     { key: "pedidos", path: "/pedidos" },
+    { key: "orcamentos", path: "/orcamentos" },
+    { key: "funil", path: "/funil" },
+    { key: "visitas", path: "/visitas" },
     { key: "clientes", path: "/clientes" },
     { key: "catalogo", path: "/catalogo" },
     { key: "vendedores", path: "/vendedores" },
