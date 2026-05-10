@@ -32,6 +32,8 @@ export const Route = createRootRoute({
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "referrer", content: "strict-origin-when-cross-origin" },
+      { name: "format-detection", content: "telephone=no" },
       { title: "2AVendas — Plataforma B2B para Representações Comerciais" },
       { name: "description", content: "Gerencie vendedores, pedidos e clientes B2B em uma única plataforma. Experimente grátis." },
       { name: "author", content: "2AVendas" },
@@ -51,7 +53,7 @@ export const Route = createRootRoute({
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.ico", sizes: "any" },
-      { rel: "vendaslogo", href: "/vendaslogo.png" },
+      { rel: "apple-touch-icon", href: "/vendaslogo.png" },
     ],
   }),
   shellComponent: RootShell,

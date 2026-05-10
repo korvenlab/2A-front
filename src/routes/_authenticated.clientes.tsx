@@ -53,6 +53,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { brl, dt } from "@/lib/format";
 import { invitePortalLoginUrl, inviteSignupUrl } from "@/lib/invite-links";
+import { copyTextToClipboard } from "@/lib/clipboard";
 import { useMenuGate } from "@/hooks/use-menu-gate";
 import { userFacingDataError } from "@/lib/supabase-user-error";
 
@@ -396,9 +397,10 @@ function CustomersPage() {
     await load();
   };
 
-  const copyInvite = (text: string, message: string) => {
-    navigator.clipboard.writeText(text);
-    toast.success(message);
+  const copyInvite = async (text: string, message: string) => {
+    const ok = await copyTextToClipboard(text);
+    if (ok) toast.success(message);
+    else toast.error("Não foi possível copiar. Use HTTPS ou copie o link manualmente.");
   };
 
   return (
@@ -646,7 +648,7 @@ function CustomersPage() {
                               variant="ghost"
                               title="Copiar link — cliente novo (cadastro)"
                               onClick={() =>
-                                copyInvite(inviteSignupUrl(i.token), "Link de cadastro copiado")
+                                void copyInvite(inviteSignupUrl(i.token), "Link de cadastro copiado")
                               }
                             >
                               <Copy className="h-4 w-4" />
@@ -656,7 +658,7 @@ function CustomersPage() {
                               variant="ghost"
                               title="Copiar link — cliente que já tem conta"
                               onClick={() =>
-                                copyInvite(
+                                void copyInvite(
                                   invitePortalLoginUrl(i.token),
                                   "Link para quem já tem conta copiado",
                                 )

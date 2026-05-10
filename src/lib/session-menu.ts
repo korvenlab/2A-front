@@ -1,5 +1,14 @@
 /** Mapa espelho do GET /api/session/menu do backend — use VITE_API_URL para leitura pelo JWT. */
 
+const MENU_FETCH_TIMEOUT_MS = 12_000;
+
+function menuAbortSignal(): AbortSignal | undefined {
+  if (typeof AbortSignal !== "undefined" && typeof AbortSignal.timeout === "function") {
+    return AbortSignal.timeout(MENU_FETCH_TIMEOUT_MS);
+  }
+  return undefined;
+}
+
 export type FallbackRole = "admin" | "vendedor" | "cliente";
 
 export interface MenuFlags {
@@ -82,11 +91,18 @@ export async function fetchSessionMenu(accessToken: string): Promise<MenuFlags |
   try {
     const res = await fetch(`${base}/api/session/menu`, {
       method: "GET",
-      headers: { Authorization: `Bearer ${accessToken}` },
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: "application/json",
+      },
       credentials: "omit",
+      cache: "no-store",
+      signal: menuAbortSignal(),
     });
 
     if (!res.ok) return null;
+    const ct = res.headers.get("content-type");
+    if (ct && !ct.includes("application/json")) return null;
     const body = (await res.json()) as {
       ok?: boolean;
       data?: { menu?: Partial<MenuFlags> };

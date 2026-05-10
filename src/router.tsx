@@ -59,7 +59,9 @@ export const getRouter = () => {
     routeTree,
     context: {},
     scrollRestoration: true,
-    defaultPreloadStaleTime: 0,
+    /** Preload ao hover/foco no link reduz latência percebida nas troca de telas. */
+    defaultPreload: "intent",
+    defaultPreloadStaleTime: 30_000,
     defaultErrorComponent: DefaultErrorComponent,
   });
 

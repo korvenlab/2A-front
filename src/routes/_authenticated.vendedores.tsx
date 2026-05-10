@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { dt } from "@/lib/format";
 import { inviteSignupUrl } from "@/lib/invite-links";
+import { copyTextToClipboard } from "@/lib/clipboard";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -168,9 +169,10 @@ function SellersPage() {
     await load();
   };
 
-  const copyToClipboard = (text: string, message = "Link copiado") => {
-    navigator.clipboard.writeText(text);
-    toast.success(message);
+  const copyToClipboard = async (text: string, message = "Link copiado") => {
+    const ok = await copyTextToClipboard(text);
+    if (ok) toast.success(message);
+    else toast.error("Não foi possível copiar. Use HTTPS ou copie o link manualmente.");
   };
 
   if (role !== "admin") {
@@ -327,7 +329,7 @@ function SellersPage() {
                               variant="ghost"
                               title="Copiar link de cadastro"
                               onClick={() =>
-                                copyToClipboard(inviteSignupUrl(i.token), "Link copiado")
+                                void copyToClipboard(inviteSignupUrl(i.token), "Link copiado")
                               }
                             >
                               <Copy className="h-4 w-4" />

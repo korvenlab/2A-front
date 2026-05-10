@@ -789,7 +789,7 @@ export type Database = {
           id: string
           invited_by: string | null
           organization_id: string
-          purpose?: string
+          purpose: string
           token: string
         }
         Insert: {
@@ -800,6 +800,7 @@ export type Database = {
           id?: string
           invited_by?: string | null
           organization_id: string
+          purpose?: string
           token?: string
         }
         Update: {
@@ -810,6 +811,7 @@ export type Database = {
           id?: string
           invited_by?: string | null
           organization_id?: string
+          purpose?: string
           token?: string
         }
         Relationships: [
