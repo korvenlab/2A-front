@@ -9,7 +9,6 @@ import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
 
 const signupInputClass =
@@ -46,7 +45,6 @@ function SignupPage() {
   const [organizationName, setOrganizationName] = useState("");
   const [clientTradeName, setClientTradeName] = useState("");
   const [clientLegalName, setClientLegalName] = useState("");
-  const [clientIndustry, setClientIndustry] = useState("");
   const [staffOrganizationName, setStaffOrganizationName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -130,7 +128,6 @@ function SignupPage() {
       const schema = baseFieldsSchema.extend({
         clientTradeName: z.string().trim().min(2, "Informe o nome da empresa").max(160),
         clientLegalName: z.string().trim().min(2, "Informe a razão social").max(200),
-        clientIndustry: z.string().trim().max(160),
       });
       const r = schema.safeParse({
         fullName,
@@ -138,7 +135,6 @@ function SignupPage() {
         password,
         clientTradeName,
         clientLegalName,
-        clientIndustry,
       });
       if (!r.success) {
         toast.error(r.error.issues[0].message);
@@ -147,8 +143,6 @@ function SignupPage() {
       parsedBase = r.data;
       meta.client_trade_name = r.data.clientTradeName.trim();
       meta.client_legal_name = r.data.clientLegalName.trim();
-      const ind = r.data.clientIndustry.trim();
-      if (ind.length > 0) meta.client_industry = ind;
     } else if (invitePurpose === "seller_signup") {
       const schema = baseFieldsSchema.extend({
         staffOrganizationName: z.string().trim().max(100),
@@ -282,73 +276,40 @@ function SignupPage() {
               )}
 
               {hasInvite && invitePurpose === "client_catalog" && (
-                <Tabs defaultValue="empresa" className="w-full">
-                  <TabsList className="grid h-auto w-full grid-cols-2 rounded-xl border border-[rgba(0,122,255,0.15)] bg-[#F9F9F9] p-1">
-                    <TabsTrigger
-                      value="empresa"
-                      className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#003366] data-[state=active]:shadow-sm"
-                    >
-                      Empresa
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="industria"
-                      className="rounded-lg data-[state=active]:bg-white data-[state=active]:text-[#003366] data-[state=active]:shadow-sm"
-                    >
-                      Indústria
-                    </TabsTrigger>
-                  </TabsList>
-                  <TabsContent value="empresa" className="space-y-4 pt-3 outline-none">
-                    <div>
-                      <Label htmlFor="clientTrade" className="text-sm font-medium text-[#003366]">
-                        Nome da empresa (nome fantasia)
-                      </Label>
-                      <Input
-                        id="clientTrade"
-                        value={clientTradeName}
-                        onChange={(e) => setClientTradeName(e.target.value)}
-                        required
-                        className={signupInputClass}
-                        placeholder="Como a empresa prefere ser chamada"
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="clientLegal" className="text-sm font-medium text-[#003366]">
-                        Razão social
-                      </Label>
-                      <Input
-                        id="clientLegal"
-                        value={clientLegalName}
-                        onChange={(e) => setClientLegalName(e.target.value)}
-                        required
-                        className={signupInputClass}
-                        placeholder="Denominação conforme contrato ou CNPJ"
-                      />
-                      <p className="mt-1 text-xs text-[#64748B]">
-                        Campo distinto do nome fantasia; ambos aparecem para a representação na carteira de clientes.
-                      </p>
-                    </div>
-                    <p className="border-l-2 border-[rgba(0,122,255,0.28)] py-1 pl-3 text-xs text-[#64748B]">
-                      Já tem cadastro em outra representação? Não crie outra conta com o mesmo e-mail — peça o link “para quem já tem conta” e entre pelo login para vincular esta empresa também.
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="clientTrade" className="text-sm font-medium text-[#003366]">
+                      Nome da empresa (nome fantasia)
+                    </Label>
+                    <Input
+                      id="clientTrade"
+                      value={clientTradeName}
+                      onChange={(e) => setClientTradeName(e.target.value)}
+                      required
+                      className={signupInputClass}
+                      placeholder="Como a empresa prefere ser chamada"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="clientLegal" className="text-sm font-medium text-[#003366]">
+                      Razão social
+                    </Label>
+                    <Input
+                      id="clientLegal"
+                      value={clientLegalName}
+                      onChange={(e) => setClientLegalName(e.target.value)}
+                      required
+                      className={signupInputClass}
+                      placeholder="Denominação conforme contrato ou CNPJ"
+                    />
+                    <p className="mt-1 text-xs text-[#64748B]">
+                      Campo distinto do nome fantasia; ambos aparecem para a representação na carteira de clientes. O segmento ou indústria pode ser preenchido depois pelo administrador ou vendedor na carteira.
                     </p>
-                  </TabsContent>
-                  <TabsContent value="industria" className="space-y-3 pt-3 outline-none">
-                    <div>
-                      <Label htmlFor="clientIndustry" className="text-sm font-medium text-[#003366]">
-                        Segmento ou indústria
-                      </Label>
-                      <Input
-                        id="clientIndustry"
-                        value={clientIndustry}
-                        onChange={(e) => setClientIndustry(e.target.value)}
-                        className={signupInputClass}
-                        placeholder="Ex.: food service, varejo farmacêutico, metalúrgica…"
-                      />
-                      <p className="mt-1 text-xs text-[#64748B]">
-                        Opcional no cadastro; ajuda a representação a contextualizar sua operação.
-                      </p>
-                    </div>
-                  </TabsContent>
-                </Tabs>
+                  </div>
+                  <p className="border-l-2 border-[rgba(0,122,255,0.28)] py-1 pl-3 text-xs text-[#64748B]">
+                    Já tem cadastro em outra representação? Não crie outra conta com o mesmo e-mail — peça o link “para quem já tem conta” e entre pelo login para vincular esta empresa também.
+                  </p>
+                </div>
               )}
 
               {hasInvite && invitePurpose === "seller_signup" && (

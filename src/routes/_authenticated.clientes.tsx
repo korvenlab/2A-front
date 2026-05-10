@@ -37,6 +37,15 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import {
   Plus,
@@ -144,6 +153,8 @@ function CustomersPage() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteSaving, setInviteSaving] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<Customer | null>(null);
+  const [deletingCustomer, setDeletingCustomer] = useState(false);
   const isAdmin = role === "admin";
 
   const distinctStates = useMemo(() => {
@@ -406,6 +417,27 @@ function CustomersPage() {
       toast.error(e instanceof Error ? e.message : "Erro ao criar convite.");
     } finally {
       setInviteSaving(false);
+    }
+  };
+
+  const runDeleteCustomer = async () => {
+    if (!deleteConfirm) return;
+    const id = deleteConfirm.id;
+    setDeletingCustomer(true);
+    try {
+      const { error } = await supabase.rpc("admin_delete_customer", {
+        p_customer_id: id,
+      });
+      if (error) {
+        toast.error(userFacingDataError(error));
+        return;
+      }
+      toast.success("Cliente excluído.");
+      setDeleteConfirm(null);
+      setHistoryCustomer((h) => (h?.id === id ? null : h));
+      await load();
+    } finally {
+      setDeletingCustomer(false);
     }
   };
 
@@ -870,7 +902,7 @@ function CustomersPage() {
                 <TableHead>Contato</TableHead>
                 <TableHead>Cidade/UF</TableHead>
                 {isAdmin && <TableHead>Vendedor</TableHead>}
-                <TableHead className="text-right w-[120px]">Ações</TableHead>
+                <TableHead className="w-[148px] text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -912,6 +944,17 @@ function CustomersPage() {
                     <Button size="sm" variant="ghost" onClick={() => openEdit(c)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
+                    {isAdmin && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                        title="Excluir cliente"
+                        onClick={() => setDeleteConfirm(c)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
@@ -919,6 +962,40 @@ function CustomersPage() {
           </Table>
         )}
       </div>
+
+      <AlertDialog open={deleteConfirm !== null} onOpenChange={(open) => !open && !deletingCustomer && setDeleteConfirm(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir cliente?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>
+                  O cliente <strong>{deleteConfirm?.name}</strong> será removido permanentemente desta representação,
+                  juntamente com{" "}
+                  <strong>pedidos</strong> (o estoque é devolvido automaticamente quando aplicável),{" "}
+                  <strong>orçamentos</strong> e <strong>oportunidades no funil</strong>.
+                </p>
+                <p className="text-muted-foreground">
+                  Visitas comerciais permanecem no histórico, mas deixam de estar ligadas a este cliente.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingCustomer}>Cancelar</AlertDialogCancel>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deletingCustomer}
+              className="inline-flex items-center gap-2"
+              onClick={() => void runDeleteCustomer()}
+            >
+              {deletingCustomer && <Loader2 className="h-4 w-4 animate-spin" />}
+              {deletingCustomer ? "Excluindo…" : "Excluir definitivamente"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Sheet open={historyCustomer !== null} onOpenChange={(o) => !o && setHistoryCustomer(null)}>
         <SheetContent className="sm:max-w-md overflow-y-auto">
