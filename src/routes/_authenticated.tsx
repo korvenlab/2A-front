@@ -1,5 +1,5 @@
 import { createFileRoute, Outlet, useNavigate, Link, useRouterState } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
@@ -36,6 +36,16 @@ function AuthLayout() {
   const { location } = useRouterState();
   const [searchOpen, setSearchOpen] = useState(false);
   const staffSearch = role === "admin" || role === "vendedor";
+  const sidebarNavRef = useRef<HTMLElement | null>(null);
+  const mobileNavRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const desktop = sidebarNavRef.current?.querySelector<HTMLElement>('[data-dashboard-nav-active="true"]');
+    desktop?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+
+    const mobile = mobileNavRef.current?.querySelector<HTMLElement>('[data-dashboard-nav-active="true"]');
+    mobile?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
+  }, [location.pathname]);
 
   useEffect(() => {
     if (loading) return;
@@ -102,8 +112,8 @@ function AuthLayout() {
   return (
     <div className="min-h-screen bg-background flex flex-col lg:flex-row">
       {staffSearch && <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />}
-      <aside className="hidden lg:flex w-64 shrink-0 flex-col border-r border-border bg-card">
-        <div className="p-6 border-b border-border">
+      <aside className="hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:max-h-screen lg:w-64 lg:shrink-0 lg:flex-col lg:min-h-0 border-r border-border bg-card">
+        <div className="shrink-0 p-6 border-b border-border">
           <Logo />
           {organization && (
             <p className="mt-3 text-xs text-muted-foreground truncate">{organization.name}</p>
@@ -120,7 +130,7 @@ function AuthLayout() {
             </Button>
           )}
         </div>
-        <nav className="flex-1 p-3 space-y-1">
+        <nav ref={sidebarNavRef} className="min-h-0 flex-1 space-y-1 overflow-y-auto overflow-x-hidden p-3">
           {navItems.length === 0 && (
             <p className="px-3 py-2 text-xs text-muted-foreground">
               Nenhuma área liberada para sua conta. Solicite acesso ao administrador.
@@ -132,9 +142,10 @@ function AuthLayout() {
               <Link
                 key={it.to}
                 to={it.to}
+                data-dashboard-nav-active={active ? "true" : undefined}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                   active
-                    ? "bg-primary text-primary-foreground shadow-sm"
+                    ? "sticky top-0 z-10 bg-primary text-primary-foreground shadow-sm"
                     : it.highlight
                       ? "bg-amber-100 text-amber-900 hover:bg-amber-200 dark:bg-amber-500/20 dark:text-amber-100 dark:hover:bg-amber-500/30"
                       : "text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -145,7 +156,7 @@ function AuthLayout() {
             );
           })}
         </nav>
-        <div className="p-3 border-t border-border">
+        <div className="shrink-0 border-t border-border p-3">
           <div className="px-3 py-2 mb-2">
             <p className="text-sm font-medium truncate">{profile?.full_name ?? profile?.email}</p>
             <p className="text-xs text-muted-foreground capitalize">{role ?? "usuário"}</p>
@@ -172,13 +183,14 @@ function AuthLayout() {
             </div>
           </div>
           {navItems.length > 0 ? (
-            <nav className="flex gap-2 overflow-x-auto px-4 pb-3">
+            <nav ref={mobileNavRef} className="flex gap-2 overflow-x-auto px-4 pb-3 scroll-smooth">
               {navItems.map((it) => {
                 const active = location.pathname === it.to;
                 return (
                   <Link
                     key={it.to}
                     to={it.to}
+                    data-dashboard-nav-active={active ? "true" : undefined}
                     className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap ${
                       active
                         ? "bg-primary text-primary-foreground"
