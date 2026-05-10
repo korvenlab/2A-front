@@ -1,5 +1,4 @@
 import { FormEvent, useEffect, useState } from "react";
-import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -106,26 +105,26 @@ export function LandingMagicInput({ className }: Props) {
       <div
         data-focused={focused ? "true" : "false"}
         className={cn(
-          "landing-magic-shell rounded-[4px] border border-[#cbd5e1] bg-white px-1 py-1 shadow-sm transition-[border-color] duration-300",
-          focused && "border-[#0056b3]/50",
+          "landing-magic-shell landing-magic-float rounded-2xl border border-[rgba(0,122,255,0.22)] bg-white px-1.5 py-1.5 transition-[border-color] duration-300",
+          focused && "border-[#007AFF]/55",
         )}
       >
-        <div className="relative flex items-center gap-2 rounded-[3px] px-3 py-2.5 md:px-4 md:py-3">
+        <div className="relative flex items-center gap-2 rounded-[14px] px-3 py-2.5 md:px-4 md:py-3">
           <Sparkles
             className={cn(
               "h-4 w-4 shrink-0 transition-colors duration-300 md:h-5 md:w-5",
-              focused ? "text-[#0056b3]" : "text-[#64748b]",
+              focused ? "text-[#007AFF]" : "text-[#9CA3AF]",
             )}
             aria-hidden
           />
           <div className="relative min-h-[44px] flex-1">
             {showGhost ? (
               <div
-                className="pointer-events-none absolute inset-0 flex items-center text-left font-mono text-[14px] leading-relaxed text-[#64748b] md:text-[15px]"
+                className="pointer-events-none absolute inset-0 flex items-center text-left font-mono text-[14px] leading-relaxed text-[#9CA3AF] md:text-[15px]"
                 aria-hidden
               >
                 <span>{ghostText}</span>
-                <span className="ml-0.5 inline-block h-[1.1em] w-px animate-pulse bg-[#0056b3]/85 align-middle" />
+                <span className="ml-0.5 inline-block h-[1.1em] w-px animate-pulse bg-[#007AFF]/90 align-middle" />
               </div>
             ) : null}
             <input
@@ -137,22 +136,19 @@ export function LandingMagicInput({ className }: Props) {
               onFocus={() => setFocused(true)}
               onBlur={() => setFocused(false)}
               className={cn(
-                "relative z-10 w-full bg-transparent font-mono text-[14px] leading-relaxed text-[#002b5b] outline-none md:text-[15px]",
+                "relative z-10 w-full bg-transparent font-mono text-[14px] leading-relaxed text-[#003366] outline-none md:text-[15px]",
                 showGhost ? "[&::placeholder]:text-transparent" : "",
               )}
               placeholder={focused && !value ? "Digite e pressione Enter…" : " "}
               aria-label="Campo de exemplo — pergunte ao 2AVendas"
             />
           </div>
-          <motion.button
+          <button
             type="submit"
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
-            transition={{ type: "spring", stiffness: 460, damping: 22 }}
-            className="shrink-0 rounded-[4px] bg-[#0056b3] px-3 py-2 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-white transition-colors duration-200 hover:bg-[#004494]"
+            className="shrink-0 rounded-xl bg-[#007AFF] px-3 py-2 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-white shadow-[0_2px_12px_rgba(0,122,255,0.25)] outline-none transition-[background-color,box-shadow,transform] duration-200 hover:bg-[#0066DB] hover:shadow-[0_4px_20px_rgba(0,122,255,0.35)] hover:scale-[1.02] active:scale-[0.98] focus-visible:ring-2 focus-visible:ring-[#007AFF] focus-visible:ring-offset-2"
           >
             Enviar
-          </motion.button>
+          </button>
         </div>
       </div>
     </form>
