@@ -56,23 +56,33 @@ function AuthLayout() {
 
   const navItems = useMemo(() => {
     const items: NavEntry[] = [];
+    /** Admin: equipe fica ao lado de Clientes (evita “sumir” no scroll horizontal no mobile). */
+    let vendedoresEntry: NavEntry | null = null;
+    if (menu.vendedores) {
+      vendedoresEntry = {
+        to: "/vendedores",
+        label: role === "admin" ? "Vendedores" : "Gerar link de produtos",
+        icon: UserCog,
+        highlight: true,
+      };
+    }
+
     if (menu.dashboard) items.push({ to: "/dashboard", label: "Dashboard", icon: LayoutDashboard });
     if (menu.pedidos) items.push({ to: "/pedidos", label: "Pedidos", icon: ShoppingBag });
     if (menu.orcamentos)
       items.push({ to: "/orcamentos", label: "Orçamentos", icon: FileSpreadsheet });
     if (menu.funil) items.push({ to: "/funil", label: "Funil / CRM", icon: Columns3 });
     if (menu.visitas) items.push({ to: "/visitas", label: "Visitas", icon: CalendarDays });
-    if (menu.clientes) items.push({ to: "/clientes", label: "Clientes", icon: Users });
+    if (menu.clientes) {
+      items.push({ to: "/clientes", label: "Clientes", icon: Users });
+      if (role === "admin" && vendedoresEntry) {
+        items.push(vendedoresEntry);
+        vendedoresEntry = null;
+      }
+    }
     if (menu.catalogo) items.push({ to: "/catalogo", label: "Catálogo", icon: Package });
     if (menu.portal) items.push({ to: "/portal", label: "Portal de Compras", icon: Store });
-    if (menu.vendedores) {
-      items.push({
-        to: "/vendedores",
-        label: role === "admin" ? "Equipe e convites" : "Gerar link de produtos",
-        icon: UserCog,
-        highlight: true,
-      });
-    }
+    if (vendedoresEntry) items.push(vendedoresEntry);
     return items;
   }, [menu, role]);
 

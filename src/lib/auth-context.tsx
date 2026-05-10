@@ -144,23 +144,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setOrganization(null);
     }
 
-    const appRole = appUser?.role?.trim().toLowerCase() ?? undefined;
-    let primary: AppRole | null = null;
-    if (
-      appRole === "admin" ||
-      appRole === "vendedor" ||
-      appRole === "cliente"
-    ) {
-      primary = appRole;
-    } else {
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", uid);
-      const list = (roles ?? []).map((r: { role: AppRole }) => r.role);
-      const priority: AppRole[] = ["admin", "vendedor", "cliente"];
-      primary = priority.find((p) => list.includes(p)) ?? null;
+    /** Unifica app_users + user_roles: não confiar só em app_users (linha desatualizada escondia admin / menu Vendedores). */
+    const appRaw = appUser?.role?.trim().toLowerCase() ?? undefined;
+    const fromApp: AppRole | null =
+      appRaw === "admin" || appRaw === "vendedor" || appRaw === "cliente" ? appRaw : null;
+
+    const { data: rolesRows } = await supabase.from("user_roles").select("role").eq("user_id", uid);
+    const fromUr = new Set<AppRole>();
+    for (const row of rolesRows ?? []) {
+      const r = String((row as { role: string }).role)
+        .trim()
+        .toLowerCase();
+      if (r === "admin" || r === "vendedor" || r === "cliente") fromUr.add(r);
     }
+    const priority: AppRole[] = ["admin", "vendedor", "cliente"];
+    const candidates = new Set<AppRole>(fromUr);
+    if (fromApp) candidates.add(fromApp);
+    const primary = priority.find((p) => candidates.has(p)) ?? null;
+
     setRole(primary);
 
     const token =

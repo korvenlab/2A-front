@@ -37,7 +37,7 @@ import { useMenuGate } from "@/hooks/use-menu-gate";
 import { userFacingDataError } from "@/lib/supabase-user-error";
 
 export const Route = createFileRoute("/_authenticated/vendedores")({
-  head: () => ({ meta: [{ title: "Equipe e convites — 2AVendas" }] }),
+  head: () => ({ meta: [{ title: "Vendedores — 2AVendas" }] }),
   component: SellersPage,
 });
 
@@ -197,10 +197,10 @@ function SellersPage() {
   return (
     <div className="p-6 lg:p-10 space-y-8">
       <PageHeader
-        title={role === "admin" ? "Equipe e convites" : "Gerar link de produtos"}
+        title={role === "admin" ? "Vendedores" : "Gerar link de produtos"}
         description={
           role === "admin"
-            ? "Convide vendedores (link de cadastro) e gere links de catálogo para clientes da sua representação."
+            ? "Gestão da equipe comercial (representantes): convites e lista de vendedores. Clientes B2B ficam em Clientes."
             : "Crie links para clientes acessarem o catálogo dos seus representantes."
         }
         action={
