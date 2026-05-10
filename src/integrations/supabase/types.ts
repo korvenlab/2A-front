@@ -671,6 +671,35 @@ export type Database = {
         }
         Relationships: []
       }
+      organization_seller_commissions: {
+        Row: {
+          commission_pct: number
+          organization_id: string
+          seller_user_id: string
+          updated_at: string
+        }
+        Insert: {
+          commission_pct?: number
+          organization_id: string
+          seller_user_id: string
+          updated_at?: string
+        }
+        Update: {
+          commission_pct?: number
+          organization_id?: string
+          seller_user_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_seller_commissions_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           active: boolean
@@ -784,6 +813,7 @@ export type Database = {
         Row: {
           accepted_at: string | null
           created_at: string
+          default_commission_pct: number | null
           email: string
           expires_at: string
           id: string
@@ -795,6 +825,7 @@ export type Database = {
         Insert: {
           accepted_at?: string | null
           created_at?: string
+          default_commission_pct?: number | null
           email: string
           expires_at?: string
           id?: string
@@ -806,6 +837,7 @@ export type Database = {
         Update: {
           accepted_at?: string | null
           created_at?: string
+          default_commission_pct?: number | null
           email?: string
           expires_at?: string
           id?: string

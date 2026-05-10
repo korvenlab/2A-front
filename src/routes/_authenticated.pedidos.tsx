@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { brl, dt } from "@/lib/format";
+import { commissionFromTotal, formatPct } from "@/lib/commission";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,6 +65,7 @@ interface Order {
   notes: string | null;
   created_at: string;
   customer_id: string;
+  seller_id: string | null;
   nfe_key: string | null;
   nfe_issued_at: string | null;
   customers: {
@@ -136,13 +138,14 @@ function OrdersPage() {
   const [nfeKeyDraft, setNfeKeyDraft] = useState("");
   const [nfeDateDraft, setNfeDateDraft] = useState("");
   const [nfeSaving, setNfeSaving] = useState(false);
+  const [commissionBySeller, setCommissionBySeller] = useState<Record<string, number>>({});
 
   const load = async () => {
     setLoading(true);
     let ordersQuery = supabase
       .from("orders")
       .select(
-        "id,order_number,status,total,notes,created_at,customer_id,nfe_key,nfe_issued_at,customers(name,legal_name,industry,email,phone,document,city,state,address)",
+        "id,order_number,status,total,notes,created_at,customer_id,seller_id,nfe_key,nfe_issued_at,customers(name,legal_name,industry,email,phone,document,city,state,address)",
       )
       .order("created_at", { ascending: false });
     if (role === "vendedor" && user?.id) {
@@ -150,7 +153,40 @@ function OrdersPage() {
     }
     const { data, error } = await ordersQuery;
     if (error) toast.error(userFacingDataError(error));
-    setOrders((data as unknown as Order[]) ?? []);
+    const list = (data as unknown as Order[]) ?? [];
+    setOrders(list);
+
+    const orgId = organization?.id;
+    const nextPct: Record<string, number> = {};
+    if (orgId) {
+      if (role === "vendedor" && user?.id) {
+        const { data: row } = await supabase
+          .from("organization_seller_commissions")
+          .select("commission_pct")
+          .eq("organization_id", orgId)
+          .eq("seller_user_id", user.id)
+          .maybeSingle();
+        nextPct[user.id] = Number((row as { commission_pct?: number } | null)?.commission_pct) || 0;
+      } else if (role === "admin") {
+        const sellerIds = [
+          ...new Set(
+            list.map((o) => o.seller_id).filter((id): id is string => typeof id === "string" && id.length > 0),
+          ),
+        ];
+        if (sellerIds.length > 0) {
+          const { data: rows } = await supabase
+            .from("organization_seller_commissions")
+            .select("seller_user_id, commission_pct")
+            .eq("organization_id", orgId)
+            .in("seller_user_id", sellerIds);
+          for (const r of rows ?? []) {
+            const row = r as { seller_user_id: string; commission_pct: number };
+            nextPct[row.seller_user_id] = Number(row.commission_pct) || 0;
+          }
+        }
+      }
+    }
+    setCommissionBySeller(nextPct);
 
     const customersQuery = supabase
       .from("customers")
@@ -587,6 +623,9 @@ function OrdersPage() {
                 <TableHead>Contato</TableHead>
                 <TableHead>Data</TableHead>
                 <TableHead className="text-right">Total</TableHead>
+                <TableHead className="text-right whitespace-nowrap" title="Percentual configurado em Vendedores">
+                  Comissão (est.)
+                </TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right w-[100px]">NF-e</TableHead>
               </TableRow>
@@ -634,6 +673,26 @@ function OrdersPage() {
                   </TableCell>
                   <TableCell className="text-right font-medium">
                     {brl(o.total)}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">
+                    {(() => {
+                      const sid = o.seller_id;
+                      const pct =
+                        sid && commissionBySeller[sid] != null ? commissionBySeller[sid] : 0;
+                      const est = commissionFromTotal(o.total, pct);
+                      return (
+                        <span
+                          className="text-muted-foreground"
+                          title={
+                            sid
+                              ? `${formatPct(pct)} sobre o total do pedido`
+                              : "Sem vendedor no pedido — comissão não aplicável"
+                          }
+                        >
+                          {sid ? brl(est) : "—"}
+                        </span>
+                      );
+                    })()}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">

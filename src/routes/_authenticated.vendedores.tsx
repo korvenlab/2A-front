@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { dt } from "@/lib/format";
 import { inviteSignupUrl } from "@/lib/invite-links";
 import { copyTextToClipboard } from "@/lib/clipboard";
+import { formatPct, parseCommissionPctInput } from "@/lib/commission";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,7 +28,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Plus, Loader2, UserCog, Copy, Trash2 } from "lucide-react";
+import { Plus, Loader2, UserCog, Copy, Trash2, Pencil } from "lucide-react";
 import { useMenuGate } from "@/hooks/use-menu-gate";
 import { userFacingDataError } from "@/lib/supabase-user-error";
 
@@ -41,6 +42,7 @@ interface Seller {
   full_name: string | null;
   email: string | null;
   customer_count: number;
+  commission_pct: number;
 }
 
 interface SellerInvitation {
@@ -51,6 +53,7 @@ interface SellerInvitation {
   accepted_at: string | null;
   expires_at: string;
   created_at: string;
+  default_commission_pct: number | null;
 }
 
 function SellersPage() {
@@ -61,7 +64,11 @@ function SellersPage() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
+  const [inviteCommissionPct, setInviteCommissionPct] = useState("5");
   const [saving, setSaving] = useState(false);
+  const [editSeller, setEditSeller] = useState<Seller | null>(null);
+  const [editPctDraft, setEditPctDraft] = useState("");
+  const [savingPct, setSavingPct] = useState(false);
 
   const load = async () => {
     if (!organization?.id) return;
@@ -99,18 +106,36 @@ function SellersPage() {
           counts[c.assigned_seller_id] = (counts[c.assigned_seller_id] ?? 0) + 1;
       });
     }
+
+    const pctBySeller: Record<string, number> = {};
+    if (ids.length > 0) {
+      const { data: commRows, error: ce } = await supabase
+        .from("organization_seller_commissions")
+        .select("seller_user_id, commission_pct")
+        .eq("organization_id", organization.id)
+        .in("seller_user_id", ids);
+      if (ce && import.meta.env.DEV) console.warn("[vendedores] commissions", ce.message);
+      for (const row of commRows ?? []) {
+        const r = row as { seller_user_id: string; commission_pct: number };
+        pctBySeller[r.seller_user_id] = Number(r.commission_pct) || 0;
+      }
+    }
+
     setSellers(
       ids.map((uid) => ({
         user_id: uid,
         full_name: profilesMap[uid]?.full_name ?? null,
         email: profilesMap[uid]?.email ?? null,
         customer_count: counts[uid] ?? 0,
+        commission_pct: pctBySeller[uid] ?? 0,
       })),
     );
 
     const { data: inv } = await supabase
       .from("seller_invitations")
-      .select("id,email,token,purpose,accepted_at,expires_at,created_at")
+      .select(
+        "id,email,token,purpose,accepted_at,expires_at,created_at,default_commission_pct",
+      )
       .eq("organization_id", organization.id)
       .eq("purpose", "seller_signup")
       .order("created_at", { ascending: false });
@@ -125,6 +150,8 @@ function SellersPage() {
 
   const inviteSeller = async () => {
     if (!email.trim()) return toast.error("Informe um e-mail");
+    const pct = parseCommissionPctInput(inviteCommissionPct);
+    if (pct === null) return toast.error("Informe um percentual de comissão válido (0 a 100).");
     if (!organization) {
       toast.error(
         "Organização não carregada. Recarregue a página ou aguarde o painel terminar de carregar.",
@@ -142,6 +169,7 @@ function SellersPage() {
         invited_by: user.id,
         email: email.trim().toLowerCase(),
         purpose: "seller_signup",
+        default_commission_pct: pct,
       });
       if (error) {
         toast.error(userFacingDataError(error));
@@ -149,6 +177,7 @@ function SellersPage() {
       }
       toast.success("Convite de vendedor criado com sucesso.");
       setEmail("");
+      setInviteCommissionPct("5");
       setOpen(false);
       await load();
     } catch (e) {
@@ -175,6 +204,40 @@ function SellersPage() {
     else toast.error("Não foi possível copiar. Use HTTPS ou copie o link manualmente.");
   };
 
+  const openEditCommission = (s: Seller) => {
+    setEditSeller(s);
+    setEditPctDraft(String(s.commission_pct));
+  };
+
+  const saveCommission = async () => {
+    if (!organization || !editSeller) return;
+    const pct = parseCommissionPctInput(editPctDraft);
+    if (pct === null) {
+      toast.error("Percentual inválido (use 0 a 100).");
+      return;
+    }
+    setSavingPct(true);
+    try {
+      const { error } = await supabase.from("organization_seller_commissions").upsert(
+        {
+          organization_id: organization.id,
+          seller_user_id: editSeller.user_id,
+          commission_pct: pct,
+        },
+        { onConflict: "organization_id,seller_user_id" },
+      );
+      if (error) {
+        toast.error(userFacingDataError(error));
+        return;
+      }
+      toast.success("Comissão atualizada.");
+      setEditSeller(null);
+      await load();
+    } finally {
+      setSavingPct(false);
+    }
+  };
+
   if (role !== "admin") {
     return (
       <div className="p-6 lg:p-10 space-y-6">
@@ -199,7 +262,7 @@ function SellersPage() {
     <div className="p-6 lg:p-10 space-y-8">
       <PageHeader
         title="Vendedores"
-        description="Representantes da sua empresa: equipe ativa e convites para novos vendedores. A carteira de clientes B2B está na página Clientes."
+        description="Representantes da sua empresa: comissão sobre o total de cada pedido (%), equipe ativa e convites. A carteira de clientes B2B está na página Clientes."
         action={
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
@@ -224,6 +287,19 @@ function SellersPage() {
                     O convidado abre o link e cria conta para entrar como vendedor da sua organização.
                   </p>
                 </div>
+                <div className="grid gap-2">
+                  <Label>Comissão inicial (% sobre o pedido)</Label>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    placeholder="Ex.: 5 ou 7,5"
+                    value={inviteCommissionPct}
+                    onChange={(e) => setInviteCommissionPct(e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Aplicada automaticamente quando o convite for aceito. Você pode alterar depois na tabela da equipe.
+                  </p>
+                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setOpen(false)}>
@@ -231,7 +307,7 @@ function SellersPage() {
                 </Button>
                 <Button
                   type="button"
-                  onClick={inviteSeller}
+                  onClick={() => void inviteSeller()}
                   disabled={saving}
                   className="inline-flex items-center gap-2"
                 >
@@ -243,6 +319,42 @@ function SellersPage() {
           </Dialog>
         }
       />
+
+      <Dialog open={editSeller !== null} onOpenChange={(o) => !o && setEditSeller(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Comissão do vendedor</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            {editSeller?.full_name ?? editSeller?.email ?? "Vendedor"} — percentual sobre o{" "}
+            <strong className="text-foreground">total</strong> de cada pedido (valor líquido registrado no pedido).
+          </p>
+          <div className="grid gap-2 py-2">
+            <Label>Comissão (%)</Label>
+            <Input
+              type="text"
+              inputMode="decimal"
+              value={editPctDraft}
+              onChange={(e) => setEditPctDraft(e.target.value)}
+              placeholder="0 a 100"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditSeller(null)}>
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void saveCommission()}
+              disabled={savingPct}
+              className="inline-flex items-center gap-2"
+            >
+              {savingPct && <Loader2 className="h-4 w-4 animate-spin" />}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
@@ -264,7 +376,9 @@ function SellersPage() {
                 <TableRow>
                   <TableHead>Vendedor</TableHead>
                   <TableHead>E-mail</TableHead>
+                  <TableHead className="text-right">Comissão</TableHead>
                   <TableHead className="text-right">Clientes na carteira</TableHead>
+                  <TableHead className="w-[100px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -274,7 +388,20 @@ function SellersPage() {
                       {s.full_name ?? "—"}
                     </TableCell>
                     <TableCell className="text-muted-foreground">{s.email}</TableCell>
+                    <TableCell className="text-right tabular-nums">
+                      {formatPct(s.commission_pct)}
+                    </TableCell>
                     <TableCell className="text-right">{s.customer_count}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        title="Alterar comissão"
+                        onClick={() => openEditCommission(s)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -297,6 +424,7 @@ function SellersPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>E-mail</TableHead>
+                  <TableHead className="text-right">Comissão inicial</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Expira</TableHead>
                   <TableHead></TableHead>
@@ -306,9 +434,14 @@ function SellersPage() {
                 {invites.map((i) => {
                   const accepted = !!i.accepted_at;
                   const expired = !accepted && new Date(i.expires_at) < new Date();
+                  const pct =
+                    i.default_commission_pct != null ? Number(i.default_commission_pct) : 5;
                   return (
                     <TableRow key={i.id}>
                       <TableCell className="font-medium">{i.email}</TableCell>
+                      <TableCell className="text-right tabular-nums text-muted-foreground">
+                        {formatPct(pct)}
+                      </TableCell>
                       <TableCell>
                         <Badge
                           variant={
@@ -337,7 +470,7 @@ function SellersPage() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              onClick={() => revoke(i.id)}
+                              onClick={() => void revoke(i.id)}
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
