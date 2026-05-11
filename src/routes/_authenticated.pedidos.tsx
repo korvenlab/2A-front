@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { brl, dt, moneyNumber } from "@/lib/format";
@@ -18,6 +18,15 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Select,
   SelectContent,
@@ -48,10 +57,12 @@ import {
   Download,
   Mail,
   MessageCircle,
+  User,
 } from "lucide-react";
 import { useMenuGate } from "@/hooks/use-menu-gate";
 import { userFacingDataError } from "@/lib/supabase-user-error";
 import { normalizeProductImageUrls } from "@/lib/product-images";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { downloadCsv } from "@/lib/csv-download";
 import { mailtoUrl, recordOutreach, whatsAppShareUrl } from "@/lib/outreach";
 import { SavedViewsBar } from "@/components/SavedViewsBar";
@@ -109,6 +120,21 @@ interface DraftItem {
   thumb_url: string | null;
 }
 
+interface OrderItemLine {
+  id: string;
+  product_name: string;
+  quantity: number;
+  unit_price: number;
+  subtotal: number;
+  thumb_url: string | null;
+}
+
+function isPedidoRowInteractiveTarget(target: EventTarget | null) {
+  const el = target as HTMLElement | null;
+  if (!el) return false;
+  return !!el.closest("button,a,[role=combobox],[data-radix-select-viewport]");
+}
+
 const statusLabels: Record<OrderStatus, string> = {
   rascunho: "Rascunho",
   enviado: "Enviado",
@@ -146,6 +172,12 @@ function OrdersPage() {
   const [nfeSaving, setNfeSaving] = useState(false);
   const [commissionBySeller, setCommissionBySeller] = useState<Record<string, number>>({});
   const [statusFilter, setStatusFilter] = useState<string>("__all__");
+  const [deleteOrderTarget, setDeleteOrderTarget] = useState<Order | null>(null);
+  const [deletingOrder, setDeletingOrder] = useState(false);
+  const [orderDetail, setOrderDetail] = useState<Order | null>(null);
+  const [orderDetailLines, setOrderDetailLines] = useState<OrderItemLine[]>([]);
+  const [orderDetailLoading, setOrderDetailLoading] = useState(false);
+  const [orderDetailSellerLabel, setOrderDetailSellerLabel] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -444,6 +476,67 @@ function OrdersPage() {
         );
       }
     } else load();
+  };
+
+  const openOrderDetail = useCallback(async (o: Order) => {
+    setOrderDetail(o);
+    setOrderDetailLoading(true);
+    setOrderDetailLines([]);
+    setOrderDetailSellerLabel(null);
+    const [{ data: lineRows, error: lineErr }, profRes] = await Promise.all([
+      supabase
+        .from("order_items")
+        .select("id,product_name,quantity,unit_price,subtotal,products(image_url,image_urls)")
+        .eq("order_id", o.id)
+        .order("created_at", { ascending: true }),
+      o.seller_id
+        ? supabase.from("profiles").select("full_name,email").eq("id", o.seller_id).maybeSingle()
+        : Promise.resolve({ data: null }),
+    ]);
+    setOrderDetailLoading(false);
+    if (lineErr) {
+      toast.error(userFacingDataError(lineErr) ?? "Não foi possível carregar os itens.");
+      return;
+    }
+    setOrderDetailLines(
+      ((lineRows ?? []) as {
+        id: string;
+        product_name: string;
+        quantity: number;
+        unit_price: unknown;
+        subtotal: unknown;
+        products: { image_url: string | null; image_urls: unknown } | null;
+      }[]).map((row) => ({
+        id: row.id,
+        product_name: row.product_name,
+        quantity: row.quantity,
+        unit_price: moneyNumber(row.unit_price),
+        subtotal: moneyNumber(row.subtotal),
+        thumb_url:
+          normalizeProductImageUrls(row.products?.image_urls, row.products?.image_url)[0] ?? null,
+      })),
+    );
+    const p = profRes.data as { full_name: string | null; email: string | null } | null;
+    setOrderDetailSellerLabel(
+      o.seller_id ? (p?.full_name?.trim() || p?.email?.trim() || "Vendedor") : "—",
+    );
+  }, []);
+
+  const confirmDeleteOrder = async () => {
+    if (!deleteOrderTarget) return;
+    setDeletingOrder(true);
+    try {
+      const { error } = await supabase.from("orders").delete().eq("id", deleteOrderTarget.id);
+      if (error) {
+        toast.error(userFacingDataError(error) ?? "Não foi possível excluir o pedido.");
+        return;
+      }
+      toast.success("Pedido excluído.");
+      setDeleteOrderTarget(null);
+      await load();
+    } finally {
+      setDeletingOrder(false);
+    }
   };
 
   const openNfeDialog = (o: Order) => {
@@ -763,11 +856,22 @@ function OrdersPage() {
                 <TableHead className="text-center w-[88px]">Enviar</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right w-[100px]">NF-e</TableHead>
+                <TableHead className="w-[52px] text-center text-muted-foreground" title="Excluir pedido">
+                  <Trash2 className="h-3.5 w-3.5 mx-auto opacity-60" aria-hidden />
+                  <span className="sr-only">Excluir</span>
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {ordersFiltered.map((o) => (
-                <TableRow key={o.id}>
+                <TableRow
+                  key={o.id}
+                  className="cursor-pointer hover:bg-muted/40"
+                  onClick={(e) => {
+                    if (isPedidoRowInteractiveTarget(e.target)) return;
+                    void openOrderDetail(o);
+                  }}
+                >
                   <TableCell className="font-mono text-sm">
                     #{String(o.order_number).padStart(4, "0")}
                   </TableCell>
@@ -836,7 +940,10 @@ function OrdersPage() {
                         variant="ghost"
                         className="h-8 w-8 p-0"
                         title="E-mail ao cliente"
-                        onClick={() => void shareOrderEmail(o)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void shareOrderEmail(o);
+                        }}
                       >
                         <Mail className="h-4 w-4" />
                       </Button>
@@ -845,13 +952,16 @@ function OrdersPage() {
                         variant="ghost"
                         className="h-8 w-8 p-0"
                         title="WhatsApp ao cliente"
-                        onClick={() => void shareOrderWhatsApp(o)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void shareOrderWhatsApp(o);
+                        }}
                       >
                         <MessageCircle className="h-4 w-4" />
                       </Button>
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-2">
                       <Select
                         value={o.status}
@@ -883,10 +993,29 @@ function OrdersPage() {
                       variant="outline"
                       className="gap-1"
                       title="Registrar NF-e emitida externamente"
-                      onClick={() => openNfeDialog(o)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openNfeDialog(o);
+                      }}
                     >
                       <FileText className="h-4 w-4" />
                       {o.nfe_key?.trim() ? "Editar" : "Registrar"}
+                    </Button>
+                  </TableCell>
+                  <TableCell className="text-center p-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                      title="Apagar pedido"
+                      aria-label="Apagar pedido"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteOrderTarget(o);
+                      }}
+                    >
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -895,6 +1024,151 @@ function OrdersPage() {
           </Table>
         )}
       </div>
+
+      <Sheet
+        open={orderDetail !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setOrderDetail(null);
+            setOrderDetailLines([]);
+            setOrderDetailSellerLabel(null);
+          }
+        }}
+      >
+        <SheetContent className="flex w-full flex-col gap-0 overflow-hidden sm:max-w-md">
+          {orderDetail ? (
+            <>
+              <SheetHeader className="space-y-1 pr-8 text-left">
+                <SheetTitle className="text-lg">
+                  Pedido #{String(orderDetail.order_number).padStart(4, "0")}
+                </SheetTitle>
+                <p className="text-xs text-muted-foreground">
+                  {dt(orderDetail.created_at)} · {statusLabels[orderDetail.status]}
+                </p>
+              </SheetHeader>
+              <div className="mt-4 flex-1 space-y-4 overflow-y-auto pr-1 pb-6">
+                <div className="rounded-xl border border-border bg-muted/30 p-3 text-sm space-y-2">
+                  <div className="font-semibold text-foreground">
+                    {orderDetail.customers?.name ?? "Cliente"}
+                  </div>
+                  {orderDetail.customers?.legal_name?.trim() ? (
+                    <div className="text-xs text-muted-foreground">
+                      RS: {orderDetail.customers.legal_name.trim()}
+                    </div>
+                  ) : null}
+                  <div className="text-xs text-muted-foreground space-y-0.5">
+                    {orderDetail.customers?.email ? <div>{orderDetail.customers.email}</div> : null}
+                    {orderDetail.customers?.phone ? <div>{orderDetail.customers.phone}</div> : null}
+                    {orderDetail.customers?.city ? (
+                      <div>
+                        {orderDetail.customers.city}
+                        {orderDetail.customers.state ? ` / ${orderDetail.customers.state}` : ""}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="flex items-start gap-2 pt-1 border-t border-border text-xs text-muted-foreground">
+                    <User className="h-3.5 w-3.5 shrink-0 mt-0.5" aria-hidden />
+                    <div>
+                      <span className="font-medium text-foreground">Representante: </span>
+                      {orderDetailSellerLabel ?? "—"}
+                    </div>
+                  </div>
+                  {orderDetail.notes?.trim() ? (
+                    <p className="text-xs border-t border-border pt-2">
+                      <span className="font-medium text-foreground">Obs.: </span>
+                      {orderDetail.notes.trim()}
+                    </p>
+                  ) : null}
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-semibold mb-2">Itens</h3>
+                  {orderDetailLoading ? (
+                    <div className="flex justify-center py-10">
+                      <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                  ) : orderDetailLines.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Nenhum item encontrado.</p>
+                  ) : (
+                    <ul className="space-y-3">
+                      {orderDetailLines.map((line) => (
+                        <li
+                          key={line.id}
+                          className="flex gap-3 rounded-lg border border-border bg-card p-3 shadow-sm"
+                        >
+                          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
+                            {line.thumb_url ? (
+                              <img
+                                src={line.thumb_url}
+                                alt=""
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="flex h-full w-full items-center justify-center">
+                                <Package className="h-6 w-6 text-muted-foreground/50" aria-hidden />
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium leading-snug">{line.product_name}</div>
+                            <div className="mt-1 text-xs text-muted-foreground">
+                              {line.quantity} × {brl(line.unit_price)}
+                            </div>
+                            <div className="mt-1 text-sm font-semibold text-primary">
+                              {brl(line.subtotal)}
+                            </div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between border-t border-border pt-3 text-base font-bold">
+                  <span>Total do pedido</span>
+                  <span>{brl(orderDetail.total)}</span>
+                </div>
+              </div>
+            </>
+          ) : null}
+        </SheetContent>
+      </Sheet>
+
+      <AlertDialog
+        open={deleteOrderTarget !== null}
+        onOpenChange={(open) => !open && !deletingOrder && setDeleteOrderTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir pedido?</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2 text-sm">
+                <p>
+                  O pedido{" "}
+                  <strong>#{deleteOrderTarget ? String(deleteOrderTarget.order_number).padStart(4, "0") : ""}</strong>{" "}
+                  de <strong>{deleteOrderTarget?.customers?.name ?? "cliente"}</strong> será removido com todos os
+                  itens. O estoque é devolvido automaticamente quando a baixa já tiver sido aplicada.
+                </p>
+                <p className="text-muted-foreground">Esta ação não pode ser desfeita.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingOrder}>Cancelar</AlertDialogCancel>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={deletingOrder}
+              className="inline-flex items-center gap-2"
+              onClick={() => void confirmDeleteOrder()}
+            >
+              {deletingOrder && <Loader2 className="h-4 w-4 animate-spin" />}
+              {deletingOrder ? "Excluindo…" : "Excluir pedido"}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <Dialog open={nfeTarget !== null} onOpenChange={(o) => !o && setNfeTarget(null)}>
         <DialogContent className="max-w-md">

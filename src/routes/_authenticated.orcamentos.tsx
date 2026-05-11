@@ -2,7 +2,8 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { brl } from "@/lib/format";
+import { brl, dt, moneyNumber } from "@/lib/format";
+import { normalizeProductImageUrls } from "@/lib/product-images";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,11 +34,12 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { Plus, Loader2, Trash2, FileSpreadsheet, Mail, MessageCircle, Download } from "lucide-react";
+import { Plus, Loader2, Trash2, FileSpreadsheet, Mail, MessageCircle, Download, Package, User } from "lucide-react";
 import { useMenuGate } from "@/hooks/use-menu-gate";
 import { userFacingDataError } from "@/lib/supabase-user-error";
 import { mailtoUrl, recordOutreach, whatsAppShareUrl } from "@/lib/outreach";
 import { downloadCsv } from "@/lib/csv-download";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 export const Route = createFileRoute("/_authenticated/orcamentos")({
   head: () => ({ meta: [{ title: "Orçamentos — 2AVendas" }] }),
@@ -56,10 +58,15 @@ interface ProductPick {
   price: number;
 }
 
-interface BudgetItemRow {
-  unit_price_final: number;
+interface BudgetItemDetail {
+  id: string;
+  line_order: number;
+  description: string;
   quantity: number;
+  unit_price_final: number;
   commission_pct: number;
+  product_id: string | null;
+  products: { image_url: string | null; image_urls: unknown } | null;
 }
 
 interface BudgetRow {
@@ -68,8 +75,17 @@ interface BudgetRow {
   customer_id: string;
   quote_date: string;
   seller_id: string | null;
-  customers: { name: string; legal_name: string | null; email: string | null; phone: string | null } | null;
-  budget_items: BudgetItemRow[] | null;
+  notes_public: string | null;
+  customers: {
+    name: string;
+    legal_name: string | null;
+    email: string | null;
+    phone: string | null;
+    document: string | null;
+    city: string | null;
+    state: string | null;
+  } | null;
+  budget_items: BudgetItemDetail[] | null;
 }
 
 interface LineDraft {
@@ -80,13 +96,38 @@ interface LineDraft {
   commission_pct: number;
 }
 
-function lineCommission(it: BudgetItemRow): number {
-  return (Number(it.unit_price_final) * Number(it.quantity) * Number(it.commission_pct)) / 100;
+function lineCommission(it: BudgetItemDetail): number {
+  const sub = moneyNumber(it.unit_price_final) * moneyNumber(it.quantity);
+  return (sub * moneyNumber(it.commission_pct)) / 100;
 }
 
-function sumBudgetCommission(items: BudgetItemRow[] | null | undefined): number {
+function sumBudgetCommission(items: BudgetItemDetail[] | null | undefined): number {
   if (!items?.length) return 0;
   return items.reduce((s, it) => s + lineCommission(it), 0);
+}
+
+function budgetRowShareFields(r: BudgetRow) {
+  const linesValue = (r.budget_items ?? []).reduce(
+    (s, it) => s + moneyNumber(it.unit_price_final) * moneyNumber(it.quantity),
+    0,
+  );
+  return {
+    id: r.id,
+    budget_number: r.budget_number,
+    customer_id: r.customer_id,
+    customerLabel: r.customers?.name ?? "—",
+    quote_date: r.quote_date,
+    commission: sumBudgetCommission(r.budget_items ?? []),
+    linesValue,
+    custEmail: r.customers?.email?.trim() ?? "",
+    custPhone: r.customers?.phone?.trim() ?? "",
+  };
+}
+
+function isOrcamentoRowInteractiveTarget(target: EventTarget | null) {
+  const el = target as HTMLElement | null;
+  if (!el) return false;
+  return !!el.closest("button,a,[role=combobox],[data-radix-select-viewport]");
 }
 
 function BudgetsPage() {
@@ -105,6 +146,8 @@ function BudgetsPage() {
   const [lines, setLines] = useState<LineDraft[]>([
     { product_id: "", description: "", unit_price_final: 0, quantity: 1, commission_pct: 0 },
   ]);
+  const [budgetDetail, setBudgetDetail] = useState<BudgetRow | null>(null);
+  const [budgetDetailSeller, setBudgetDetailSeller] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!organization?.id) return;
@@ -112,7 +155,7 @@ function BudgetsPage() {
     let bq = supabase
       .from("budgets")
       .select(
-        "id,budget_number,customer_id,quote_date,seller_id,customers(name,legal_name,email,phone),budget_items(unit_price_final,quantity,commission_pct)",
+        "id,budget_number,customer_id,quote_date,seller_id,notes_public,customers(name,legal_name,email,phone,document,city,state),budget_items(id,line_order,description,quantity,unit_price_final,commission_pct,product_id,products(image_url,image_urls))",
       )
       .eq("organization_id", organization.id)
       .order("quote_date", { ascending: false })
@@ -145,22 +188,19 @@ function BudgetsPage() {
     load();
   }, [load]);
 
-  const totalsVisible = useMemo(() => {
-    return rows.map((r) => ({
-      id: r.id,
-      budget_number: r.budget_number,
-      customer_id: r.customer_id,
-      customerLabel: r.customers?.name ?? "—",
-      quote_date: r.quote_date,
-      commission: sumBudgetCommission(r.budget_items ?? []),
-      linesValue: (r.budget_items ?? []).reduce(
-        (s, it) => s + Number(it.unit_price_final) * Number(it.quantity),
-        0,
-      ),
-      custEmail: r.customers?.email?.trim() ?? "",
-      custPhone: r.customers?.phone?.trim() ?? "",
-    }));
-  }, [rows]);
+  const totalsVisible = useMemo(() => rows.map(budgetRowShareFields), [rows]);
+
+  const openBudgetDetail = useCallback(async (r: BudgetRow) => {
+    setBudgetDetail(r);
+    setBudgetDetailSeller(null);
+    if (!r.seller_id) {
+      setBudgetDetailSeller("—");
+      return;
+    }
+    const { data } = await supabase.from("profiles").select("full_name,email").eq("id", r.seller_id).maybeSingle();
+    const p = data as { full_name: string | null; email: string | null } | null;
+    setBudgetDetailSeller(p?.full_name?.trim() || p?.email?.trim() || "Vendedor");
+  }, []);
 
   const exportOrcamentosCsv = () => {
     downloadCsv(
@@ -534,46 +574,71 @@ function BudgetsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {totalsVisible.map((r) => (
-                <TableRow key={r.id}>
-                  <TableCell className="font-mono text-sm">#{String(r.budget_number).padStart(4, "0")}</TableCell>
-                  <TableCell className="font-medium">{r.customerLabel}</TableCell>
-                  <TableCell className="text-muted-foreground">{r.quote_date}</TableCell>
-                  <TableCell className="text-right">{brl(r.linesValue)}</TableCell>
-                  <TableCell className="text-right">
-                    <Badge variant="secondary" className="font-normal">
-                      {brl(r.commission)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex justify-center gap-0.5">
+              {rows.map((row) => {
+                const r = budgetRowShareFields(row);
+                return (
+                  <TableRow
+                    key={row.id}
+                    className="cursor-pointer hover:bg-muted/40"
+                    onClick={(e) => {
+                      if (isOrcamentoRowInteractiveTarget(e.target)) return;
+                      void openBudgetDetail(row);
+                    }}
+                  >
+                    <TableCell className="font-mono text-sm">
+                      #{String(r.budget_number).padStart(4, "0")}
+                    </TableCell>
+                    <TableCell className="font-medium">{r.customerLabel}</TableCell>
+                    <TableCell className="text-muted-foreground">{dt(r.quote_date)}</TableCell>
+                    <TableCell className="text-right">{brl(r.linesValue)}</TableCell>
+                    <TableCell className="text-right">
+                      <Badge variant="secondary" className="font-normal">
+                        {brl(r.commission)}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex justify-center gap-0.5">
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          title="E-mail ao cliente"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void shareBudgetEmail(r);
+                          }}
+                        >
+                          <Mail className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0"
+                          title="WhatsApp ao cliente"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            void shareBudgetWhatsApp(r);
+                          }}
+                        >
+                          <MessageCircle className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
                       <Button
-                        size="sm"
                         variant="ghost"
-                        className="h-8 w-8 p-0"
-                        title="E-mail ao cliente"
-                        onClick={() => void shareBudgetEmail(r)}
-                      >
-                        <Mail className="h-4 w-4" />
-                      </Button>
-                      <Button
                         size="sm"
-                        variant="ghost"
-                        className="h-8 w-8 p-0"
-                        title="WhatsApp ao cliente"
-                        onClick={() => void shareBudgetWhatsApp(r)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void deleteBudget(row.id);
+                        }}
                       >
-                        <MessageCircle className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4 text-destructive" />
                       </Button>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" onClick={() => deleteBudget(r.id)}>
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}
@@ -583,6 +648,135 @@ function BudgetsPage() {
         A comissão é calculada por linha: (preço final × quantidade) × (% comissão ÷ 100). Integração fiscal (NF-e)
         permanece externa; registre a emissão na tela de Pedidos.
       </p>
+
+      <Sheet
+        open={budgetDetail !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setBudgetDetail(null);
+            setBudgetDetailSeller(null);
+          }
+        }}
+      >
+        <SheetContent className="flex w-full flex-col gap-0 overflow-hidden sm:max-w-md">
+          {budgetDetail ? (
+            <>
+              <SheetHeader className="space-y-1 pr-8 text-left">
+                <SheetTitle className="text-lg">
+                  Orçamento #{String(budgetDetail.budget_number).padStart(4, "0")}
+                </SheetTitle>
+                <p className="text-xs text-muted-foreground">Cotação: {dt(budgetDetail.quote_date)}</p>
+              </SheetHeader>
+              <div className="mt-4 flex-1 space-y-4 overflow-y-auto pr-1 pb-6">
+                <div className="rounded-xl border border-border bg-muted/30 p-3 text-sm space-y-2">
+                  <div className="font-semibold text-foreground">
+                    {budgetDetail.customers?.name ?? "Cliente"}
+                  </div>
+                  {budgetDetail.customers?.legal_name?.trim() ? (
+                    <div className="text-xs text-muted-foreground">
+                      RS: {budgetDetail.customers.legal_name.trim()}
+                    </div>
+                  ) : null}
+                  {budgetDetail.customers?.document?.trim() ? (
+                    <div className="text-xs text-muted-foreground">{budgetDetail.customers.document.trim()}</div>
+                  ) : null}
+                  <div className="text-xs text-muted-foreground space-y-0.5">
+                    {budgetDetail.customers?.email ? <div>{budgetDetail.customers.email}</div> : null}
+                    {budgetDetail.customers?.phone ? <div>{budgetDetail.customers.phone}</div> : null}
+                    {budgetDetail.customers?.city ? (
+                      <div>
+                        {budgetDetail.customers.city}
+                        {budgetDetail.customers.state ? ` / ${budgetDetail.customers.state}` : ""}
+                      </div>
+                    ) : null}
+                  </div>
+                  <div className="flex items-start gap-2 pt-1 border-t border-border text-xs text-muted-foreground">
+                    <User className="h-3.5 w-3.5 shrink-0 mt-0.5" aria-hidden />
+                    <div>
+                      <span className="font-medium text-foreground">Vendedor: </span>
+                      {budgetDetailSeller ?? "—"}
+                    </div>
+                  </div>
+                  {budgetDetail.notes_public?.trim() ? (
+                    <p className="text-xs border-t border-border pt-2">
+                      <span className="font-medium text-foreground">Obs. na proposta: </span>
+                      {budgetDetail.notes_public.trim()}
+                    </p>
+                  ) : null}
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-semibold mb-2">Itens</h3>
+                  {!(budgetDetail.budget_items && budgetDetail.budget_items.length > 0) ? (
+                    <p className="text-sm text-muted-foreground">Nenhuma linha neste orçamento.</p>
+                  ) : (
+                    <ul className="space-y-3">
+                      {[...(budgetDetail.budget_items ?? [])]
+                        .sort((a, b) => a.line_order - b.line_order)
+                        .map((it) => {
+                          const thumb =
+                            normalizeProductImageUrls(it.products?.image_urls, it.products?.image_url)[0] ??
+                            null;
+                          const unit = moneyNumber(it.unit_price_final);
+                          const qty = moneyNumber(it.quantity);
+                          const sub = unit * qty;
+                          const pct = moneyNumber(it.commission_pct);
+                          return (
+                            <li
+                              key={it.id}
+                              className="flex gap-3 rounded-lg border border-border bg-card p-3 shadow-sm"
+                            >
+                              <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-md border border-border bg-muted">
+                                {thumb ? (
+                                  <img
+                                    src={thumb}
+                                    alt=""
+                                    className="h-full w-full object-cover"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <div className="flex h-full w-full items-center justify-center">
+                                    <Package className="h-6 w-6 text-muted-foreground/50" aria-hidden />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="font-medium leading-snug">{it.description}</div>
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                  {qty} × {brl(unit)}
+                                  {pct > 0 ? ` · Comissão ${pct}%` : null}
+                                </div>
+                                <div className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                                  <span className="text-sm font-semibold text-primary">{brl(sub)}</span>
+                                  {pct > 0 ? (
+                                    <span className="text-xs text-muted-foreground">
+                                      Comissão est.: {brl((sub * pct) / 100)}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </div>
+                            </li>
+                          );
+                        })}
+                    </ul>
+                  )}
+                </div>
+
+                <div className="space-y-1 border-t border-border pt-3 text-sm">
+                  <div className="flex justify-between font-bold text-base">
+                    <span>Total dos itens</span>
+                    <span>{brl(budgetRowShareFields(budgetDetail).linesValue)}</span>
+                  </div>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Comissão estimada (soma das linhas)</span>
+                    <span>{brl(budgetRowShareFields(budgetDetail).commission)}</span>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : null}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

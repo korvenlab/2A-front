@@ -505,8 +505,8 @@ function CustomersPage() {
         action={
           <div className="flex flex-wrap items-center justify-end gap-2">
             <Button
-              variant="secondary"
               disabled={inviteSaving}
+              className="gap-2 shadow-sm"
               onClick={async () => {
                 const inv = await ensureUniversalClientInvite();
                 if (!inv) return;
@@ -522,7 +522,7 @@ function CustomersPage() {
 
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button onClick={openNew}>
+              <Button type="button" variant="outline" onClick={openNew}>
                 <Plus className="h-4 w-4" /> Novo cliente
               </Button>
             </DialogTrigger>

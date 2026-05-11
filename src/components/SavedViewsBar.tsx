@@ -7,8 +7,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { deleteSavedView, loadSavedViews, saveView, type SavedView } from "@/lib/saved-views";
-import { BookmarkMinus, BookmarkPlus } from "lucide-react";
+import { loadSavedViews, saveView, type SavedView } from "@/lib/saved-views";
+import { BookmarkPlus } from "lucide-react";
 import { toast } from "sonner";
 
 type Props<T extends Record<string, unknown>> = {
@@ -52,14 +52,6 @@ export function SavedViewsBar<T extends Record<string, unknown>>({
     toast.success("Visão salva neste navegador.");
   };
 
-  const handleDelete = () => {
-    if (!selected) return;
-    const next = deleteSavedView(pageKey, userId, orgId, selected);
-    setList(next);
-    setSelected("");
-    toast.success("Visão removida.");
-  };
-
   return (
     <div className="flex flex-wrap items-center gap-2">
       <Select
@@ -88,17 +80,6 @@ export function SavedViewsBar<T extends Record<string, unknown>>({
       <Button type="button" variant="outline" size="sm" className="h-9 gap-1" onClick={handleSave}>
         <BookmarkPlus className="h-4 w-4" />
         Salvar visão
-      </Button>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="h-9 gap-1"
-        disabled={!selected}
-        onClick={handleDelete}
-      >
-        <BookmarkMinus className="h-4 w-4" />
-        Remover
       </Button>
     </div>
   );
