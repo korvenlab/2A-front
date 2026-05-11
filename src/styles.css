@@ -164,6 +164,11 @@
   }
 }
 
+/* Bordas de cartões / painéis: um passo acima do 1px default do utilitário `border`. */
+.border.border-border {
+  border-width: 2px;
+}
+
 /* Branco + tons de azul (landing, login, marketing) */
 .landing-hard-tech,
 .login-split-brand {
