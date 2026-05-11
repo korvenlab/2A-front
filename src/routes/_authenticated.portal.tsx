@@ -729,10 +729,10 @@ function Portal() {
                           <Button
                             size="icon"
                             variant="ghost"
-                            className="h-7 w-7 text-muted-foreground"
+                            className="h-7 w-7"
                             onClick={() => removeLine(l.key)}
                           >
-                            <Trash2 className="h-3 w-3" />
+                            <Trash2 className="h-3 w-3 text-destructive" />
                           </Button>
                         </div>
                       </div>

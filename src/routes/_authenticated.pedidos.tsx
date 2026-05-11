@@ -759,7 +759,7 @@ function OrdersPage() {
                                   setItems(items.filter((_, i) => i !== idx))
                                 }
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
                             </TableCell>
                           </TableRow>
@@ -857,7 +857,7 @@ function OrdersPage() {
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right w-[100px]">NF-e</TableHead>
                 <TableHead className="w-[52px] text-center text-muted-foreground" title="Excluir pedido">
-                  <Trash2 className="h-3.5 w-3.5 mx-auto opacity-60" aria-hidden />
+                  <Trash2 className="h-3.5 w-3.5 mx-auto text-destructive opacity-80" aria-hidden />
                   <span className="sr-only">Excluir</span>
                 </TableHead>
               </TableRow>
@@ -1007,7 +1007,7 @@ function OrdersPage() {
                       type="button"
                       size="sm"
                       variant="ghost"
-                      className="h-8 w-8 p-0 text-muted-foreground hover:text-destructive"
+                      className="h-8 w-8 p-0"
                       title="Apagar pedido"
                       aria-label="Apagar pedido"
                       onClick={(e) => {
@@ -1015,7 +1015,7 @@ function OrdersPage() {
                         setDeleteOrderTarget(o);
                       }}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </TableCell>
                 </TableRow>
