@@ -3,6 +3,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { userFacingAuthError } from "@/lib/supabase-user-error";
 import { useAuth } from "@/lib/auth-context";
 import { LoginCarousel } from "@/components/auth/LoginCarousel";
 import { Logo } from "@/components/Logo";
@@ -185,7 +186,7 @@ function SignupPage() {
     });
     setSubmitting(false);
     if (error) {
-      toast.error(error.message);
+      toast.error(userFacingAuthError(error));
       return;
     }
     toast.success(
@@ -205,7 +206,7 @@ function SignupPage() {
     !hasInvite
       ? "14 dias grátis. Sem cartão de crédito. Informe a empresa da sua representação (tenant operacional)."
       : invitePurpose === "client_catalog"
-        ? "Bem-vindo ao 2AVendas. Você terá acesso aos produtos da representação que lhe enviou o convite."
+        ? "Bem-vindo ao 2AVendas. Este link é exclusivo da representação que o enviou; após o cadastro você verá o catálogo e passará a constar na carteira deles."
         : invitePurpose === "seller_signup"
           ? "Opcional: nome da equipe ou como aparece na carteira; por padrão usamos o nome da representação do convite."
           : invitePeekLoading

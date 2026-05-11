@@ -35,3 +35,24 @@ export function userFacingDataError(error: ErrLike): string {
   }
   return m || "Não foi possível concluir a operação.";
 }
+
+/** Erros retornados por `supabase.auth.*` (GoTrue), com texto mais claro em PT. */
+export function userFacingAuthError(error: ErrLike): string {
+  const m = (error?.message ?? "").trim();
+  const lower = m.toLowerCase();
+  if (lower.includes("email rate limit") || (lower.includes("rate limit") && lower.includes("email"))) {
+    return (
+      "Limite de envio de e-mails atingido (serviço de e-mail do Supabase). " +
+      "Aguarde cerca de uma hora, tente outro endereço ou peça ao administrador para configurar SMTP próprio " +
+      "em Authentication → Emails no painel do projeto."
+    );
+  }
+  if (lower.includes("email signups are disabled") || lower.includes("signups are disabled")) {
+    return (
+      "Cadastro por e-mail está desativado no projeto Supabase. " +
+      "No painel: Authentication → Providers → Email — ligue o provedor de e-mail e a opção de permitir novos cadastros " +
+      "(Enable email / Allow new users to sign up). Confirmação de e-mail é outra chave; cadastro e confirmação são independentes."
+    );
+  }
+  return m || "Não foi possível concluir a operação.";
+}

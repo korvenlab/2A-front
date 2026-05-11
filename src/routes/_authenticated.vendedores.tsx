@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { dt } from "@/lib/format";
+import { inviteExpiryLabel, inviteExpiresAtStillValid } from "@/lib/invite-expiry";
 import { inviteSignupUrl } from "@/lib/invite-links";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { formatPct, parseCommissionPctInput } from "@/lib/commission";
@@ -426,14 +427,14 @@ function SellersPage() {
                   <TableHead>E-mail</TableHead>
                   <TableHead className="text-right">Comissão inicial</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead>Expira</TableHead>
+                  <TableHead>Validade</TableHead>
                   <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {invites.map((i) => {
                   const accepted = !!i.accepted_at;
-                  const expired = !accepted && new Date(i.expires_at) < new Date();
+                  const expired = !accepted && !inviteExpiresAtStillValid(i.expires_at);
                   const pct =
                     i.default_commission_pct != null ? Number(i.default_commission_pct) : 5;
                   return (
@@ -452,7 +453,7 @@ function SellersPage() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {dt(i.expires_at)}
+                        {inviteExpiryLabel(i.expires_at, dt)}
                       </TableCell>
                       <TableCell className="text-right">
                         {!accepted && (

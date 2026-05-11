@@ -3,6 +3,7 @@ import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 import { supabase } from "@/integrations/supabase/client";
+import { userFacingAuthError } from "@/lib/supabase-user-error";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +29,7 @@ function ForgotPage() {
       redirectTo: `${window.location.origin}/reset-password`,
     });
     setSubmitting(false);
-    if (error) return toast.error(error.message);
+    if (error) return toast.error(userFacingAuthError(error));
     setSent(true);
     toast.success("Link enviado! Verifique seu e-mail.");
   };

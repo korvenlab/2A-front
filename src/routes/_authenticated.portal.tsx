@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { brl, dt } from "@/lib/format";
+import { inviteExpiresAtStillValid } from "@/lib/invite-expiry";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -342,7 +343,7 @@ function Portal() {
         .maybeSingle();
       const ok =
         invRow &&
-        new Date(invRow.expires_at).getTime() > Date.now() &&
+        inviteExpiresAtStillValid(invRow.expires_at) &&
         (isUniversalInviteEmail(invRow.email) ||
           (invRow.invited_by && (invRow.email ?? "").toLowerCase() === emailLower));
       if (ok) {
@@ -356,7 +357,7 @@ function Portal() {
         }
       } else if (inviteToastRef.current !== inviteToken) {
         inviteToastRef.current = inviteToken;
-        toast.error("Este convite não corresponde ao seu e-mail ou está expirado.");
+        toast.error("Este convite não corresponde ao seu e-mail ou não é válido para esta conta.");
       }
     }
 
