@@ -266,6 +266,8 @@ function Portal() {
   const [notes, setNotes] = useState("");
   const [placing, setPlacing] = useState(false);
   const [tab, setTab] = useState<"catalog" | "orders">("catalog");
+  /** Quando o produto não tem owner_seller_id, o pedido fica no nome do admin da representação. */
+  const [orgAdminUserId, setOrgAdminUserId] = useState<string | null>(null);
   const inviteToastRef = useRef<string | null>(null);
   const inviteToken =
     typeof window !== "undefined"
@@ -414,6 +416,7 @@ function Portal() {
 
     if (!chosenOrgId) {
       setCustomerId(null);
+      setOrgAdminUserId(null);
       setProducts([]);
       setOrders([]);
       setLoading(false);
@@ -427,6 +430,18 @@ function Portal() {
     const sellerFromRow = ensured.sellerId;
 
     setCustomerId(cid);
+
+    let adminForOrders: string | null = null;
+    if (cid) {
+      const { data: adminRpc, error: adminErr } = await supabase.rpc(
+        "organization_primary_admin_user_id",
+        { p_organization_id: chosenOrgId },
+      );
+      if (!adminErr && adminRpc != null && String(adminRpc).length > 0) {
+        adminForOrders = String(adminRpc);
+      }
+    }
+    setOrgAdminUserId(adminForOrders);
 
     const sellersFromInvites = Array.from(
       new Set(
@@ -505,13 +520,22 @@ function Portal() {
   );
   const cartCount = cart.reduce((sum, l) => sum + l.quantity, 0);
 
+  const effectiveLineSellerId = (p: Product) => p.owner_seller_id ?? orgAdminUserId;
+
   const addToCart = (p: Product, qty: number, variation: string) => {
     if (p.stock <= 0) return toast.error("Produto sem estoque");
-    if (!p.owner_seller_id) return toast.error("Produto sem vendedor responsável.");
-    const existingSeller = cart[0]?.product.owner_seller_id ?? null;
-    if (existingSeller && existingSeller !== p.owner_seller_id) {
+    const lineSeller = effectiveLineSellerId(p);
+    if (!lineSeller) {
       return toast.error(
-        "Seu carrinho só pode ter produtos de uma empresa por vez. Finalize ou limpe o carrinho para trocar.",
+        p.owner_seller_id
+          ? "Não foi possível identificar o representante do produto."
+          : "Esta representação não tem administrador cadastrado para pedidos de produtos sem vendedor no cadastro. Fale com o suporte.",
+      );
+    }
+    const existingSeller = cart[0] ? effectiveLineSellerId(cart[0].product) : null;
+    if (existingSeller && existingSeller !== lineSeller) {
+      return toast.error(
+        "Seu carrinho só pode ter produtos do mesmo representante (incluindo catálogo geral da empresa). Finalize ou limpe o carrinho para trocar.",
       );
     }
     const normalizedQty = Math.max(1, Math.min(qty, p.stock));
@@ -554,9 +578,11 @@ function Portal() {
     const orderOrgId = portalOrgId ?? organization?.id;
     if (!orderOrgId || !customerId) return toast.error("Cadastro do cliente não disponível");
     if (cart.length === 0) return toast.error("Adicione produtos ao carrinho");
-    const orderSellerId = cart[0]?.product.owner_seller_id ?? null;
+    const orderSellerId = effectiveLineSellerId(cart[0].product);
     if (!orderSellerId) {
-      return toast.error("Não foi possível identificar a empresa deste pedido.");
+      return toast.error(
+        "Não foi possível identificar o representante do pedido (administrador da empresa ou vendedor do produto).",
+      );
     }
     setPlacing(true);
     const { data: order, error } = await supabase
