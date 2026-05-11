@@ -2,6 +2,7 @@ import { createFileRoute, Outlet, useNavigate, Link, useRouterState } from "@tan
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth-context";
 import { Logo } from "@/components/Logo";
+import { StaffNotificationCenter } from "@/components/StaffNotificationCenter";
 import { Button } from "@/components/ui/button";
 import { GlobalSearchDialog } from "@/components/GlobalSearchDialog";
 import { supabase } from "@/integrations/supabase/client";
@@ -194,7 +195,14 @@ function AuthLayout() {
       {staffSearch && <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />}
       <aside className="hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:max-h-screen lg:w-64 lg:shrink-0 lg:flex-col lg:min-h-0 border-r border-border bg-card">
         <div className="shrink-0 p-6 border-b border-border">
-          <Logo />
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <Logo />
+            </div>
+            {staffSearch && organization?.id && user?.id && (role === "admin" || role === "vendedor") ? (
+              <StaffNotificationCenter organizationId={organization.id} role={role} userId={user.id} />
+            ) : null}
+          </div>
           {organization && (
             <p className="mt-3 text-xs text-muted-foreground truncate">{organization.name}</p>
           )}
@@ -279,8 +287,15 @@ function AuthLayout() {
       <main className="flex-1 flex flex-col min-h-0 overflow-auto">
         <header className="lg:hidden shrink-0 border-b border-border bg-card">
           <div className="flex items-center justify-between px-4 py-3 gap-3">
-            <Logo />
-            <div className="flex items-center gap-1">
+            <div className="flex min-w-0 flex-1 items-center gap-1">
+              <div className="min-w-0 shrink">
+                <Logo />
+              </div>
+              {staffSearch && organization?.id && user?.id && (role === "admin" || role === "vendedor") ? (
+                <StaffNotificationCenter organizationId={organization.id} role={role} userId={user.id} />
+              ) : null}
+            </div>
+            <div className="flex shrink-0 items-center gap-1">
               {staffSearch && (
                 <Button size="sm" variant="ghost" onClick={() => setSearchOpen(true)} aria-label="Buscar">
                   <Search className="h-4 w-4" />

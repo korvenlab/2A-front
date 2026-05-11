@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { brl, dt } from "@/lib/format";
+import { brl, dt, moneyNumber } from "@/lib/format";
 import { commissionFromTotal, formatPct } from "@/lib/commission";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -161,7 +161,12 @@ function OrdersPage() {
     const { data, error } = await ordersQuery;
     if (error) toast.error(userFacingDataError(error));
     const list = (data as unknown as Order[]) ?? [];
-    setOrders(list);
+    setOrders(
+      list.map((o) => ({
+        ...o,
+        total: moneyNumber(o.total),
+      })),
+    );
 
     const orgId = organization?.id;
     const nextPct: Record<string, number> = {};
@@ -214,7 +219,12 @@ function OrdersPage() {
         : productsQuery,
     ]);
     setCustomers((cs as CustomerOpt[]) ?? []);
-    setProducts((ps as ProductOpt[]) ?? []);
+    setProducts(
+      ((ps as ProductOpt[]) ?? []).map((p) => ({
+        ...p,
+        price: moneyNumber(p.price),
+      })),
+    );
     setLoading(false);
   };
 
@@ -336,7 +346,8 @@ function OrdersPage() {
   }, [pickProductsFiltered]);
 
   const total = useMemo(
-    () => items.reduce((s, it) => s + it.unit_price * it.quantity, 0),
+    () =>
+      items.reduce((s, it) => s + moneyNumber(it.unit_price) * moneyNumber(it.quantity), 0),
     [items],
   );
 
@@ -365,7 +376,7 @@ function OrdersPage() {
         {
           product_id: p.id,
           product_name: p.name,
-          unit_price: p.price,
+          unit_price: moneyNumber(p.price),
           quantity: 1,
           supplier,
           thumb_url: thumb,
@@ -401,14 +412,18 @@ function OrdersPage() {
       return toast.error(userFacingDataError(error) ?? "Falha ao criar pedido");
     }
     const { error: errIt } = await supabase.from("order_items").insert(
-      items.map((it) => ({
-        order_id: ord.id,
-        product_id: it.product_id,
-        product_name: it.product_name,
-        unit_price: it.unit_price,
-        quantity: it.quantity,
-        subtotal: it.unit_price * it.quantity,
-      })),
+      items.map((it) => {
+        const unit = moneyNumber(it.unit_price);
+        const qty = Math.max(1, Math.trunc(moneyNumber(it.quantity)) || 1);
+        return {
+          order_id: ord.id,
+          product_id: it.product_id,
+          product_name: it.product_name,
+          unit_price: unit,
+          quantity: qty,
+          subtotal: Math.round(unit * qty * 100) / 100,
+        };
+      }),
     );
     setSaving(false);
     if (errIt) return toast.error(userFacingDataError(errIt));
@@ -623,7 +638,7 @@ function OrdersPage() {
                                 value={it.quantity}
                                 onChange={(e) =>
                                   updateItem(idx, {
-                                    quantity: parseInt(e.target.value) || 1,
+                                    quantity: Math.max(1, parseInt(e.target.value, 10) || 1),
                                   })
                                 }
                               />
@@ -632,16 +647,16 @@ function OrdersPage() {
                               <Input
                                 type="number"
                                 step="0.01"
-                                value={it.unit_price}
+                                value={moneyNumber(it.unit_price)}
                                 onChange={(e) =>
                                   updateItem(idx, {
-                                    unit_price: parseFloat(e.target.value) || 0,
+                                    unit_price: moneyNumber(e.target.value),
                                   })
                                 }
                               />
                             </TableCell>
                             <TableCell className="text-right font-medium">
-                              {brl(it.unit_price * it.quantity)}
+                              {brl(moneyNumber(it.unit_price) * moneyNumber(it.quantity))}
                             </TableCell>
                             <TableCell>
                               <Button

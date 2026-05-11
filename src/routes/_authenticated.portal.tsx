@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { brl, dt } from "@/lib/format";
+import { brl, dt, moneyNumber } from "@/lib/format";
 import { inviteExpiresAtStillValid } from "@/lib/invite-expiry";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -483,8 +483,19 @@ function Portal() {
             .order("created_at", { ascending: false })
         : Promise.resolve({ data: [] as OrderRow[] }),
     ]);
-    setProducts((prods as Product[]) ?? []);
-    setOrders((ords as OrderRow[]) ?? []);
+    setProducts(
+      ((prods as Product[]) ?? []).map((p) => ({
+        ...p,
+        price: moneyNumber(p.price),
+        stock: Number.isFinite(Number(p.stock)) ? Math.trunc(Number(p.stock)) : 0,
+      })),
+    );
+    setOrders(
+      ((ords as OrderRow[]) ?? []).map((o) => ({
+        ...o,
+        total: moneyNumber(o.total),
+      })),
+    );
     setLoading(false);
   };
 
@@ -515,7 +526,8 @@ function Portal() {
   }, [products, search]);
 
   const cartTotal = useMemo(
-    () => cart.reduce((sum, l) => sum + l.product.price * l.quantity, 0),
+    () =>
+      cart.reduce((sum, l) => sum + moneyNumber(l.product.price) * l.quantity, 0),
     [cart],
   );
   const cartCount = cart.reduce((sum, l) => sum + l.quantity, 0);
@@ -601,14 +613,17 @@ function Portal() {
       setPlacing(false);
       return toast.error(userFacingDataError(error) ?? "Erro ao criar pedido");
     }
-    const items = cart.map((l) => ({
-      order_id: order.id,
-      product_id: l.product.id,
-      product_name: l.variation ? `${l.product.name} (${l.variation})` : l.product.name,
-      quantity: l.quantity,
-      unit_price: l.product.price,
-      subtotal: l.product.price * l.quantity,
-    }));
+    const items = cart.map((l) => {
+      const unit = moneyNumber(l.product.price);
+      return {
+        order_id: order.id,
+        product_id: l.product.id,
+        product_name: l.variation ? `${l.product.name} (${l.variation})` : l.product.name,
+        quantity: l.quantity,
+        unit_price: unit,
+        subtotal: Math.round(unit * l.quantity * 100) / 100,
+      };
+    });
     const { error: itemsError } = await supabase.from("order_items").insert(items);
     setPlacing(false);
     if (itemsError) return toast.error(userFacingDataError(itemsError));

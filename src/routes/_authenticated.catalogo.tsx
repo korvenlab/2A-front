@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
-import { brl } from "@/lib/format";
+import { brl, moneyNumber } from "@/lib/format";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -299,7 +299,13 @@ function CatalogPage() {
       )
       .order("created_at", { ascending: false });
     if (error) toast.error(userFacingDataError(error));
-    setProducts((data as ProductRow[]) ?? []);
+    setProducts(
+      ((data as ProductRow[]) ?? []).map((p) => ({
+        ...p,
+        price: moneyNumber(p.price),
+        stock: Number.isFinite(Number(p.stock)) ? Math.trunc(Number(p.stock)) : 0,
+      })),
+    );
     setLoading(false);
   };
 
@@ -404,8 +410,8 @@ function CatalogPage() {
       name: p.name,
       sku: p.sku ?? "",
       description: p.description ?? "",
-      price: p.price,
-      stock: p.stock,
+      price: moneyNumber(p.price),
+      stock: Number.isFinite(Number(p.stock)) ? Math.trunc(Number(p.stock)) : 0,
       category: p.category ?? "",
       supplier: p.supplier ?? "",
       image_urls: normalizeProductImageUrls(p.image_urls, p.image_url),
