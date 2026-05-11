@@ -270,7 +270,7 @@ function Portal() {
       .eq("organization_id", orgId)
       .maybeSingle();
     if (existing) {
-      if (sellerHint && !existing.assigned_seller_id) {
+      if (sellerHint && existing.assigned_seller_id !== sellerHint) {
         await supabase
           .from("customers")
           .update({ assigned_seller_id: sellerHint })
@@ -278,7 +278,7 @@ function Portal() {
       }
       return {
         customerId: existing.id,
-        sellerId: existing.assigned_seller_id ?? sellerHint ?? null,
+        sellerId: sellerHint ?? existing.assigned_seller_id ?? null,
       };
     }
     const clientName =
@@ -433,13 +433,16 @@ function Portal() {
     const productsQuery = supabase
       .from("products")
       .select("id,owner_seller_id,name,sku,description,price,stock,category,supplier,image_url,image_urls")
+      .eq("organization_id", chosenOrgId)
       .eq("active", true)
       .order("name");
 
     const [{ data: prods }, { data: ords }] = await Promise.all([
       effectiveSellers.length > 0
-        ? productsQuery.in("owner_seller_id", effectiveSellers)
-        : productsQuery.eq("id", "__none__"),
+        ? productsQuery.or(
+            `owner_seller_id.in.(${effectiveSellers.join(",")}),owner_seller_id.is.null`,
+          )
+        : productsQuery,
       cid
         ? supabase
             .from("orders")
