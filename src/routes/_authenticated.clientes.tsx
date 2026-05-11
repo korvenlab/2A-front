@@ -54,15 +54,16 @@ import {
   Search,
   ShoppingBag,
   UsersRound,
-  UserPlus,
   Copy,
-  LogIn,
   Trash2,
   Download,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { brl, dt } from "@/lib/format";
-import { invitePortalLoginUrl, inviteSignupUrl } from "@/lib/invite-links";
+import {
+  inviteSignupUrl,
+  UNIVERSAL_CLIENT_INVITE_EMAIL,
+} from "@/lib/invite-links";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { useMenuGate } from "@/hooks/use-menu-gate";
 import { userFacingDataError } from "@/lib/supabase-user-error";
@@ -149,10 +150,7 @@ function CustomersPage() {
   const [historyCustomer, setHistoryCustomer] = useState<Customer | null>(null);
   const [historyOrders, setHistoryOrders] = useState<CustomerOrderRow[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [clientInvites, setClientInvites] = useState<ClientInvitation[]>([]);
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteSellerId, setInviteSellerId] = useState<string | null>(null);
+  const [universalClientInvite, setUniversalClientInvite] = useState<ClientInvitation | null>(null);
   const [inviteSaving, setInviteSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<Customer | null>(null);
   const [deletingCustomer, setDeletingCustomer] = useState(false);
@@ -232,26 +230,36 @@ function CustomersPage() {
 
   const load = async () => {
     setLoading(true);
+    if (!organization?.id) {
+      setCustomers([]);
+      setSellers([]);
+      setUniversalClientInvite(null);
+      setLoading(false);
+      return;
+    }
     const { data, error } = await supabase
       .from("customers")
       .select(
         "id,name,legal_name,industry,email,phone,document,city,state,notes,assigned_seller_id",
       )
+      .eq("organization_id", organization.id)
       .order("name");
     if (error) toast.error(userFacingDataError(error));
     setCustomers((data as Customer[]) ?? []);
 
-    if (organization?.id) {
-      const { data: inv } = await supabase
-        .from("seller_invitations")
-        .select("id,email,token,purpose,accepted_at,expires_at,created_at")
-        .eq("organization_id", organization.id)
-        .eq("purpose", "client_catalog")
-        .order("created_at", { ascending: false });
-      setClientInvites((inv as ClientInvitation[]) ?? []);
-    } else {
-      setClientInvites([]);
-    }
+    const { data: inv } = await supabase
+      .from("seller_invitations")
+      .select("id,email,token,purpose,accepted_at,expires_at,created_at")
+      .eq("organization_id", organization.id)
+      .eq("purpose", "client_catalog")
+      .order("created_at", { ascending: false });
+    const universal =
+      ((inv as ClientInvitation[] | null) ?? []).find(
+        (x) =>
+          x.purpose === "client_catalog" &&
+          x.email.trim().toLowerCase() === UNIVERSAL_CLIENT_INVITE_EMAIL,
+      ) ?? null;
+    setUniversalClientInvite(universal);
 
     if (isAdmin && organization?.id) {
       const { data: rs } = await supabase
@@ -273,10 +281,8 @@ function CustomersPage() {
           }),
         );
         setSellers(list);
-        setInviteSellerId((prev) => prev ?? list[0]?.user_id ?? null);
       } else {
         setSellers([]);
-        setInviteSellerId(null);
       }
     }
     setLoading(false);
@@ -387,42 +393,55 @@ function CustomersPage() {
     return s ? (s.full_name ?? s.email ?? "—") : "—";
   };
 
-  const inviteClient = async () => {
-    if (!inviteEmail.trim()) return toast.error("Informe um e-mail");
+  const ensureUniversalClientInvite = async (): Promise<ClientInvitation | null> => {
     if (!organization) {
       toast.error(
         "Organização não carregada. Aguarde alguns segundos e recarregue se precisar.",
       );
-      return;
+      return null;
     }
     if (!user) {
       toast.error("Sessão inválida. Faça login novamente.");
-      return;
+      return null;
+    }
+    if (universalClientInvite) {
+      return universalClientInvite;
     }
     setInviteSaving(true);
     try {
-      const invitedBy = isAdmin ? inviteSellerId : user?.id;
-      if (!invitedBy) return toast.error("Selecione um representante para este convite.");
-      const { error } = await supabase.from("seller_invitations").insert({
-        organization_id: organization.id,
-        invited_by: invitedBy,
-        email: inviteEmail.trim().toLowerCase(),
-        purpose: "client_catalog",
-      });
+      const validUntil = new Date();
+      validUntil.setFullYear(validUntil.getFullYear() + 10);
+      const { data: created, error } = await supabase
+        .from("seller_invitations")
+        .insert({
+          organization_id: organization.id,
+          invited_by: user.id,
+          email: UNIVERSAL_CLIENT_INVITE_EMAIL,
+          purpose: "client_catalog",
+          expires_at: validUntil.toISOString(),
+        })
+        .select("id,email,token,purpose,accepted_at,expires_at,created_at")
+        .single();
       if (error) {
         toast.error(userFacingDataError(error));
-        return;
+        return null;
       }
-      toast.success("Convite para cliente criado com sucesso.");
-      setInviteEmail("");
-      setInviteOpen(false);
-      await load();
+      const createdInvite = (created as ClientInvitation | null) ?? null;
+      setUniversalClientInvite(createdInvite);
+      return createdInvite;
     } catch (e) {
       console.error("[clientes] inviteClient", e);
       toast.error(e instanceof Error ? e.message : "Erro ao criar convite.");
+      return null;
     } finally {
       setInviteSaving(false);
     }
+  };
+
+  const copyInvite = async (text: string, message: string) => {
+    const ok = await copyTextToClipboard(text);
+    if (ok) toast.success(message);
+    else toast.error("Não foi possível copiar. Use HTTPS ou copie o link manualmente.");
   };
 
   const runDeleteCustomer = async () => {
@@ -446,98 +465,29 @@ function CustomersPage() {
     }
   };
 
-  const revokeClientInvite = async (id: string) => {
-    const { error } = await supabase.from("seller_invitations").delete().eq("id", id);
-    if (error) {
-      toast.error(userFacingDataError(error));
-      return;
-    }
-    toast.success("Convite revogado.");
-    await load();
-  };
-
-  const copyInvite = async (text: string, message: string) => {
-    const ok = await copyTextToClipboard(text);
-    if (ok) toast.success(message);
-    else toast.error("Não foi possível copiar. Use HTTPS ou copie o link manualmente.");
-  };
-
   return (
     <div className="p-6 lg:p-10 space-y-6">
       <PageHeader
         title="Clientes"
         description={
           isAdmin
-            ? "Carteira B2B da representação: cadastro manual, convites ao catálogo e filtros por UF, indústria e vendedor. Novos representantes ficam em Vendedores."
-            : "Sua carteira de clientes e convites ao catálogo. Cadastre empresas ou envie link para o cliente acessar seus produtos."
+            ? "Carteira B2B da representação: cadastro manual, link de cadastro para clientes e filtros por UF, indústria e vendedor. Novos representantes ficam em Vendedores."
+            : "Sua carteira de clientes da empresa. Cadastre empresas ou use o link de cadastro para o cliente acessar o catálogo."
         }
         action={
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-              <DialogTrigger asChild>
-                <Button variant="secondary">
-                  <UserPlus className="h-4 w-4" /> Convidar cliente
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Convidar cliente</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4 py-2">
-                  <div className="grid gap-2">
-                    <Label>E-mail do cliente</Label>
-                    <Input
-                      type="email"
-                      placeholder="cliente@exemplo.com"
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Gera um link para o cliente acessar o catálogo da sua representação. Quem ainda não tem conta usa o link de cadastro;
-                      quem já usa o 2AVendas pode usar o link para quem já tem conta.
-                    </p>
-                  </div>
-                  {isAdmin && (
-                    <div className="grid gap-2">
-                      <Label>Representante</Label>
-                      <Select
-                        value={inviteSellerId ?? "none"}
-                        onValueChange={(v) => setInviteSellerId(v === "none" ? null : v)}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Selecione um representante" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="none">—</SelectItem>
-                          {sellers.map((s) => (
-                            <SelectItem key={s.user_id} value={s.user_id}>
-                              {s.full_name ?? s.email ?? s.user_id}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <p className="text-xs text-muted-foreground">
-                        O cliente será vinculado ao representante selecionado e verá os produtos do catálogo dele.
-                      </p>
-                    </div>
-                  )}
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" onClick={() => setInviteOpen(false)}>
-                    Cancelar
-                  </Button>
-                  <Button
-                    type="button"
-                    onClick={() => void inviteClient()}
-                    disabled={inviteSaving}
-                    className="inline-flex items-center gap-2"
-                  >
-                    {inviteSaving && <Loader2 className="h-4 w-4 animate-spin" />}
-                    {inviteSaving ? "Gerando…" : "Gerar convite"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <Button
+              variant="secondary"
+              disabled={inviteSaving}
+              onClick={async () => {
+                const inv = await ensureUniversalClientInvite();
+                if (!inv) return;
+                await copyInvite(inviteSignupUrl(inv.token), "Link universal de cadastro copiado");
+              }}
+            >
+              {inviteSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
+              Copiar link padrão
+            </Button>
 
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
@@ -685,88 +635,6 @@ function CustomersPage() {
           </div>
         }
       />
-
-      <section className="space-y-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-          Convites para clientes
-        </h2>
-        <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-          {clientInvites.length === 0 ? (
-            <div className="p-6 text-center text-sm text-muted-foreground">
-              Nenhum convite de cliente gerado ainda. Use <strong className="text-foreground">Convidar cliente</strong>{" "}
-              acima.
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>E-mail</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Expira</TableHead>
-                  <TableHead></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {clientInvites.map((i) => {
-                  const accepted = !!i.accepted_at;
-                  const expired = !accepted && new Date(i.expires_at) < new Date();
-                  return (
-                    <TableRow key={i.id}>
-                      <TableCell className="font-medium">{i.email}</TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            accepted ? "default" : expired ? "destructive" : "secondary"
-                          }
-                        >
-                          {accepted ? "Aceito" : expired ? "Expirado" : "Pendente"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{dt(i.expires_at)}</TableCell>
-                      <TableCell className="text-right">
-                        {!accepted && (
-                          <div className="flex justify-end gap-1">
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              title="Copiar link — cliente novo (cadastro)"
-                              onClick={() =>
-                                void copyInvite(inviteSignupUrl(i.token), "Link de cadastro copiado")
-                              }
-                            >
-                              <Copy className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              title="Copiar link — cliente que já tem conta"
-                              onClick={() =>
-                                void copyInvite(
-                                  invitePortalLoginUrl(i.token),
-                                  "Link para quem já tem conta copiado",
-                                )
-                              }
-                            >
-                              <LogIn className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="ghost"
-                              onClick={() => void revokeClientInvite(i.id)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </div>
-      </section>
 
       {!loading ? (
         <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-4 lg:p-5">

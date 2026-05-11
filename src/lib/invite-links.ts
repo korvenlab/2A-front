@@ -1,5 +1,8 @@
 /** URLs a partir do token em `seller_invitations`. */
 
+/** E-mail marcador para convite universal de catálogo (não vinculado a e-mail específico). */
+export const UNIVERSAL_CLIENT_INVITE_EMAIL = "catalogo+universal@2avendas.local";
+
 export function inviteSignupUrl(token: string): string {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   return `${origin}/signup?invite=${encodeURIComponent(token)}`;

@@ -41,6 +41,7 @@ import {
 import { useMenuGate } from "@/hooks/use-menu-gate";
 import { userFacingDataError } from "@/lib/supabase-user-error";
 import { normalizeProductImageUrls } from "@/lib/product-images";
+import { UNIVERSAL_CLIENT_INVITE_EMAIL } from "@/lib/invite-links";
 
 /** Persistência do catálogo da representação escolhida (cliente com várias vínculos). */
 const PORTAL_ORG_STORAGE_KEY = "2avendas.portalOrgId";
@@ -269,6 +270,8 @@ function Portal() {
     typeof window !== "undefined"
       ? new URLSearchParams(window.location.search).get("invite")
       : null;
+  const isUniversalInviteEmail = (email: string | null | undefined) =>
+    (email ?? "").trim().toLowerCase() === UNIVERSAL_CLIENT_INVITE_EMAIL;
 
   const ensureCustomer = async (
     orgId: string,
@@ -340,10 +343,10 @@ function Portal() {
       const ok =
         invRow &&
         new Date(invRow.expires_at).getTime() > Date.now() &&
-        invRow.invited_by &&
-        (invRow.email ?? "").toLowerCase() === emailLower;
+        (isUniversalInviteEmail(invRow.email) ||
+          (invRow.invited_by && (invRow.email ?? "").toLowerCase() === emailLower));
       if (ok) {
-        sellerFromInviteUrl = invRow.invited_by;
+        sellerFromInviteUrl = isUniversalInviteEmail(invRow.email) ? null : invRow.invited_by;
         inviteOrgId = invRow.organization_id;
         if (!invRow.accepted_at) {
           await supabase
