@@ -74,6 +74,13 @@ function SellersPage() {
   const load = async () => {
     if (!organization?.id) return;
     setLoading(true);
+    const { data: orgRow } = await supabase
+      .from("organizations")
+      .select("owner_user_id")
+      .eq("id", organization.id)
+      .maybeSingle();
+    const ownerUserId = (orgRow as { owner_user_id: string | null } | null)?.owner_user_id ?? null;
+
     const { data: rs, error } = await supabase
       .from("user_roles")
       .select("user_id")
@@ -81,7 +88,14 @@ function SellersPage() {
       .eq("role", "vendedor");
     if (error) toast.error(userFacingDataError(error));
 
-    const ids = (rs ?? []).map((r: { user_id: string }) => r.user_id);
+    const vendedorIds = (rs ?? []).map((r: { user_id: string }) => r.user_id);
+    const ids = [
+      ...new Set(
+        ownerUserId && !vendedorIds.includes(ownerUserId)
+          ? [ownerUserId, ...vendedorIds]
+          : vendedorIds,
+      ),
+    ];
     const profilesMap: Record<string, { full_name: string | null; email: string | null }> = {};
     if (ids.length > 0) {
       const { data: profs } = await supabase
@@ -122,15 +136,26 @@ function SellersPage() {
       }
     }
 
-    setSellers(
-      ids.map((uid) => ({
-        user_id: uid,
-        full_name: profilesMap[uid]?.full_name ?? null,
-        email: profilesMap[uid]?.email ?? null,
-        customer_count: counts[uid] ?? 0,
-        commission_pct: pctBySeller[uid] ?? 0,
-      })),
-    );
+    const rows: Seller[] = ids.map((uid) => ({
+      user_id: uid,
+      full_name: profilesMap[uid]?.full_name ?? null,
+      email: profilesMap[uid]?.email ?? null,
+      customer_count: counts[uid] ?? 0,
+      commission_pct: pctBySeller[uid] ?? 0,
+    }));
+    rows.sort((a, b) => {
+      if (ownerUserId) {
+        if (a.user_id === ownerUserId && b.user_id !== ownerUserId) return -1;
+        if (b.user_id === ownerUserId && a.user_id !== ownerUserId) return 1;
+      }
+      const na = (a.full_name ?? a.email ?? "").localeCompare(
+        b.full_name ?? b.email ?? "",
+        "pt",
+        { sensitivity: "base" },
+      );
+      return na;
+    });
+    setSellers(rows);
 
     const { data: inv } = await supabase
       .from("seller_invitations")
@@ -263,7 +288,7 @@ function SellersPage() {
     <div className="p-6 lg:p-10 space-y-8">
       <PageHeader
         title="Vendedores"
-        description="Representantes da sua empresa: comissão sobre o total de cada pedido (%), equipe ativa e convites. A carteira de clientes B2B está na página Clientes."
+        description="Quem criou a conta como administrador aparece também como representante, com a etiqueta (Eu) ao lado do nome quando for você, e comissão própria. Demais vendedores vêm por convite. Somente administradores alteram a equipe aqui. Clientes B2B ficam na página Clientes."
         action={
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
@@ -386,7 +411,14 @@ function SellersPage() {
                 {sellers.map((s) => (
                   <TableRow key={s.user_id}>
                     <TableCell className="font-medium">
-                      {s.full_name ?? "—"}
+                      <span className="inline-flex items-center gap-2 flex-wrap">
+                        {s.full_name ?? "—"}
+                        {user?.id === s.user_id ? (
+                          <Badge variant="secondary" className="font-normal">
+                            (Eu)
+                          </Badge>
+                        ) : null}
+                      </span>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{s.email}</TableCell>
                     <TableCell className="text-right tabular-nums">

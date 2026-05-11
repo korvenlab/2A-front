@@ -32,6 +32,10 @@ export interface Organization {
   id: string;
   name: string;
   slug: string;
+  /** Administrador dono da organização (cadastro direto); espelho na lista de vendedores + comissão própria. */
+  owner_user_id: string | null;
+  /** % da comissão de cada vendedor retido pela representação (admin). */
+  admin_commission_share_pct: number;
 }
 
 interface AuthState {
@@ -124,7 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (resolvedOrgId) {
       const { data: org, error: orgFetchErr } = await supabase
         .from("organizations")
-        .select("id, name, slug")
+        .select("id, name, slug, owner_user_id, admin_commission_share_pct")
         .eq("id", resolvedOrgId)
         .maybeSingle();
       if (orgFetchErr && import.meta.env.DEV) {
@@ -138,6 +142,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           id: resolvedOrgId,
           name: "Representação",
           slug: "representacao",
+          owner_user_id: null,
+          admin_commission_share_pct: 0,
         });
       }
     } else {

@@ -4,7 +4,8 @@ import { useAuth } from "@/lib/auth-context";
 import { useMenuGate } from "@/hooks/use-menu-gate";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, dt } from "@/lib/format";
-import { commissionFromTotal } from "@/lib/commission";
+import { commissionFromTotal, parseCommissionPctInput } from "@/lib/commission";
+import { userFacingDataError } from "@/lib/supabase-user-error";
 import {
   TrendingUp,
   ShoppingBag,
@@ -15,9 +16,13 @@ import {
   Circle,
   X,
   BarChart3,
+  Loader2,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -60,7 +65,7 @@ type RecentOrder = {
 
 function Dashboard() {
   useMenuGate("dashboard");
-  const { profile, role, user, organization } = useAuth();
+  const { profile, role, user, organization, refresh } = useAuth();
   const [stats, setStats] = useState<DashboardStat[]>([
     { label: "Vendas do mês", value: "—", change: "carregando...", icon: DollarSign },
     { label: "Pedidos", value: "—", change: "carregando...", icon: ShoppingBag },
@@ -81,6 +86,39 @@ function Dashboard() {
   const [sellerRank, setSellerRank] = useState<{ id: string; label: string; total: number }[]>([]);
   const [productMix, setProductMix] = useState<{ name: string; subtotal: number }[]>([]);
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
+  const [adminShareDraft, setAdminShareDraft] = useState("");
+  const [savingAdminShare, setSavingAdminShare] = useState(false);
+
+  useEffect(() => {
+    if (role === "admin" && organization?.admin_commission_share_pct != null) {
+      const n = Number(organization.admin_commission_share_pct);
+      setAdminShareDraft(Number.isInteger(n) ? String(n) : String(n));
+    }
+  }, [role, organization?.id, organization?.admin_commission_share_pct]);
+
+  const saveAdminCommissionShare = async () => {
+    if (!organization?.id) return;
+    const pct = parseCommissionPctInput(adminShareDraft);
+    if (pct === null) {
+      toast.error("Informe um percentual válido (0 a 100).");
+      return;
+    }
+    setSavingAdminShare(true);
+    try {
+      const { error } = await supabase
+        .from("organizations")
+        .update({ admin_commission_share_pct: pct })
+        .eq("id", organization.id);
+      if (error) {
+        toast.error(userFacingDataError(error));
+        return;
+      }
+      toast.success("Participação sobre comissão da equipe atualizada.");
+      await refresh();
+    } finally {
+      setSavingAdminShare(false);
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -89,7 +127,7 @@ function Dashboard() {
 
       let ordersQuery = supabase
         .from("orders")
-        .select("id,total,created_at,seller_id")
+        .select("id,total,created_at,seller_id,status")
         .eq("organization_id", organization.id)
         .gte("created_at", startIso);
       let customersQuery = supabase
@@ -175,7 +213,15 @@ function Dashboard() {
         funnelPromise,
       ]);
 
-      const orders = ordersPack.data ?? [];
+      const ordersRaw = (ordersPack.data ?? []) as {
+        id: string;
+        total?: number;
+        created_at?: string;
+        seller_id?: string | null;
+        status?: string;
+      }[];
+      const rows = ordersRaw.filter((o) => o.status !== "cancelado");
+
       const customerCount = ordersPack.count ?? 0;
       const nc = onboardRes[0].count ?? 0;
       const np = onboardRes[1].count ?? 0;
@@ -192,8 +238,7 @@ function Dashboard() {
       setRecentOrders((recentRows as RecentOrder[]) ?? []);
       setFunnelCounts(funnelRows);
 
-      const rows = orders;
-      const revenue = rows.reduce((acc, row) => acc + Number((row as { total?: number }).total ?? 0), 0);
+      const revenue = rows.reduce((acc, row) => acc + Number(row.total ?? 0), 0);
       const ordersCount = rows.length;
       const clients = customerCount ?? 0;
       const conversion = clients > 0 ? `${((ordersCount / clients) * 100).toFixed(1)}%` : "0%";
@@ -211,37 +256,61 @@ function Dashboard() {
         commissionBySeller[user.id] =
           Number((commRow as { commission_pct?: number } | null)?.commission_pct) || 0;
       } else if (role === "admin") {
-        const sellerIds = [
-          ...new Set(
-            rows
-              .map((r) => (r as { seller_id?: string | null }).seller_id)
-              .filter((id): id is string => typeof id === "string" && id.length > 0),
-          ),
-        ];
-        if (sellerIds.length > 0) {
-          const { data: commRows } = await supabase
-            .from("organization_seller_commissions")
-            .select("seller_user_id, commission_pct")
-            .eq("organization_id", organization.id)
-            .in("seller_user_id", sellerIds);
-          for (const r of commRows ?? []) {
-            const row = r as { seller_user_id: string; commission_pct: number };
-            commissionBySeller[row.seller_user_id] = Number(row.commission_pct) || 0;
-          }
+        const { data: commRows } = await supabase
+          .from("organization_seller_commissions")
+          .select("seller_user_id, commission_pct")
+          .eq("organization_id", organization.id);
+        for (const r of commRows ?? []) {
+          const row = r as { seller_user_id: string; commission_pct: number };
+          commissionBySeller[row.seller_user_id] = Number(row.commission_pct) || 0;
         }
       }
 
+      const sharePct = Number(organization.admin_commission_share_pct) || 0;
+      const ownerUserId = organization.owner_user_id;
+      const adminUserId = user.id;
+
       let commissionMonth = 0;
-      for (const row of rows) {
-        const sid = (row as { seller_id?: string | null }).seller_id;
-        if (!sid) continue;
-        const pct = commissionBySeller[sid] ?? 0;
-        commissionMonth += commissionFromTotal(Number((row as { total?: number }).total), pct);
+      if (role === "vendedor" && user?.id) {
+        for (const row of rows) {
+          const sid = row.seller_id;
+          if (!sid) continue;
+          const pct = commissionBySeller[sid] ?? 0;
+          commissionMonth += commissionFromTotal(Number(row.total ?? 0), pct);
+        }
+      } else if (role === "admin") {
+        for (const row of rows) {
+          const total = Number(row.total ?? 0);
+          const sid = row.seller_id;
+          if (!sid) {
+            const eff = ownerUserId ?? adminUserId;
+            const pct = commissionBySeller[eff] ?? 0;
+            commissionMonth += commissionFromTotal(total, pct);
+          } else if (sid === adminUserId) {
+            const pct = commissionBySeller[adminUserId] ?? 0;
+            commissionMonth += commissionFromTotal(total, pct);
+          } else {
+            const vPct = commissionBySeller[sid] ?? 0;
+            const vComm = commissionFromTotal(total, vPct);
+            commissionMonth += vComm * (sharePct / 100);
+          }
+        }
+        commissionMonth = Math.round(commissionMonth * 100) / 100;
       }
 
       setStats([
-        { label: "Vendas do mês", value: brl(revenue), change: role === "admin" ? "admin + vendedores" : "minha carteira", icon: DollarSign },
-        { label: "Pedidos", value: String(ordersCount), change: role === "admin" ? "todos os vendedores" : "meus pedidos", icon: ShoppingBag },
+        {
+          label: "Vendas do mês",
+          value: brl(revenue),
+          change: role === "admin" ? "toda a equipe" : "minha carteira",
+          icon: DollarSign,
+        },
+        {
+          label: "Pedidos",
+          value: String(ordersCount),
+          change: role === "admin" ? "exc. cancelados" : "meus pedidos",
+          icon: ShoppingBag,
+        },
         { label: "Clientes ativos", value: String(clients), change: role === "admin" ? "base total" : "minha base", icon: Users },
         { label: "Conversão de pedidos", value: conversion, change: "pedidos/clientes", icon: TrendingUp },
         {
@@ -249,7 +318,7 @@ function Dashboard() {
           value: brl(commissionMonth),
           change:
             role === "admin"
-              ? "soma pedidos × % por vendedor"
+              ? "direta + % sobre comissão dos vendedores"
               : role === "vendedor"
                 ? "% configurado em Vendedores"
                 : "—",
@@ -257,7 +326,7 @@ function Dashboard() {
         },
       ]);
 
-      const orderIds = rows.map((r) => (r as { id: string }).id);
+      const orderIds = rows.map((r) => r.id);
       if (orderIds.length > 0) {
         const { data: items } = await supabase
           .from("order_items")
@@ -282,12 +351,13 @@ function Dashboard() {
       if (role === "admin" && rows.length > 0) {
         const sums = new Map<string, number>();
         for (const row of rows) {
-          const sid = (row as { seller_id?: string | null }).seller_id;
-          if (!sid) continue;
-          sums.set(sid, (sums.get(sid) ?? 0) + Number((row as { total?: number }).total));
+          const sid = row.seller_id;
+          const key = sid ?? "__none__";
+          sums.set(key, (sums.get(key) ?? 0) + Number(row.total ?? 0));
         }
-        const ids = [...sums.keys()];
-        let labels = new Map<string, string>();
+        const ids = [...sums.keys()].filter((k) => k !== "__none__");
+        const labels = new Map<string, string>();
+        labels.set("__none__", "Sem vendedor");
         if (ids.length > 0) {
           const { data: profs } = await supabase.from("profiles").select("id,full_name,email").in("id", ids);
           for (const p of profs ?? []) {
@@ -299,14 +369,14 @@ function Dashboard() {
           [...sums.entries()]
             .map(([id, total]) => ({ id, label: labels.get(id) ?? id, total }))
             .sort((a, b) => b.total - a.total)
-            .slice(0, 8),
+            .slice(0, 12),
         );
       } else {
         setSellerRank([]);
       }
     };
     void load();
-  }, [organization?.id, role, user?.id]);
+  }, [organization?.id, organization?.owner_user_id, organization?.admin_commission_share_pct, role, user?.id]);
 
   const dismissOnboarding = () => {
     if (!user?.id || !organization?.id) return;
@@ -333,7 +403,7 @@ function Dashboard() {
         <h1 className="text-3xl font-bold tracking-tight">Olá, {profile?.full_name?.split(" ")[0] ?? "vendedor"} 👋</h1>
         <p className="mt-1 text-muted-foreground">
           {role === "admin"
-            ? "Visão consolidada do seu desempenho + equipe de vendedores."
+            ? "Vendas e pedidos do mês consideram toda a equipe (exceto cancelados). A comissão estimada soma sua comissão direta nas vendas em que você é o representante e nos pedidos sem vendedor, mais o percentual que você define sobre a comissão calculada para cada vendedor."
             : role === "vendedor"
               ? "Resumo personalizado da sua carteira e suas vendas."
               : "Visão da sua operação."}
@@ -414,7 +484,7 @@ function Dashboard() {
         ))}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className={`grid gap-6 ${role === "admin" ? "lg:grid-cols-2" : ""}`}>
         <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
           <div className="flex items-center gap-2">
             <BarChart3 className="h-5 w-5 text-primary" />
@@ -443,32 +513,69 @@ function Dashboard() {
           </p>
         </div>
 
-        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
-          <h2 className="text-lg font-semibold">Pedidos do mês — métricas</h2>
-          <dl className="grid gap-3 text-sm">
-            <div className="flex justify-between gap-4">
-              <dt className="text-muted-foreground">Ticket médio</dt>
-              <dd className="font-semibold tabular-nums">{ticketMedio != null ? brl(ticketMedio) : "—"}</dd>
+        {role === "admin" && (
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
+            <h2 className="text-lg font-semibold">Pedidos do mês — métricas da equipe</h2>
+            <p className="text-sm text-muted-foreground">
+              Ticket médio e volume por representante no mês (pedidos não cancelados). O percentual abaixo
+              define quanto da <strong className="text-foreground">comissão de cada vendedor</strong> (a
+              calculada pelo % dele em Vendedores) entra na sua comissão estimada no card do topo.
+            </p>
+            <dl className="grid gap-3 text-sm">
+              <div className="flex justify-between gap-4">
+                <dt className="text-muted-foreground">Ticket médio (equipe)</dt>
+                <dd className="font-semibold tabular-nums">{ticketMedio != null ? brl(ticketMedio) : "—"}</dd>
+              </div>
+            </dl>
+            <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
+              <div className="grid gap-2">
+                <Label htmlFor="admin-commission-share">Sua participação sobre a comissão dos vendedores (%)</Label>
+                <div className="flex flex-wrap gap-2 items-end">
+                  <Input
+                    id="admin-commission-share"
+                    type="text"
+                    inputMode="decimal"
+                    className="max-w-[120px]"
+                    value={adminShareDraft}
+                    onChange={(e) => setAdminShareDraft(e.target.value)}
+                    placeholder="0 a 100"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    onClick={() => void saveAdminCommissionShare()}
+                    disabled={savingAdminShare}
+                    className="inline-flex items-center gap-2"
+                  >
+                    {savingAdminShare && <Loader2 className="h-4 w-4 animate-spin" />}
+                    Salvar
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Ex.: 20% = você soma 20% do valor da comissão de cada pedido fechado por um vendedor (não se
+                  aplica às vendas em que você é o representante nem ao cálculo direto em pedidos sem vendedor).
+                </p>
+              </div>
             </div>
-          </dl>
-          {role === "admin" && sellerRank.length > 0 && (
-            <div className="pt-2 border-t border-border">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
-                Vendas no mês por vendedor
-              </p>
-              <ul className="space-y-1.5 text-sm">
-                {sellerRank.map((s, i) => (
-                  <li key={s.id} className="flex justify-between gap-2">
-                    <span className="truncate text-muted-foreground">
-                      {i + 1}. {s.label}
-                    </span>
-                    <span className="font-medium tabular-nums shrink-0">{brl(s.total)}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-        </div>
+            {sellerRank.length > 0 && (
+              <div className="pt-2 border-t border-border">
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                  Vendas no mês por representante
+                </p>
+                <ul className="space-y-1.5 text-sm">
+                  {sellerRank.map((s, i) => (
+                    <li key={s.id} className="flex justify-between gap-2">
+                      <span className="truncate text-muted-foreground">
+                        {i + 1}. {s.label}
+                      </span>
+                      <span className="font-medium tabular-nums shrink-0">{brl(s.total)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
