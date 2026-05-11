@@ -152,6 +152,7 @@ function CustomersPage() {
   const [clientInvites, setClientInvites] = useState<ClientInvitation[]>([]);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteSellerId, setInviteSellerId] = useState<string | null>(null);
   const [inviteSaving, setInviteSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<Customer | null>(null);
   const [deletingCustomer, setDeletingCustomer] = useState(false);
@@ -272,8 +273,10 @@ function CustomersPage() {
           }),
         );
         setSellers(list);
+        setInviteSellerId((prev) => prev ?? list[0]?.user_id ?? null);
       } else {
         setSellers([]);
+        setInviteSellerId(null);
       }
     }
     setLoading(false);
@@ -398,9 +401,11 @@ function CustomersPage() {
     }
     setInviteSaving(true);
     try {
+      const invitedBy = isAdmin ? inviteSellerId : user?.id;
+      if (!invitedBy) return toast.error("Selecione um representante para este convite.");
       const { error } = await supabase.from("seller_invitations").insert({
         organization_id: organization.id,
-        invited_by: user.id,
+        invited_by: invitedBy,
         email: inviteEmail.trim().toLowerCase(),
         purpose: "client_catalog",
       });
@@ -492,6 +497,30 @@ function CustomersPage() {
                       quem já usa o 2AVendas pode usar o link para quem já tem conta.
                     </p>
                   </div>
+                  {isAdmin && (
+                    <div className="grid gap-2">
+                      <Label>Representante</Label>
+                      <Select
+                        value={inviteSellerId ?? "none"}
+                        onValueChange={(v) => setInviteSellerId(v === "none" ? null : v)}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione um representante" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">—</SelectItem>
+                          {sellers.map((s) => (
+                            <SelectItem key={s.user_id} value={s.user_id}>
+                              {s.full_name ?? s.email ?? s.user_id}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        O cliente será vinculado ao representante selecionado e verá os produtos do catálogo dele.
+                      </p>
+                    </div>
+                  )}
                 </div>
                 <DialogFooter>
                   <Button variant="outline" onClick={() => setInviteOpen(false)}>
