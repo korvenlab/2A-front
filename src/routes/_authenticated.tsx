@@ -4,6 +4,14 @@ import { useAuth } from "@/lib/auth-context";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { GlobalSearchDialog } from "@/components/GlobalSearchDialog";
+import { supabase } from "@/integrations/supabase/client";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -30,14 +38,22 @@ type NavEntry = {
   highlight?: boolean;
 };
 
+type ClientOrg = { id: string; name: string };
+const PORTAL_ORG_STORAGE_KEY = "2avendas.portalOrgId";
+
 function AuthLayout() {
-  const { isAuthenticated, loading, signingOut, signOut, profile, organization, menu, role } = useAuth();
+  const { isAuthenticated, loading, signingOut, signOut, profile, organization, menu, role, user } = useAuth();
   const navigate = useNavigate();
   const { location } = useRouterState();
   const [searchOpen, setSearchOpen] = useState(false);
   const staffSearch = role === "admin" || role === "vendedor";
   const sidebarNavRef = useRef<HTMLElement | null>(null);
   const mobileNavRef = useRef<HTMLElement | null>(null);
+  const [clientOrgs, setClientOrgs] = useState<ClientOrg[]>([]);
+  const [clientOrgsLoading, setClientOrgsLoading] = useState(false);
+  const [clientPinnedOrgId, setClientPinnedOrgId] = useState<string | null>(() =>
+    typeof window !== "undefined" ? sessionStorage.getItem(PORTAL_ORG_STORAGE_KEY) : null,
+  );
 
   useEffect(() => {
     const desktop = sidebarNavRef.current?.querySelector<HTMLElement>('[data-dashboard-nav-active="true"]');
@@ -67,6 +83,70 @@ function AuthLayout() {
       navigate({ to: "/portal" });
     }
   }, [isAuthenticated, loading, signingOut, menu.dashboard, menu.portal, navigate, location.pathname, location.search]);
+
+  useEffect(() => {
+    if (!user?.id || role !== "cliente") return;
+    let cancelled = false;
+    (async () => {
+      setClientOrgsLoading(true);
+      try {
+        const { data, error } = await supabase
+          .from("customers")
+          .select("organization_id")
+          .eq("user_id", user.id);
+        if (error) throw error;
+        const orgIds = Array.from(
+          new Set((data ?? []).map((r) => r.organization_id).filter((v): v is string => !!v)),
+        );
+        if (orgIds.length === 0) {
+          if (!cancelled) setClientOrgs([]);
+          return;
+        }
+        const { data: orgRows, error: orgErr } = await supabase
+          .from("organizations")
+          .select("id,name")
+          .in("id", orgIds);
+        if (orgErr) throw orgErr;
+        if (cancelled) return;
+        setClientOrgs(((orgRows ?? []) as ClientOrg[]).sort((a, b) => a.name.localeCompare(b.name, "pt-BR")));
+      } catch (e) {
+        if (!cancelled && import.meta.env.DEV) {
+          console.warn("[sidebar][cliente] failed to fetch client orgs", e);
+        }
+        if (!cancelled) setClientOrgs([]);
+      } finally {
+        if (!cancelled) setClientOrgsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user?.id, role]);
+
+  useEffect(() => {
+    if (role !== "cliente") return;
+    if (clientOrgs.length === 0) return;
+    const stored = typeof window !== "undefined" ? sessionStorage.getItem(PORTAL_ORG_STORAGE_KEY) : null;
+    const fallback = organization?.id ?? clientOrgs[0]?.id ?? null;
+    const next = stored && clientOrgs.some((o) => o.id === stored) ? stored : fallback;
+    if (!next) return;
+    sessionStorage.setItem(PORTAL_ORG_STORAGE_KEY, next);
+    setClientPinnedOrgId(next);
+  }, [role, clientOrgs, organization?.id]);
+
+  const selectedClientOrgId =
+    clientPinnedOrgId ?? organization?.id ?? clientOrgs[0]?.id ?? "";
+
+  const onClientOrgChange = (nextId: string) => {
+    if (!nextId) return;
+    sessionStorage.setItem(PORTAL_ORG_STORAGE_KEY, nextId);
+    setClientPinnedOrgId(nextId);
+    if (typeof window !== "undefined" && window.location.search.includes("invite=")) {
+      window.history.replaceState({}, "", `${window.location.pathname}${window.location.hash}`);
+    }
+    window.dispatchEvent(new Event("portal-org-changed"));
+    if (location.pathname !== "/portal") navigate({ to: "/portal", replace: true });
+  };
 
   const navItems = useMemo(() => {
     const items: NavEntry[] = [];
@@ -117,6 +197,35 @@ function AuthLayout() {
           <Logo />
           {organization && (
             <p className="mt-3 text-xs text-muted-foreground truncate">{organization.name}</p>
+          )}
+          {role === "cliente" && (
+            <div className="mt-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                Empresa
+              </p>
+              <div className="mt-2">
+                {clientOrgsLoading ? (
+                  <div className="h-10 rounded-md border border-border bg-background/60" />
+                ) : clientOrgs.length <= 1 ? (
+                  <p className="text-sm text-foreground/80 mt-1">
+                    {clientOrgs[0]?.name ?? organization?.name ?? "—"}
+                  </p>
+                ) : (
+                  <Select value={selectedClientOrgId} onValueChange={onClientOrgChange}>
+                    <SelectTrigger className="h-10 w-full bg-background">
+                      <SelectValue placeholder="Escolha a empresa" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {clientOrgs.map((o) => (
+                        <SelectItem key={o.id} value={o.id}>
+                          {o.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+            </div>
           )}
           {staffSearch && (
             <Button

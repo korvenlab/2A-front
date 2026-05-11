@@ -244,6 +244,18 @@ function Portal() {
   const [pinnedOrgId, setPinnedOrgId] = useState<string | null>(() =>
     typeof window !== "undefined" ? sessionStorage.getItem(PORTAL_ORG_STORAGE_KEY) : null,
   );
+
+  useEffect(() => {
+    // Atualiza a empresa escolhida no portal quando a sidebar do cliente mudar o contexto.
+    const handler = () => {
+      const next =
+        typeof window !== "undefined" ? sessionStorage.getItem(PORTAL_ORG_STORAGE_KEY) : null;
+      setPinnedOrgId(next);
+    };
+    window.addEventListener("portal-org-changed", handler);
+    return () => window.removeEventListener("portal-org-changed", handler);
+  }, []);
+
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
   const [draftQtyByProduct, setDraftQtyByProduct] = useState<Record<string, number>>({});
