@@ -25,6 +25,7 @@ import {
   FileSpreadsheet,
   Columns3,
   CalendarDays,
+  CreditCard,
   Search,
 } from "lucide-react";
 
@@ -43,7 +44,7 @@ type ClientOrg = { id: string; name: string };
 const PORTAL_ORG_STORAGE_KEY = "2avendas.portalOrgId";
 
 function AuthLayout() {
-  const { isAuthenticated, loading, signingOut, signOut, profile, organization, menu, role, user } = useAuth();
+  const { isAuthenticated, loading, signingOut, signOut, profile, organization, menu, billing, role, user } = useAuth();
   const navigate = useNavigate();
   const { location } = useRouterState();
   const [searchOpen, setSearchOpen] = useState(false);
@@ -84,6 +85,25 @@ function AuthLayout() {
       navigate({ to: "/portal" });
     }
   }, [isAuthenticated, loading, signingOut, menu.dashboard, menu.portal, navigate, location.pathname, location.search]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (!isAuthenticated || signingOut) return;
+    const staff = role === "admin" || role === "vendedor";
+    if (!staff) return;
+    if (!billing.required || billing.satisfied) return;
+    if (location.pathname.startsWith("/assinatura")) return;
+    navigate({ to: "/assinatura", replace: true });
+  }, [
+    billing.required,
+    billing.satisfied,
+    isAuthenticated,
+    loading,
+    location.pathname,
+    navigate,
+    role,
+    signingOut,
+  ]);
 
   useEffect(() => {
     if (!user?.id || role !== "cliente") return;
@@ -163,6 +183,15 @@ function AuthLayout() {
       };
     }
 
+    if (billing.required && !billing.satisfied) {
+      items.push({
+        to: "/assinatura",
+        label: "Assinatura",
+        icon: CreditCard,
+        highlight: true,
+      });
+    }
+
     if (menu.dashboard) items.push({ to: "/dashboard", label: "Dashboard", icon: LayoutDashboard });
     if (menu.pedidos) items.push({ to: "/pedidos", label: "Pedidos", icon: ShoppingBag });
     if (menu.orcamentos)
@@ -180,7 +209,7 @@ function AuthLayout() {
     if (menu.portal) items.push({ to: "/portal", label: "Portal de Compras", icon: Store });
     if (vendedoresEntry) items.push(vendedoresEntry);
     return items;
-  }, [menu, role]);
+  }, [menu, role, billing.required, billing.satisfied]);
 
   if (loading || !isAuthenticated) {
     return (

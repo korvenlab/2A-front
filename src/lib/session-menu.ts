@@ -29,6 +29,23 @@ export interface MenuFlags {
 
 export type MenuKey = keyof MenuFlags;
 
+/** Espelha o objeto `billing` do GET /api/session/menu (staff: assinatura Stripe / unlock manual). */
+export interface BillingFlags {
+  required: boolean;
+  satisfied: boolean;
+  stripe_active: boolean;
+  manual_unlock: boolean;
+}
+
+export function defaultBillingFlags(): BillingFlags {
+  return {
+    required: false,
+    satisfied: true,
+    stripe_active: false,
+    manual_unlock: false,
+  };
+}
+
 export function emptyMenu(): MenuFlags {
   return {
     dashboard: false,
@@ -83,7 +100,12 @@ export function fallbackMenuFromRole(role: FallbackRole | null): MenuFlags {
   };
 }
 
-export async function fetchSessionMenu(accessToken: string): Promise<MenuFlags | null> {
+export interface SessionMenuPayload {
+  menu: MenuFlags;
+  billing: BillingFlags;
+}
+
+export async function fetchSessionMenu(accessToken: string): Promise<SessionMenuPayload | null> {
   const raw = import.meta.env.VITE_API_URL?.trim();
   if (!raw) return null;
   const base = raw.replace(/\/$/, "");
@@ -105,11 +127,15 @@ export async function fetchSessionMenu(accessToken: string): Promise<MenuFlags |
     if (ct && !ct.includes("application/json")) return null;
     const body = (await res.json()) as {
       ok?: boolean;
-      data?: { menu?: Partial<MenuFlags> };
+      data?: {
+        menu?: Partial<MenuFlags>;
+        billing?: Partial<BillingFlags>;
+      };
     };
     if (!body?.ok || !body.data?.menu) return null;
     const m = body.data.menu;
-    return {
+    const b = body.data.billing;
+    const menu = {
       dashboard: !!m.dashboard,
       catalogo: !!m.catalogo,
       clientes: !!m.clientes,
@@ -121,6 +147,13 @@ export async function fetchSessionMenu(accessToken: string): Promise<MenuFlags |
       portal: !!m.portal,
       vendedores: !!m.vendedores,
     };
+    const billing: BillingFlags = {
+      required: !!b?.required,
+      satisfied: b?.satisfied !== false,
+      stripe_active: !!b?.stripe_active,
+      manual_unlock: !!b?.manual_unlock,
+    };
+    return { menu, billing };
   } catch {
     return null;
   }

@@ -5,20 +5,20 @@ import { AvendasFocusLandingGate } from "@/components/landing/AvendasFocusLandin
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "2AVendas — Plataforma B2B para equipe, funil e pedidos" },
+      { title: "2AVendas — CRM para representantes comerciais" },
       {
         name: "description",
         content:
-          "Equipe externa, funil de vendas, orçamentos, visitas, pedidos com NF-e, comissões, outreach e portal com link — um cockpit único para a operação comercial B2B.",
+          "CRM pensado para representantes: gestão de equipe, funil de vendas, WhatsApp no pedido, pedidos centralizados, portal com link de pedido e catálogo B2B — uma base para a operação da representação.",
       },
       {
         property: "og:title",
-        content: "2AVendas — Operação comercial B2B num só lugar",
+        content: "2AVendas — CRM para representantes comerciais",
       },
       {
         property: "og:description",
         content:
-          "Funil, pedidos, WhatsApp, portal com link, fiscal e remuneração da equipe integrados.",
+          "Equipe, funil, WhatsApp integrado ao pedido, pedidos num só lugar, portal com link e catálogo B2B para sua representação.",
       },
     ],
   }),

@@ -4,9 +4,11 @@ import type { Session, User } from "@supabase/supabase-js";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
+  defaultBillingFlags,
   emptyMenu,
   fallbackMenuFromRole,
   fetchSessionMenu,
+  type BillingFlags,
   type MenuFlags,
 } from "@/lib/session-menu";
 
@@ -46,6 +48,8 @@ interface AuthState {
   role: AppRole | null;
   /** Habilitações de navegação (API / backend ou fallback por role). */
   menu: MenuFlags;
+  /** Cobrança / acesso à plataforma (admin e vendedor na mesma organização). */
+  billing: BillingFlags;
   loading: boolean;
   isAuthenticated: boolean;
   /** True durante logout intencional — evita redirect para /login e flicker de erro nas rotas autenticadas. */
@@ -65,14 +69,20 @@ function resolvePublicHomeUrl(): string {
 }
 
 async function resolveMenu(accessToken: string | null | undefined, currentRole: AppRole | null) {
-  if (!accessToken) return emptyMenu();
+  if (!accessToken) return { menu: emptyMenu(), billing: defaultBillingFlags() };
   const fetched = await fetchSessionMenu(accessToken);
-  const menu = fetched ?? fallbackMenuFromRole(currentRole);
+  if (!fetched) {
+    return {
+      menu: fallbackMenuFromRole(currentRole),
+      billing: defaultBillingFlags(),
+    };
+  }
+  let menu = fetched.menu;
   /** Reforço: API antiga ou matriz sem sellers:view não pode esconder gestão de equipe do admin. */
   if (currentRole === "admin") {
-    return { ...menu, vendedores: menu.vendedores || true };
+    menu = { ...menu, vendedores: menu.vendedores || true };
   }
-  return menu;
+  return { menu, billing: fetched.billing };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -81,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [organization, setOrganization] = useState<Organization | null>(null);
   const [role, setRole] = useState<AppRole | null>(null);
   const [menu, setMenu] = useState<MenuFlags>(emptyMenu());
+  const [billing, setBilling] = useState<BillingFlags>(defaultBillingFlags());
   const [loading, setLoading] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
 
@@ -176,8 +187,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await supabase.auth.getSession()
       ).data.session?.access_token ??
       null;
-    const nextMenu = await resolveMenu(token, primary);
-    setMenu(nextMenu);
+    const next = await resolveMenu(token, primary);
+    setMenu(next.menu);
+    setBilling(next.billing);
   };
 
   useEffect(() => {
@@ -192,6 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setOrganization(null);
         setRole(null);
         setMenu(emptyMenu());
+        setBilling(defaultBillingFlags());
       }
     });
 
@@ -237,6 +250,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         organization,
         role,
         menu,
+        billing,
         loading,
         isAuthenticated: !!session,
         signingOut,

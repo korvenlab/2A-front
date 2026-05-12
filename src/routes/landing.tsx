@@ -5,10 +5,11 @@ import { AvendasFocusLandingGate } from "@/components/landing/AvendasFocusLandin
 export const Route = createFileRoute("/landing")({
   head: () => ({
     meta: [
-      { title: "2AVendas — Apresentação" },
+      { title: "2AVendas — CRM para representantes comerciais" },
       {
         name: "description",
-        content: "Visão geral do produto: link de pedidos, funil e portal B2B.",
+        content:
+          "Gestão de equipe, funil, WhatsApp no pedido, pedidos centralizados, portal com link e catálogo B2B.",
       },
     ],
   }),

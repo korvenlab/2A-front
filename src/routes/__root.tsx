@@ -34,15 +34,27 @@ export const Route = createRootRoute({
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { name: "referrer", content: "strict-origin-when-cross-origin" },
       { name: "format-detection", content: "telephone=no" },
-      { title: "2AVendas — Plataforma B2B para Representações Comerciais" },
-      { name: "description", content: "Gerencie vendedores, pedidos e clientes B2B em uma única plataforma. Experimente grátis." },
+      { title: "2AVendas — CRM para representantes comerciais" },
+      {
+        name: "description",
+        content:
+          "Gestão de equipe, funil de vendas, WhatsApp no pedido, pedidos centralizados, portal com link e catálogo B2B — um CRM para representação.",
+      },
       { name: "author", content: "2AVendas" },
-      { property: "og:title", content: "2AVendas — Plataforma B2B para Representações Comerciais" },
-      { property: "og:description", content: "Gerencie vendedores, pedidos e clientes B2B em uma única plataforma. Experimente grátis." },
+      { property: "og:title", content: "2AVendas — CRM para representantes comerciais" },
+      {
+        property: "og:description",
+        content:
+          "Equipe, funil, WhatsApp no pedido, pedidos centralizados, portal e catálogo B2B num só lugar.",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
-      { name: "twitter:title", content: "2AVendas — Plataforma B2B para Representações Comerciais" },
-      { name: "twitter:description", content: "Gerencie vendedores, pedidos e clientes B2B em uma única plataforma. Experimente grátis." },
+      { name: "twitter:title", content: "2AVendas — CRM para representantes comerciais" },
+      {
+        name: "twitter:description",
+        content:
+          "CRM para representantes: equipe, funil, pedidos, portal com link e catálogo B2B integrados.",
+      },
       { property: "og:site_name", content: "2AVendas" },
       { property: "og:image", content: "/vendaslogo.png" },
       { property: "og:image:width", content: "1200" },

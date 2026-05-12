@@ -24,74 +24,58 @@ const FEATURES = [
   {
     title: "Gestão de equipe",
     description:
-      "Representantes centralizados: quem atende quem, permissões claras e histórico na mesma base — menos planilha solta.",
+      "CRM para representação: vendedores, permissões, comissões e convites na mesma base — você comanda quem vende o quê, sem planilha paralela.",
     icon: Users,
     gridClass: "lg:col-span-4 lg:row-span-2 min-h-[260px]",
   },
   {
     title: "Funil de vendas",
     description:
-      "Negociações e pedidos em colunas, do primeiro contato ao fechamento — enxergue gargalos com método.",
+      "Pipeline comercial do representante: oportunidades em etapas, do primeiro contato ao pedido — visão clara do que está travando o fechamento.",
     icon: Columns3,
     gridClass: "lg:col-span-2 min-h-[160px]",
   },
   {
     title: "WhatsApp no pedido",
     description:
-      "Comunicação alinhada ao cliente e ao pedido: catálogo, status e follow-up no canal que o B2B já usa.",
+      "Fale com o cliente B2B já com contexto do pedido: link direto do painel para o WhatsApp, alinhado a status e follow-up.",
     icon: MessageCircle,
-    gridClass: "lg:col-span-2 min-h-[160px]",
-  },
-  {
-    title: "Portal e link de pedido",
-    description:
-      "Catálogo público em link; o cliente monta o pedido e ele cai no seu painel, sem retrabalho.",
-    icon: Link2,
     gridClass: "lg:col-span-2 min-h-[160px]",
   },
   {
     title: "Pedidos centralizados",
     description:
-      "Um cockpit para acompanhar volume, status e próximos passos — da representação ao fechamento.",
+      "Todos os pedidos da representação num só lugar: status, totais, NF-e e histórico — o cockpit do representante comercial.",
     icon: ShoppingBag,
     gridClass: "lg:col-span-3 min-h-[180px]",
   },
   {
+    title: "Portal e link de pedido",
+    description:
+      "Catálogo em link para o cliente montar o pedido sozinho; tudo cai centralizado no seu painel — menos troca de e-mail e retrabalho.",
+    icon: Link2,
+    gridClass: "lg:col-span-2 min-h-[160px]",
+  },
+  {
     title: "Catálogo B2B",
     description:
-      "Produtos e políticas comerciais organizados para o time externo vender com consistência.",
+      "Produtos, preços e estoque organizados para a equipe externa e para o portal — uma vitrine única da sua operação B2B.",
     icon: Package,
     gridClass: "lg:col-span-3 min-h-[180px]",
   },
 ];
 
-const PLANS = [
-  {
-    name: "Starter",
-    price: "R$ 99",
-    desc: "Link de pedidos e equipe pequena.",
-    features: ["Até 3 vendedores", "Até 50 clientes", "Portal com link", "Suporte por email"],
-    highlight: false,
-  },
-  {
-    name: "Pro",
-    price: "R$ 299",
-    desc: "Volume maior, mesmo dashboard.",
-    features: [
-      "Vendedores ilimitados",
-      "Clientes ilimitados",
-      "Portal completo",
-      "Prioridade no suporte",
-    ],
-    highlight: true,
-  },
-  {
-    name: "Enterprise",
-    price: "Custom",
-    desc: "Integrações sob medida.",
-    features: ["Tudo do Pro", "Integração ERP", "SSO e auditoria", "Gerente dedicado"],
-    highlight: false,
-  },
+const PLAN_FEATURES = [
+  "Faturamento via Excel",
+  "CRM e Inteligência Comercial",
+  "Contas a pagar e receber",
+  "Gestão de equipe de vendas",
+  "Gestão por funil (1 por Vendedor)",
+  "Gestão de produtos e tabela de preços",
+  "Controle de faturamento",
+  "Suporte técnico (+ Telefone)",
+  "Usuários adicionais ilimitados",
+  "Agenda para vendedores",
 ];
 
 type Mode = "guest" | "member";
@@ -138,7 +122,7 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
             Funcionalidades
           </a>
           <a href="#pricing" className="text-[#003366] transition-colors hover:text-[#007AFF]">
-            Planos
+            Plano
           </a>
           {consoleIsMember ? (
             <Link to="/dashboard" className="text-[#007AFF] underline-offset-4 hover:underline">
@@ -164,14 +148,15 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
         <section className="landing-invisible-grid mx-auto max-w-5xl px-6 pb-20 pt-4 md:px-12 md:pb-28 md:pt-6">
           <div className="landing-hero-stagger mx-auto flex max-w-3xl flex-col items-center text-center">
             <p className="landing-reveal landing-hero-a mb-5 font-mono text-[10px] uppercase tracking-[0.4em] text-[#007AFF]">
-              Representação B2B
+              CRM · Representantes comerciais
             </p>
             <h1 className="landing-reveal landing-hero-a text-balance text-4xl font-semibold tracking-tight text-[#2d2d2d] md:text-5xl lg:text-[3.25rem] lg:leading-[1.08]">
-              Seu catálogo virou um link de vendas — e o pedido cai no painel.
+              O CRM da sua representação: equipe, funil, pedidos e catálogo B2B num fluxo só.
             </h1>
             <p className="landing-reveal landing-hero-b mt-6 max-w-xl text-pretty text-base leading-relaxed text-[#4B5563] md:text-lg">
-              Equipe, funil, WhatsApp e portal no mesmo fluxo. Descreva o que quer montar e avance
-              com clareza executiva.
+              Pensado para <strong className="font-semibold text-[#374151]">representantes comerciais</strong>:
+              gestão de equipe, funil de vendas, WhatsApp no pedido, pedidos centralizados, portal com link
+              de pedido e catálogo B2B — tudo integrado para você vender com método.
             </p>
             <div className="landing-reveal landing-hero-c mt-12 w-full">
               <LandingMagicInput />
@@ -217,7 +202,9 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
           <div className="mx-auto mt-16 max-w-4xl md:mt-24">
             <div className="flex flex-wrap items-center justify-center gap-3 font-mono text-[10px] uppercase tracking-[0.28em] text-[#003366]/70">
               <Zap className="h-4 w-4 text-[#007AFF]" aria-hidden />
-              <span>Link de pedidos · funil · WhatsApp · catálogo compartilhável</span>
+              <span>
+                Equipe · funil · WhatsApp no pedido · pedidos centralizados · portal e link · catálogo B2B
+              </span>
             </div>
           </div>
         </section>
@@ -232,13 +219,14 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
         >
           <div className="mx-auto max-w-2xl text-center">
             <h2 className="font-mono text-[10px] uppercase tracking-[0.38em] text-[#007AFF]">
-              Bento de capacidades
+              O que o CRM entrega
             </h2>
             <p className="mt-4 text-3xl font-semibold tracking-tight text-[#003366] md:text-4xl">
-              Menos ruído. Mais clareza na operação comercial.
+              Tudo o que a operação do representante comercial precisa no dia a dia.
             </p>
             <p className="mt-4 text-sm leading-relaxed text-[#6B7280] md:text-base">
-              Cards assimétricos mostram o valor do 2AVendas — só espaço, hierarquia e tons suaves.
+              Da gestão da equipe ao pedido fechado: cada bloco abaixo é um pilar do 2AVendas para quem
+              representa marcas e atende indústria ou distribuição B2B.
             </p>
           </div>
 
@@ -257,56 +245,48 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
         >
           <div className="mx-auto max-w-2xl text-center">
             <p className="font-mono text-[10px] uppercase tracking-[0.38em] text-[#007AFF]">
-              Planos
+              Plano
             </p>
             <p className="mt-4 text-3xl font-semibold tracking-tight text-[#003366] md:text-4xl">
-              Escale no seu ritmo
+              Um plano completo para a sua representação
             </p>
             <p className="mt-4 text-sm text-[#6B7280]">
-              Preços orientativos — ajuste fino com o time na implantação.
+              Valor mensal fixo — tudo o que listamos abaixo na mesma assinatura.
             </p>
           </div>
-          <div className="mt-14 grid gap-5 md:grid-cols-3">
-            {PLANS.map((p) => (
-              <div
-                key={p.name}
-                className={`flex flex-col rounded-[22px] bg-[#F9F9F9] p-8 ${p.highlight ? "ring-2 ring-[#007AFF]/35" : ""}`}
-              >
-                {p.highlight ? (
-                  <span className="mb-3 inline-flex w-fit rounded-full bg-white px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#007AFF]">
-                    Mais usado
-                  </span>
-                ) : null}
-                <h3 className="text-lg font-semibold text-[#003366]">{p.name}</h3>
-                <p className="mt-2 text-sm text-[#4B5563]">{p.desc}</p>
-                <div className="mt-8 flex items-baseline gap-1 border-t border-[#E8ECF2] pt-8">
-                  <span className="text-3xl font-semibold tabular-nums text-[#003366]">
-                    {p.price}
-                  </span>
-                  {p.price !== "Custom" ? (
-                    <span className="text-sm text-[#6B7280]">/mês</span>
-                  ) : null}
-                </div>
-                <ul className="mt-6 flex flex-col gap-2.5 text-sm text-[#4B5563]">
-                  {p.features.map((f) => (
-                    <li key={f} className="flex gap-2">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#007AFF]" strokeWidth={2} />
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-10">
-                  <MagneticWrap strength={0.12}>
-                    <Link
-                      to="/signup"
-                      className="inline-flex h-11 w-full items-center justify-center rounded-2xl bg-[#003366] font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-white transition-colors hover:bg-[#007AFF]"
-                    >
-                      Começar
-                    </Link>
-                  </MagneticWrap>
-                </div>
+          <div className="mx-auto mt-14 max-w-lg">
+            <div className="flex flex-col rounded-[22px] bg-[#F9F9F9] p-8 ring-2 ring-[#007AFF]/35 md:p-10">
+              <span className="mb-3 inline-flex w-fit rounded-full bg-white px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#007AFF]">
+                2AVendas
+              </span>
+              <h3 className="text-xl font-semibold text-[#003366] md:text-2xl">Plano mensal</h3>
+              <p className="mt-2 text-sm leading-relaxed text-[#4B5563]">
+                CRM, financeiro, equipe, funil, produtos, faturamento e suporte — pacote único para
+                representantes comerciais.
+              </p>
+              <div className="mt-8 flex flex-wrap items-baseline gap-1 border-t border-[#E8ECF2] pt-8">
+                <span className="text-4xl font-semibold tabular-nums text-[#003366] md:text-5xl">R$ 150</span>
+                <span className="text-base text-[#6B7280]">/mês</span>
               </div>
-            ))}
+              <ul className="mt-8 flex flex-col gap-2.5 text-sm text-[#4B5563]">
+                {PLAN_FEATURES.map((f) => (
+                  <li key={f} className="flex gap-2.5">
+                    <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#007AFF]" strokeWidth={2} />
+                    <span>{f}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="mt-10">
+                <MagneticWrap strength={0.12}>
+                  <Link
+                    to="/signup"
+                    className="inline-flex h-12 w-full items-center justify-center rounded-2xl bg-[#003366] font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-white transition-colors hover:bg-[#007AFF]"
+                  >
+                    Assinar por R$ 150/mês
+                  </Link>
+                </MagneticWrap>
+              </div>
+            </div>
           </div>
         </section>
 
@@ -320,7 +300,7 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
                 <p className="mt-3 max-w-md text-xl font-semibold text-[#003366] md:text-2xl">
                   {consoleIsMember
                     ? "Continue de onde parou no painel ou no portal."
-                    : "Crie sua conta e publique o link do catálogo em minutos."}
+                    : "Leve seu CRM de representante do link do catálogo ao pedido centralizado em minutos."}
                 </p>
               </div>
               <MagneticWrap>
@@ -343,7 +323,7 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
             </div>
             <LandingFlowRibbon className="mt-12 opacity-80" />
             <p className="mt-10 text-center font-mono text-[10px] uppercase tracking-[0.28em] text-[#9CA3AF]">
-              2AVendas · fluxo comercial contínuo
+              2AVendas · CRM para representantes comerciais
             </p>
           </div>
         </footer>

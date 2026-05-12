@@ -16,6 +16,7 @@ import { Route as LandingRouteImport } from './routes/landing'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AuthenticatedRouteImport } from './routes/_authenticated'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as BillingUnlockRouteImport } from './routes/billing.unlock'
 import { Route as AuthenticatedVisitasRouteImport } from './routes/_authenticated.visitas'
 import { Route as AuthenticatedVendedoresRouteImport } from './routes/_authenticated.vendedores'
 import { Route as AuthenticatedPortalRouteImport } from './routes/_authenticated.portal'
@@ -25,6 +26,7 @@ import { Route as AuthenticatedFunilRouteImport } from './routes/_authenticated.
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated.dashboard'
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated.clientes'
 import { Route as AuthenticatedCatalogoRouteImport } from './routes/_authenticated.catalogo'
+import { Route as AuthenticatedAssinaturaRouteImport } from './routes/_authenticated.assinatura'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -58,6 +60,11 @@ const AuthenticatedRoute = AuthenticatedRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BillingUnlockRoute = BillingUnlockRouteImport.update({
+  id: '/billing/unlock',
+  path: '/billing/unlock',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedVisitasRoute = AuthenticatedVisitasRouteImport.update({
@@ -105,6 +112,11 @@ const AuthenticatedCatalogoRoute = AuthenticatedCatalogoRouteImport.update({
   path: '/catalogo',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedAssinaturaRoute = AuthenticatedAssinaturaRouteImport.update({
+  id: '/assinatura',
+  path: '/assinatura',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -113,6 +125,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/assinatura': typeof AuthenticatedAssinaturaRoute
   '/catalogo': typeof AuthenticatedCatalogoRoute
   '/clientes': typeof AuthenticatedClientesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -122,6 +135,7 @@ export interface FileRoutesByFullPath {
   '/portal': typeof AuthenticatedPortalRoute
   '/vendedores': typeof AuthenticatedVendedoresRoute
   '/visitas': typeof AuthenticatedVisitasRoute
+  '/billing/unlock': typeof BillingUnlockRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -130,6 +144,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/assinatura': typeof AuthenticatedAssinaturaRoute
   '/catalogo': typeof AuthenticatedCatalogoRoute
   '/clientes': typeof AuthenticatedClientesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
@@ -139,6 +154,7 @@ export interface FileRoutesByTo {
   '/portal': typeof AuthenticatedPortalRoute
   '/vendedores': typeof AuthenticatedVendedoresRoute
   '/visitas': typeof AuthenticatedVisitasRoute
+  '/billing/unlock': typeof BillingUnlockRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -149,6 +165,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/reset-password': typeof ResetPasswordRoute
   '/signup': typeof SignupRoute
+  '/_authenticated/assinatura': typeof AuthenticatedAssinaturaRoute
   '/_authenticated/catalogo': typeof AuthenticatedCatalogoRoute
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
@@ -158,6 +175,7 @@ export interface FileRoutesById {
   '/_authenticated/portal': typeof AuthenticatedPortalRoute
   '/_authenticated/vendedores': typeof AuthenticatedVendedoresRoute
   '/_authenticated/visitas': typeof AuthenticatedVisitasRoute
+  '/billing/unlock': typeof BillingUnlockRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -168,6 +186,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/signup'
+    | '/assinatura'
     | '/catalogo'
     | '/clientes'
     | '/dashboard'
@@ -177,6 +196,7 @@ export interface FileRouteTypes {
     | '/portal'
     | '/vendedores'
     | '/visitas'
+    | '/billing/unlock'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -185,6 +205,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/signup'
+    | '/assinatura'
     | '/catalogo'
     | '/clientes'
     | '/dashboard'
@@ -194,6 +215,7 @@ export interface FileRouteTypes {
     | '/portal'
     | '/vendedores'
     | '/visitas'
+    | '/billing/unlock'
   id:
     | '__root__'
     | '/'
@@ -203,6 +225,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/reset-password'
     | '/signup'
+    | '/_authenticated/assinatura'
     | '/_authenticated/catalogo'
     | '/_authenticated/clientes'
     | '/_authenticated/dashboard'
@@ -212,6 +235,7 @@ export interface FileRouteTypes {
     | '/_authenticated/portal'
     | '/_authenticated/vendedores'
     | '/_authenticated/visitas'
+    | '/billing/unlock'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -222,6 +246,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
+  BillingUnlockRoute: typeof BillingUnlockRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -273,6 +298,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/billing/unlock': {
+      id: '/billing/unlock'
+      path: '/billing/unlock'
+      fullPath: '/billing/unlock'
+      preLoaderRoute: typeof BillingUnlockRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/visitas': {
@@ -338,10 +370,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCatalogoRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/assinatura': {
+      id: '/_authenticated/assinatura'
+      path: '/assinatura'
+      fullPath: '/assinatura'
+      preLoaderRoute: typeof AuthenticatedAssinaturaRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
 
 interface AuthenticatedRouteChildren {
+  AuthenticatedAssinaturaRoute: typeof AuthenticatedAssinaturaRoute
   AuthenticatedCatalogoRoute: typeof AuthenticatedCatalogoRoute
   AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
@@ -354,6 +394,7 @@ interface AuthenticatedRouteChildren {
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
+  AuthenticatedAssinaturaRoute: AuthenticatedAssinaturaRoute,
   AuthenticatedCatalogoRoute: AuthenticatedCatalogoRoute,
   AuthenticatedClientesRoute: AuthenticatedClientesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
@@ -377,6 +418,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
+  BillingUnlockRoute: BillingUnlockRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

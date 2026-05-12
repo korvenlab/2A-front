@@ -10,13 +10,13 @@ const PAUSE_START_MS = 400;
 
 /** Somente 2AVendas — sem referências a outros produtos. */
 const PHRASES = [
-  "Distribua funil e oportunidades entre a equipe externa…",
-  "Gere um orçamento com itens do catálogo para enviar ao cliente…",
-  "Registre uma visita comercial e ligue ao pipeline…",
-  "Acompanhe NF-e e status dos pedidos por cliente ou vendedor…",
-  "Configure comissões por organização e convites com percentual padrão…",
-  "Veja eventos de outreach e próximos follow-ups…",
-  "Ative o portal: cliente monta pedido pelo link e você vê no painel.",
+  "Monte o funil de vendas da minha equipe de representantes…",
+  "Quero o portal com link para o cliente fechar pedido no catálogo B2B…",
+  "Centralize pedidos e comissões dos vendedores da representação…",
+  "Ative WhatsApp direto do pedido para falar com o cliente B2B…",
+  "Organize o catálogo para o time externo vender com o mesmo preço…",
+  "Acompanhe oportunidades no funil até virar pedido faturado…",
+  "Convide vendedores e defina permissões da gestão de equipe…",
 ];
 
 type Props = {
