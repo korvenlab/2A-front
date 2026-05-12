@@ -12,6 +12,12 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import {
+  clearPendingPromoCode,
+  persistPendingPromoCode,
+  redeemTwoAvendasPromo,
+  resolvePromoCodeFromSearch,
+} from "@/lib/billing-redeem-promo";
 
 const REMEMBER_KEY = "2avendas.rememberedEmail";
 
@@ -19,9 +25,15 @@ const loginInputClass =
   "login-input-clean mt-1.5 h-11 rounded-xl px-3 text-sm font-normal text-[#003366] placeholder:text-[#9CA3AF] focus-visible:ring-0";
 
 export const Route = createFileRoute("/login")({
-  validateSearch: (search: Record<string, unknown>): { redirect?: string; invite?: string } => ({
+  validateSearch: (search: Record<string, unknown>): {
+    redirect?: string;
+    invite?: string;
+    two_avendas_promo?: string;
+  } => ({
     redirect: (search.redirect as string) || undefined,
     invite: typeof search.invite === "string" ? search.invite : undefined,
+    two_avendas_promo:
+      typeof search.two_avendas_promo === "string" ? search.two_avendas_promo : undefined,
   }),
   head: () => ({
     meta: [
@@ -70,19 +82,46 @@ function LoginPage() {
   }, []);
 
   useEffect(() => {
+    const p = search.two_avendas_promo?.trim();
+    if (p) persistPendingPromoCode(p);
+  }, [search.two_avendas_promo]);
+
+  useEffect(() => {
     if (loading || !isAuthenticated) return;
-    const r = search.redirect?.trim();
-    if (r?.startsWith("/")) {
-      window.location.replace(r);
-      return;
-    }
-    const inv = inviteTokenFromLoginSearch(search);
-    if (!inv) {
-      navigate({ to: "/dashboard" });
-      return;
-    }
     let cancelled = false;
-    void supabase.rpc("peek_invite_purpose", { p_token: inv }).then(({ data, error }) => {
+    void (async () => {
+      const promo = resolvePromoCodeFromSearch(search)?.trim();
+      if (promo) {
+        clearPendingPromoCode();
+        const api = import.meta.env.VITE_API_URL?.trim();
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess.session?.access_token;
+        if (api && token) {
+          try {
+            await redeemTwoAvendasPromo(api, token, promo);
+            if (!cancelled) toast.success("Acesso promocional aplicado.");
+          } catch (e) {
+            if (!cancelled) {
+              toast.error(e instanceof Error ? e.message : "Não foi possível aplicar o código promocional.");
+            }
+          }
+        } else if (!cancelled) {
+          toast.error("Não foi possível aplicar o código (API ou sessão indisponível).");
+        }
+      }
+
+      if (cancelled) return;
+      const r = search.redirect?.trim();
+      if (r?.startsWith("/")) {
+        window.location.replace(r);
+        return;
+      }
+      const inv = inviteTokenFromLoginSearch(search);
+      if (!inv) {
+        navigate({ to: "/dashboard" });
+        return;
+      }
+      const { data, error } = await supabase.rpc("peek_invite_purpose", { p_token: inv });
       if (cancelled) return;
       if (error || !data?.length) {
         navigate({ to: "/dashboard" });
@@ -94,11 +133,11 @@ function LoginPage() {
         return;
       }
       navigate({ to: "/dashboard" });
-    });
+    })();
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated, loading, navigate, search.redirect, search.invite]);
+  }, [isAuthenticated, loading, navigate, search.redirect, search.invite, search.two_avendas_promo]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -225,7 +264,12 @@ function LoginPage() {
                   Primeiro acesso?{" "}
                   <Link
                     to="/signup"
-                    search={{ invite: inviteToken }}
+                    search={{
+                      invite: inviteToken,
+                      ...(search.two_avendas_promo?.trim()
+                        ? { two_avendas_promo: search.two_avendas_promo.trim() }
+                        : {}),
+                    }}
                     className="font-medium text-[#007AFF] underline-offset-2 hover:underline"
                   >
                     Criar conta com o convite
@@ -234,7 +278,15 @@ function LoginPage() {
               ) : (
                 <>
                   Ainda não tem conta?{" "}
-                  <Link to="/signup" className="font-medium text-[#007AFF] underline-offset-2 hover:underline">
+                  <Link
+                    to="/signup"
+                    search={
+                      search.two_avendas_promo?.trim()
+                        ? { two_avendas_promo: search.two_avendas_promo.trim() }
+                        : undefined
+                    }
+                    className="font-medium text-[#007AFF] underline-offset-2 hover:underline"
+                  >
                     Cadastre sua representação
                   </Link>
                 </>

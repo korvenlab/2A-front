@@ -3,7 +3,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { userFacingAuthError } from "@/lib/supabase-user-error";
+import { persistPendingPromoCode } from "@/lib/billing-redeem-promo";
 import { useAuth } from "@/lib/auth-context";
 import { LoginCarousel } from "@/components/auth/LoginCarousel";
 import { Logo } from "@/components/Logo";
@@ -18,6 +18,8 @@ const signupInputClass =
 export const Route = createFileRoute("/signup")({
   validateSearch: (search: Record<string, unknown>) => ({
     invite: typeof search.invite === "string" ? search.invite : undefined,
+    two_avendas_promo:
+      typeof search.two_avendas_promo === "string" ? search.two_avendas_promo : undefined,
   }),
   head: () => ({
     meta: [
@@ -52,6 +54,11 @@ function SignupPage() {
   const [submitting, setSubmitting] = useState(false);
   const [invitePurpose, setInvitePurpose] = useState<"client_catalog" | "seller_signup" | null>(null);
   const [invitePeekLoading, setInvitePeekLoading] = useState(false);
+
+  useEffect(() => {
+    const p = search.two_avendas_promo?.trim();
+    if (p) persistPendingPromoCode(p);
+  }, [search.two_avendas_promo]);
 
   /** Cliente com conta que abre o link de cadastro: vai direto ao portal para aceitar o convite e vincular a representação. */
   useEffect(() => {
@@ -388,7 +395,16 @@ function SignupPage() {
               Já tem conta?{" "}
               <Link
                 to="/login"
-                search={hasInvite ? { invite: search.invite } : undefined}
+                search={
+                  hasInvite || search.two_avendas_promo?.trim()
+                    ? {
+                        ...(hasInvite && search.invite ? { invite: search.invite } : {}),
+                        ...(search.two_avendas_promo?.trim()
+                          ? { two_avendas_promo: search.two_avendas_promo.trim() }
+                          : {}),
+                      }
+                    : undefined
+                }
                 className="font-semibold text-[#007AFF] underline-offset-2 hover:underline"
               >
                 Entrar
