@@ -50,6 +50,17 @@ export function defaultBillingFlags(): BillingFlags {
   };
 }
 
+/** Quando o GET /api/session/menu falha: admin/vendedor não devem operar sem confirmação do servidor. */
+export function staffBillingLockedFlags(): BillingFlags {
+  return {
+    required: true,
+    satisfied: false,
+    stripe_active: false,
+    manual_unlock: false,
+    user_stripe_paid: false,
+  };
+}
+
 export function emptyMenu(): MenuFlags {
   return {
     dashboard: false,

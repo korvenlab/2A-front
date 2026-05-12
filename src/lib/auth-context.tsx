@@ -8,6 +8,7 @@ import {
   emptyMenu,
   fallbackMenuFromRole,
   fetchSessionMenu,
+  staffBillingLockedFlags,
   type BillingFlags,
   type MenuFlags,
 } from "@/lib/session-menu";
@@ -72,14 +73,18 @@ async function resolveMenu(accessToken: string | null | undefined, currentRole: 
   if (!accessToken) return { menu: emptyMenu(), billing: defaultBillingFlags() };
   const fetched = await fetchSessionMenu(accessToken);
   if (!fetched) {
+    if (currentRole === "admin" || currentRole === "vendedor") {
+      return { menu: emptyMenu(), billing: staffBillingLockedFlags() };
+    }
     return {
       menu: fallbackMenuFromRole(currentRole),
       billing: defaultBillingFlags(),
     };
   }
   let menu = fetched.menu;
-  /** Reforço: API antiga ou matriz sem sellers:view não pode esconder gestão de equipe do admin. */
-  if (currentRole === "admin") {
+  /** Reforço: API antiga sem sellers:view — só quando billing já permite operar (evita abrir /vendedores sem pagamento). */
+  const billingOk = !fetched.billing.required || fetched.billing.satisfied;
+  if (currentRole === "admin" && billingOk) {
     menu = { ...menu, vendedores: menu.vendedores || true };
   }
   return { menu, billing: fetched.billing };
