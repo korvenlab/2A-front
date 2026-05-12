@@ -265,23 +265,68 @@ function AuthLayout() {
     }
   }, [role, clientOrgs, validClientOrgSelectValue]);
 
-  const clientePortalBrandName = useMemo(() => {
+  /**
+   * Abaixo do logo (cliente): nome da empresa no cadastro (`organization_client` / razão social / nome).
+   * Fallback: representação do portal (URL ou org selecionada) ou `organizations.name` da sessão.
+   * Deixa de depender só de estar em `/portal` — assim o menu mostra o nome em qualquer rota do cliente.
+   */
+  const clienteSidebarBrandName = useMemo(() => {
     if (role !== "cliente") return null;
-    const m = pathname.match(/^\/p\/([^/]+)\/portal\/?$/);
-    if (m) {
-      const seg = decodeURIComponent(m[1]);
-      const o = clientOrgs.find((c) => c.slug === seg);
-      return o?.name?.trim() || null;
-    }
-    if (pathname === "/portal") {
-      return (
-        clientOrgs.find((c) => c.id === validClientOrgSelectValue)?.name?.trim() ||
-        clientOrgs[0]?.name?.trim() ||
-        null
-      );
-    }
-    return null;
-  }, [role, pathname, clientOrgs, validClientOrgSelectValue]);
+    const fromProfile =
+      profile?.organization_client?.trim() ||
+      profile?.organization_client_legal?.trim() ||
+      profile?.full_name?.trim() ||
+      "";
+    if (fromProfile) return fromProfile;
+
+    const repFromPortalPath = (): string | null => {
+      const m = pathname.match(/^\/p\/([^/]+)\/portal\/?$/);
+      if (m) {
+        const seg = decodeURIComponent(m[1]);
+        const o =
+          clientOrgs.find((c) => c.slug === seg) ||
+          clientOrgs.find((c) => c.slug.toLowerCase() === seg.toLowerCase());
+        return o?.name?.trim() || null;
+      }
+      if (pathname === "/portal") {
+        return (
+          clientOrgs.find((c) => c.id === validClientOrgSelectValue)?.name?.trim() ||
+          clientOrgs[0]?.name?.trim() ||
+          null
+        );
+      }
+      return null;
+    };
+
+    return (
+      repFromPortalPath() ||
+      clientOrgs.find((c) => c.id === validClientOrgSelectValue)?.name?.trim() ||
+      clientOrgs[0]?.name?.trim() ||
+      organization?.name?.trim() ||
+      null
+    );
+  }, [
+    role,
+    profile?.organization_client,
+    profile?.organization_client_legal,
+    profile?.full_name,
+    pathname,
+    clientOrgs,
+    validClientOrgSelectValue,
+    organization?.name,
+  ]);
+
+  /** Admin/vendedor: empresa da representação cadastrada no registro (perfil ou tenant `organizations`). */
+  const staffSidebarBrandName = useMemo(() => {
+    if (role !== "admin" && role !== "vendedor") return null;
+    return (
+      profile?.organization_staff?.trim() ||
+      organization?.name?.trim() ||
+      null
+    );
+  }, [role, profile?.organization_staff, organization?.name]);
+
+  const sidebarSubtitleBelowLogo = staffSidebarBrandName ?? clienteSidebarBrandName;
 
   const onClientOrgChange = (nextId: string) => {
     if (!nextId) return;
@@ -374,9 +419,9 @@ function AuthLayout() {
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
               <Logo />
-              {clientePortalBrandName ? (
+              {sidebarSubtitleBelowLogo ? (
                 <p className="mt-2 text-xs font-medium text-muted-foreground leading-snug line-clamp-3 border-l-2 border-primary/35 pl-2.5">
-                  {clientePortalBrandName}
+                  {sidebarSubtitleBelowLogo}
                 </p>
               ) : null}
             </div>
@@ -384,7 +429,7 @@ function AuthLayout() {
               <StaffNotificationCenter organizationId={organization.id} role={role} userId={user.id} />
             ) : null}
           </div>
-          {organization && (
+          {organization && role === "cliente" && (
             <p className="mt-3 text-xs text-muted-foreground truncate">{organization.name}</p>
           )}
           {role === "cliente" && (
@@ -474,9 +519,9 @@ function AuthLayout() {
             <div className="flex min-w-0 flex-1 items-center gap-1">
               <div className="min-w-0 shrink">
                 <Logo />
-                {clientePortalBrandName ? (
+                {sidebarSubtitleBelowLogo ? (
                   <p className="mt-1 max-w-[200px] text-[10px] font-medium leading-tight text-muted-foreground line-clamp-2">
-                    {clientePortalBrandName}
+                    {sidebarSubtitleBelowLogo}
                   </p>
                 ) : null}
               </div>
