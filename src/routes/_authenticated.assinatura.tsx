@@ -1,9 +1,9 @@
 import { createFileRoute, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { CreditCard, Loader2, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { supabase } from "@/integrations/supabase/client";
 import { firstAccessiblePath } from "@/lib/session-menu";
+import { buildStripePaymentLinkUrl } from "@/lib/stripe-payment-link";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -13,10 +13,9 @@ export const Route = createFileRoute("/_authenticated/assinatura")({
 });
 
 function AssinaturaPage() {
-  const { billing, menu, loading, refresh, role } = useAuth();
+  const { billing, menu, loading, refresh, role, organization } = useAuth();
   const navigate = useNavigate();
   const { location } = useRouterState();
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
 
   const search = new URLSearchParams(location.search);
   const checkoutStatus = search.get("checkout");
@@ -47,39 +46,18 @@ function AssinaturaPage() {
     }
   }, [checkoutStatus, refresh]);
 
-  const startCheckout = async () => {
-    const raw = import.meta.env.VITE_API_URL?.trim();
-    if (!raw) {
-      toast.error("Configure VITE_API_URL para iniciar o pagamento.");
+  const openStripePaymentLink = () => {
+    const orgId = organization?.id?.trim();
+    if (!orgId) {
+      toast.error("Organização não encontrada. Atualize a página ou entre de novo.");
       return;
     }
-    const base = raw.replace(/\/$/, "");
-    setCheckoutLoading(true);
-    try {
-      const { data: sess } = await supabase.auth.getSession();
-      const token = sess.session?.access_token;
-      if (!token) {
-        toast.error("Sessão expirada. Entre novamente.");
-        return;
-      }
-      const res = await fetch(`${base}/api/billing/checkout-session`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          Accept: "application/json",
-        },
-      });
-      const body = (await res.json()) as { ok?: boolean; data?: { url?: string }; error?: string; code?: string };
-      if (!res.ok || !body?.ok || !body.data?.url) {
-        toast.error(body?.error ?? "Não foi possível abrir o checkout.");
-        return;
-      }
-      window.location.href = body.data.url;
-    } catch {
-      toast.error("Falha de rede ao falar com o servidor.");
-    } finally {
-      setCheckoutLoading(false);
+    const url = buildStripePaymentLinkUrl(orgId);
+    if (!url) {
+      toast.error("Não foi possível montar o link de pagamento.");
+      return;
     }
+    window.location.assign(url);
   };
 
   if (loading) {
@@ -138,18 +116,8 @@ function AssinaturaPage() {
 
       {role === "admin" ? (
         <div className="space-y-3">
-          <Button
-            type="button"
-            className="w-full gap-2"
-            size="lg"
-            disabled={checkoutLoading}
-            onClick={() => void startCheckout()}
-          >
-            {checkoutLoading ? (
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-            ) : (
-              <CreditCard className="h-4 w-4" aria-hidden />
-            )}
+          <Button type="button" className="w-full gap-2" size="lg" onClick={openStripePaymentLink}>
+            <CreditCard className="h-4 w-4" aria-hidden />
             Pagar com Stripe
           </Button>
           <p className="text-xs text-muted-foreground text-center">
