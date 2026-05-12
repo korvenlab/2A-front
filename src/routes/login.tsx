@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -63,11 +63,66 @@ function inviteTokenFromLoginSearch(search: { invite?: string; redirect?: string
 
 type InvitePurposePeek = { purpose: string };
 
+type PromoApplyResult =
+  | { status: "no_promo" }
+  | { status: "ok" }
+  | { status: "config"; detail: "no_api" | "no_token" }
+  | { status: "redeem_failed"; message: string };
+
+async function tryRedeemLoginPromo(
+  api: string | undefined,
+  accessToken: string | null | undefined,
+  search: { two_avendas_promo?: string },
+): Promise<PromoApplyResult> {
+  const promo = resolvePromoCodeFromSearch(search)?.trim();
+  if (!promo) return { status: "no_promo" };
+  const base = api?.trim();
+  if (!base) return { status: "config", detail: "no_api" };
+  const tok = accessToken?.trim();
+  if (!tok) return { status: "config", detail: "no_token" };
+  try {
+    await redeemTwoAvendasPromo(base, tok, promo);
+    clearPendingPromoCode();
+    return { status: "ok" };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return { status: "redeem_failed", message };
+  }
+}
+
+async function postLoginNavigation(
+  navigate: ReturnType<typeof useNavigate>,
+  search: { redirect?: string; invite?: string },
+) {
+  const r = search.redirect?.trim();
+  if (r?.startsWith("/")) {
+    window.location.replace(r);
+    return;
+  }
+  const inv = inviteTokenFromLoginSearch(search);
+  if (!inv) {
+    navigate({ to: "/dashboard", replace: true });
+    return;
+  }
+  const { data, error } = await supabase.rpc("peek_invite_purpose", { p_token: inv });
+  if (error || !data?.length) {
+    navigate({ to: "/dashboard", replace: true });
+    return;
+  }
+  const purpose = (data as InvitePurposePeek[])[0]?.purpose;
+  if (purpose === "client_catalog") {
+    window.location.replace(`/portal?invite=${encodeURIComponent(inv)}`);
+    return;
+  }
+  navigate({ to: "/dashboard", replace: true });
+}
+
 function LoginPage() {
   const { isAuthenticated, loading } = useAuth();
   const navigate = useNavigate();
   const search = Route.useSearch();
   const inviteToken = inviteTokenFromLoginSearch(search);
+  const skipAuthenticatedPostLogin = useRef(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPwd, setShowPwd] = useState(false);
@@ -88,51 +143,35 @@ function LoginPage() {
 
   useEffect(() => {
     if (loading || !isAuthenticated) return;
+    if (skipAuthenticatedPostLogin.current) {
+      skipAuthenticatedPostLogin.current = false;
+      return;
+    }
     let cancelled = false;
     void (async () => {
-      const promo = resolvePromoCodeFromSearch(search)?.trim();
-      if (promo) {
-        clearPendingPromoCode();
-        const api = import.meta.env.VITE_API_URL?.trim();
-        const { data: sess } = await supabase.auth.getSession();
-        const token = sess.session?.access_token;
-        if (api && token) {
-          try {
-            await redeemTwoAvendasPromo(api, token, promo);
-            if (!cancelled) toast.success("Acesso promocional aplicado.");
-          } catch (e) {
-            if (!cancelled) {
-              toast.error(e instanceof Error ? e.message : "Não foi possível aplicar o código promocional.");
-            }
+      const api = import.meta.env.VITE_API_URL?.trim();
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token ?? null;
+      const promoResult = await tryRedeemLoginPromo(api, token, search);
+      if (cancelled) return;
+      if (promoResult.status === "config") {
+        if (resolvePromoCodeFromSearch(search)?.trim()) {
+          if (promoResult.detail === "no_api") {
+            toast.error(
+              "Não foi possível aplicar o código: o site não tem VITE_API_URL (URL da API). Configure na Vercel e faça redeploy.",
+            );
+          } else {
+            toast.error("Sessão indisponível para aplicar o código. Recarregue a página e entre de novo.");
           }
-        } else if (!cancelled) {
-          toast.error("Não foi possível aplicar o código (API ou sessão indisponível).");
         }
+      } else if (promoResult.status === "redeem_failed") {
+        toast.error(promoResult.message);
+      } else if (promoResult.status === "ok") {
+        toast.success("Acesso promocional aplicado.");
       }
 
       if (cancelled) return;
-      const r = search.redirect?.trim();
-      if (r?.startsWith("/")) {
-        window.location.replace(r);
-        return;
-      }
-      const inv = inviteTokenFromLoginSearch(search);
-      if (!inv) {
-        navigate({ to: "/dashboard" });
-        return;
-      }
-      const { data, error } = await supabase.rpc("peek_invite_purpose", { p_token: inv });
-      if (cancelled) return;
-      if (error || !data?.length) {
-        navigate({ to: "/dashboard" });
-        return;
-      }
-      const purpose = (data as InvitePurposePeek[])[0]?.purpose;
-      if (purpose === "client_catalog") {
-        window.location.replace(`/portal?invite=${encodeURIComponent(inv)}`);
-        return;
-      }
-      navigate({ to: "/dashboard" });
+      await postLoginNavigation(navigate, search);
     })();
     return () => {
       cancelled = true;
@@ -147,18 +186,39 @@ function LoginPage() {
       return;
     }
     setSubmitting(true);
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data: signData, error } = await supabase.auth.signInWithPassword({
       email: parsed.data.email,
       password: parsed.data.password,
     });
-    setSubmitting(false);
     if (error) {
+      setSubmitting(false);
       toast.error(error.message === "Invalid login credentials" ? "E-mail ou senha incorretos" : error.message);
       return;
     }
+    const api = import.meta.env.VITE_API_URL?.trim();
+    const accessToken = signData.session?.access_token ?? null;
+    const promoResult = await tryRedeemLoginPromo(api, accessToken, search);
+    if (promoResult.status === "config" && resolvePromoCodeFromSearch(search)?.trim()) {
+      if (promoResult.detail === "no_api") {
+        toast.error(
+          "Não foi possível aplicar o código: o site não tem VITE_API_URL (URL da API). Configure na Vercel e faça redeploy.",
+        );
+      } else {
+        toast.error("Sessão indisponível para aplicar o código. Recarregue a página e tente de novo.");
+      }
+    } else if (promoResult.status === "redeem_failed") {
+      toast.error(promoResult.message);
+    } else if (promoResult.status === "ok") {
+      toast.success("Acesso promocional aplicado.");
+    }
+
     if (remember) localStorage.setItem(REMEMBER_KEY, parsed.data.email);
     else localStorage.removeItem(REMEMBER_KEY);
     toast.success("Bem-vindo de volta!");
+
+    skipAuthenticatedPostLogin.current = true;
+    await postLoginNavigation(navigate, search);
+    setSubmitting(false);
   };
 
   return (
