@@ -3,6 +3,7 @@ import { flushSync } from "react-dom";
 import type { Session, User } from "@supabase/supabase-js";
 import { Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { redeemPendingPromoBeforeMenuForStaff } from "@/lib/billing-redeem-promo";
 import {
   defaultBillingFlags,
   emptyMenu,
@@ -191,6 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await supabase.auth.getSession()
       ).data.session?.access_token ??
       null;
+    await redeemPendingPromoBeforeMenuForStaff(token, primary);
     const next = await resolveMenu(token, primary);
 
     if (seq !== loadUserDataSeqRef.current) return;

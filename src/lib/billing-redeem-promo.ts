@@ -53,6 +53,38 @@ export async function tryApplyPendingPromo(
   }
 }
 
+/**
+ * Executar **antes** do GET /api/session/menu no arranque da sessão.
+ * Evita corrida: menu sem cortesia → redirect para /assinatura antes do resgate no login terminar.
+ */
+export async function redeemPendingPromoBeforeMenuForStaff(
+  accessToken: string | null | undefined,
+  role: "admin" | "vendedor" | "cliente" | null,
+): Promise<void> {
+  if (role !== "admin" && role !== "vendedor") return;
+  const tok = accessToken?.trim();
+  if (!tok) return;
+  const api = import.meta.env.VITE_API_URL?.trim();
+  if (!api) return;
+
+  let code = peekPendingPromoCode();
+  if (!code && typeof window !== "undefined") {
+    try {
+      code = new URLSearchParams(window.location.search).get("two_avendas_promo")?.trim() || null;
+    } catch {
+      /* ignore */
+    }
+  }
+  if (!code) return;
+
+  try {
+    await redeemTwoAvendasPromo(api, tok, code);
+    clearPendingPromoCode();
+  } catch {
+    /* Rede ou código inválido; o menu ainda pode mostrar cortesia já gravada no servidor. */
+  }
+}
+
 export async function redeemTwoAvendasPromo(apiBase: string, accessToken: string, code: string): Promise<void> {
   const base = apiBase.replace(/\/+$/, "");
   const res = await fetch(`${base}/api/billing/redeem-promo`, {
