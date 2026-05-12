@@ -8,6 +8,7 @@ import {
   resolvePromoCodeFromSearch,
   tryApplyPendingPromo,
 } from "@/lib/billing-redeem-promo";
+import { scopedPortalPathWithInvite } from "@/lib/portal-paths";
 import { useAuth } from "@/lib/auth-context";
 import { userFacingAuthError } from "@/lib/supabase-user-error";
 import { LoginCarousel } from "@/components/auth/LoginCarousel";
@@ -100,8 +101,9 @@ function SignupPage() {
         navigate({ to: "/dashboard" });
         return;
       }
-      if (invitePurpose === "client_catalog") {
-        window.location.replace(`/portal?invite=${encodeURIComponent(inviteToken)}`);
+      if (invitePurpose === "client_catalog" && inviteToken) {
+        const path = await scopedPortalPathWithInvite(inviteToken);
+        window.location.replace(path);
         return;
       }
       navigate({ to: "/dashboard" });

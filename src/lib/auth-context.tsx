@@ -134,6 +134,10 @@ async function resolveMenu(
   if (currentRole === "admin" && billingOk) {
     menu = { ...menu, vendedores: menu.vendedores || true };
   }
+  /** Portal B2B é só para cliente; a API pode expor `portal` para staff por engano. */
+  if (currentRole === "admin" || currentRole === "vendedor") {
+    menu = { ...menu, portal: false };
+  }
   return { menu, billing };
 }
 
@@ -254,8 +258,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
       if (newSession?.user) {
+        /** Após login, `role`/`menu` ainda não existem até `loadUserData` terminar; sem isto o layout autenticado redireciona a /portal por `!role` antes do perfil carregar. */
+        const holdUiUntilProfile = event === "SIGNED_IN";
+        if (holdUiUntilProfile) setLoading(true);
         setTimeout(() => {
-          void loadUserData(newSession.user.id, newSession.access_token);
+          void loadUserData(newSession.user.id, newSession.access_token).finally(() => {
+            if (holdUiUntilProfile) setLoading(false);
+          });
         }, 0);
       } else {
         setProfile(null);
@@ -263,6 +272,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRole(null);
         setMenu(emptyMenu());
         setBilling(defaultBillingFlags());
+        setLoading(false);
       }
     });
 

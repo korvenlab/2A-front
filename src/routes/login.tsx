@@ -17,6 +17,7 @@ import {
   resolvePromoCodeFromSearch,
   tryApplyPendingPromo,
 } from "@/lib/billing-redeem-promo";
+import { scopedPortalPathWithInvite } from "@/lib/portal-paths";
 
 const REMEMBER_KEY = "2avendas.rememberedEmail";
 
@@ -83,7 +84,8 @@ async function postLoginNavigation(
   }
   const purpose = (data as InvitePurposePeek[])[0]?.purpose;
   if (purpose === "client_catalog") {
-    window.location.replace(`/portal?invite=${encodeURIComponent(inv)}`);
+    const path = await scopedPortalPathWithInvite(inv);
+    window.location.replace(path);
     return;
   }
   navigate({ to: "/dashboard", replace: true });

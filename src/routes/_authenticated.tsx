@@ -12,7 +12,8 @@ import { StaffNotificationCenter } from "@/components/StaffNotificationCenter";
 import { Button } from "@/components/ui/button";
 import { GlobalSearchDialog } from "@/components/GlobalSearchDialog";
 import { supabase } from "@/integrations/supabase/client";
-import { staffBillingAccessUnlocked } from "@/lib/session-menu";
+import { firstAccessiblePath, staffBillingAccessUnlocked } from "@/lib/session-menu";
+import { persistPortalOrgContext, PORTAL_ORG_SLUG_STORAGE_KEY } from "@/lib/portal-paths";
 import {
   Select,
   SelectContent,
@@ -45,9 +46,10 @@ type NavEntry = {
   label: string;
   icon: typeof LayoutDashboard;
   highlight?: boolean;
+  params?: { orgSlug: string };
 };
 
-type ClientOrg = { id: string; name: string };
+type ClientOrg = { id: string; name: string; slug: string };
 const PORTAL_ORG_STORAGE_KEY = "2avendas.portalOrgId";
 
 /** Evita resgate duplicado (StrictMode / re-renders) para o mesmo utilizador+código. */
@@ -126,20 +128,27 @@ function AuthLayout() {
       });
       return;
     }
-    if (!menu.dashboard && menu.portal && pathname.startsWith("/dashboard")) {
-      navigate({ to: "/portal" });
-      return;
+  }, [isAuthenticated, loading, signingOut, navigate, pathname, searchStr]);
+
+  /** `/portal` e `/p/{slug}/portal` são o painel B2B do cliente; staff nunca acede aqui. */
+  useEffect(() => {
+    if (loading || !isAuthenticated || signingOut) return;
+    if (role !== "admin" && role !== "vendedor") return;
+    const onClientePortal =
+      pathname === "/portal" || /^\/p\/[^/]+\/portal\/?$/.test(pathname);
+    if (onClientePortal) {
+      navigate({ to: "/dashboard", replace: true });
     }
-    if (!role) {
-      navigate({ to: "/portal" });
-    }
-  }, [isAuthenticated, loading, signingOut, menu.dashboard, menu.portal, navigate, pathname, searchStr]);
+  }, [loading, isAuthenticated, signingOut, role, pathname, navigate]);
 
   useEffect(() => {
     if (loading) return;
     if (!isAuthenticated || signingOut) return;
     const staff = role === "admin" || role === "vendedor";
     if (!staff) return;
+    const onClientePortal =
+      pathname === "/portal" || /^\/p\/[^/]+\/portal\/?$/.test(pathname);
+    if (onClientePortal) return;
     if (!billing.required || staffBillingAccessUnlocked(billing)) return;
     if (pathname.startsWith("/assinatura")) return;
     navigate({ to: "/assinatura", replace: true });
@@ -173,11 +182,15 @@ function AuthLayout() {
         }
         const { data: orgRows, error: orgErr } = await supabase
           .from("organizations")
-          .select("id,name")
+          .select("id,name,slug")
           .in("id", orgIds);
         if (orgErr) throw orgErr;
         if (cancelled) return;
-        setClientOrgs(((orgRows ?? []) as ClientOrg[]).sort((a, b) => a.name.localeCompare(b.name, "pt-BR")));
+        setClientOrgs(
+          ((orgRows ?? []) as ClientOrg[])
+            .map((o) => ({ ...o, slug: (o.slug ?? "").trim() }))
+            .sort((a, b) => a.name.localeCompare(b.name, "pt-BR")),
+        );
       } catch (e) {
         if (!cancelled && import.meta.env.DEV) {
           console.warn("[sidebar][cliente] failed to fetch client orgs", e);
@@ -212,15 +225,77 @@ function AuthLayout() {
       ? selectedClientOrgId
       : (clientOrgs[0]?.id ?? "");
 
+  useEffect(() => {
+    if (loading) return;
+    if (!isAuthenticated || signingOut) return;
+    if (!menu.dashboard && menu.portal && pathname.startsWith("/dashboard")) {
+      const row = clientOrgs.find((o) => o.id === validClientOrgSelectValue);
+      const slug = row?.slug?.trim();
+      if (slug) {
+        navigate({ to: "/p/$orgSlug/portal", params: { orgSlug: slug }, replace: true });
+      } else {
+        navigate({ to: "/portal", replace: true });
+      }
+      return;
+    }
+    if (!role) {
+      const dest = firstAccessiblePath(menu);
+      if (dest) navigate({ to: dest, replace: true });
+    }
+  }, [
+    loading,
+    isAuthenticated,
+    signingOut,
+    menu.dashboard,
+    menu.portal,
+    menu,
+    navigate,
+    pathname,
+    role,
+    clientOrgs,
+    validClientOrgSelectValue,
+  ]);
+
+  useEffect(() => {
+    if (role !== "cliente") return;
+    const row = clientOrgs.find((o) => o.id === validClientOrgSelectValue);
+    const s = row?.slug?.trim();
+    if (s && typeof window !== "undefined") {
+      sessionStorage.setItem(PORTAL_ORG_SLUG_STORAGE_KEY, s);
+    }
+  }, [role, clientOrgs, validClientOrgSelectValue]);
+
+  const clientePortalBrandName = useMemo(() => {
+    if (role !== "cliente") return null;
+    const m = pathname.match(/^\/p\/([^/]+)\/portal\/?$/);
+    if (m) {
+      const seg = decodeURIComponent(m[1]);
+      const o = clientOrgs.find((c) => c.slug === seg);
+      return o?.name?.trim() || null;
+    }
+    if (pathname === "/portal") {
+      return (
+        clientOrgs.find((c) => c.id === validClientOrgSelectValue)?.name?.trim() ||
+        clientOrgs[0]?.name?.trim() ||
+        null
+      );
+    }
+    return null;
+  }, [role, pathname, clientOrgs, validClientOrgSelectValue]);
+
   const onClientOrgChange = (nextId: string) => {
     if (!nextId) return;
     sessionStorage.setItem(PORTAL_ORG_STORAGE_KEY, nextId);
     setClientPinnedOrgId(nextId);
+    const row = clientOrgs.find((o) => o.id === nextId);
+    const s = row?.slug?.trim();
+    if (s) persistPortalOrgContext(nextId, s);
     if (typeof window !== "undefined" && window.location.search.includes("invite=")) {
       window.history.replaceState({}, "", `${window.location.pathname}${window.location.hash}`);
     }
     window.dispatchEvent(new Event("portal-org-changed"));
-    if (pathname !== "/portal") navigate({ to: "/portal", replace: true });
+    if (s) navigate({ to: "/p/$orgSlug/portal", params: { orgSlug: s }, replace: true });
+    else navigate({ to: "/portal", replace: true });
   };
 
   const navItems = useMemo(() => {
@@ -260,10 +335,28 @@ function AuthLayout() {
       }
     }
     if (menu.catalogo) items.push({ to: "/catalogo", label: "Catálogo", icon: Package });
-    if (menu.portal) items.push({ to: "/portal", label: "Portal de Compras", icon: Store });
+    if (menu.portal && role === "cliente") {
+      const slug = clientOrgs.find((o) => o.id === validClientOrgSelectValue)?.slug?.trim();
+      if (slug) {
+        items.push({
+          to: "/p/$orgSlug/portal",
+          label: "Portal de Compras",
+          icon: Store,
+          params: { orgSlug: slug },
+        });
+      } else {
+        items.push({ to: "/portal", label: "Portal de Compras", icon: Store });
+      }
+    }
     if (vendedoresEntry) items.push(vendedoresEntry);
     return items;
-  }, [menu, role, billing]);
+  }, [menu, role, billing, clientOrgs, validClientOrgSelectValue]);
+
+  const navLinkActive = (it: NavEntry) => {
+    if (pathname === it.to) return true;
+    if (it.params?.orgSlug) return pathname === `/p/${it.params.orgSlug}/portal`;
+    return false;
+  };
 
   if (loading || !isAuthenticated) {
     return (
@@ -281,6 +374,11 @@ function AuthLayout() {
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
               <Logo />
+              {clientePortalBrandName ? (
+                <p className="mt-2 text-xs font-medium text-muted-foreground leading-snug line-clamp-3 border-l-2 border-primary/35 pl-2.5">
+                  {clientePortalBrandName}
+                </p>
+              ) : null}
             </div>
             {staffSearch && organization?.id && user?.id && (role === "admin" || role === "vendedor") ? (
               <StaffNotificationCenter organizationId={organization.id} role={role} userId={user.id} />
@@ -339,11 +437,12 @@ function AuthLayout() {
             </p>
           )}
           {navItems.map((it) => {
-            const active = pathname === it.to;
+            const active = navLinkActive(it);
             return (
               <Link
-                key={it.to}
+                key={`${it.to}-${it.params?.orgSlug ?? ""}`}
                 to={it.to}
+                params={it.params}
                 data-dashboard-nav-active={active ? "true" : undefined}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                   active
@@ -375,6 +474,11 @@ function AuthLayout() {
             <div className="flex min-w-0 flex-1 items-center gap-1">
               <div className="min-w-0 shrink">
                 <Logo />
+                {clientePortalBrandName ? (
+                  <p className="mt-1 max-w-[200px] text-[10px] font-medium leading-tight text-muted-foreground line-clamp-2">
+                    {clientePortalBrandName}
+                  </p>
+                ) : null}
               </div>
               {staffSearch && organization?.id && user?.id && (role === "admin" || role === "vendedor") ? (
                 <StaffNotificationCenter organizationId={organization.id} role={role} userId={user.id} />
@@ -394,11 +498,12 @@ function AuthLayout() {
           {navItems.length > 0 ? (
             <nav ref={mobileNavRef} className="flex gap-2 overflow-x-auto px-4 pb-3 scroll-smooth">
               {navItems.map((it) => {
-                const active = pathname === it.to;
+                const active = navLinkActive(it);
                 return (
                   <Link
-                    key={it.to}
+                    key={`${it.to}-${it.params?.orgSlug ?? ""}`}
                     to={it.to}
+                    params={it.params}
                     data-dashboard-nav-active={active ? "true" : undefined}
                     className={`shrink-0 rounded-full px-3 py-1.5 text-xs font-medium whitespace-nowrap ${
                       active

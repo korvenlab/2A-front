@@ -27,7 +27,8 @@ function AssinaturaPage() {
   useEffect(() => {
     if (loading) return;
     if (role !== "admin" && role !== "vendedor") {
-      navigate({ to: "/portal", replace: true });
+      const dest = firstAccessiblePath(menu) ?? "/dashboard";
+      navigate({ to: dest, replace: true });
       return;
     }
     if (!billing.required) {

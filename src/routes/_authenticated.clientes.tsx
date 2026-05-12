@@ -503,7 +503,18 @@ function CustomersPage() {
             : "Sua carteira de clientes da empresa. Cadastre empresas manualmente. O link de cadastro ao catálogo é único por empresa: o administrador ativa o convite uma vez; depois você copia aqui o mesmo link."
         }
         action={
-          <div className="flex flex-wrap items-center justify-end gap-2">
+          <div className="flex flex-col items-end gap-2">
+            {organization?.slug ? (
+              <p className="max-w-md text-right text-[11px] leading-snug text-muted-foreground">
+                Endereço do portal B2B desta representação:{" "}
+                <span className="font-mono text-foreground/90">
+                  {typeof window !== "undefined"
+                    ? `${window.location.origin}/p/${organization.slug}/portal`
+                    : `/p/${organization.slug}/portal`}
+                </span>
+              </p>
+            ) : null}
+            <div className="flex flex-wrap items-center justify-end gap-2">
             <Button
               disabled={inviteSaving}
               className="gap-2 shadow-sm"
@@ -663,6 +674,7 @@ function CustomersPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+            </div>
           </div>
         }
       />

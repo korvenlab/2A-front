@@ -15,9 +15,15 @@ export function inviteSignupUrl(token: string): string {
   return `${origin}/signup?invite=${encodeURIComponent(token)}`;
 }
 
-/** Cliente que já tem conta: login com redirect ao portal + aceite do convite. */
-export function invitePortalLoginUrl(token: string): string {
+/**
+ * Cliente que já tem conta: login com redirect ao portal + aceite do convite.
+ * `organizationSlug` = `organizations.slug` da representação (URL canónica `/p/{slug}/portal`).
+ */
+export function invitePortalLoginUrl(token: string, organizationSlug?: string | null): string {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const portalPath = `/portal?invite=${encodeURIComponent(token)}`;
+  const s = organizationSlug?.trim();
+  const portalPath = s
+    ? `/p/${encodeURIComponent(s)}/portal?invite=${encodeURIComponent(token)}`
+    : `/portal?invite=${encodeURIComponent(token)}`;
   return `${origin}/login?redirect=${encodeURIComponent(portalPath)}`;
 }

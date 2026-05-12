@@ -27,6 +27,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated.clientes'
 import { Route as AuthenticatedCatalogoRouteImport } from './routes/_authenticated.catalogo'
 import { Route as AuthenticatedAssinaturaRouteImport } from './routes/_authenticated.assinatura'
+import { Route as AuthenticatedPOrgSlugPortalRouteImport } from './routes/_authenticated.p.$orgSlug.portal'
 
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
@@ -117,6 +118,12 @@ const AuthenticatedAssinaturaRoute = AuthenticatedAssinaturaRouteImport.update({
   path: '/assinatura',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedPOrgSlugPortalRoute =
+  AuthenticatedPOrgSlugPortalRouteImport.update({
+    id: '/p/$orgSlug/portal',
+    path: '/p/$orgSlug/portal',
+    getParentRoute: () => AuthenticatedRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -136,6 +143,7 @@ export interface FileRoutesByFullPath {
   '/vendedores': typeof AuthenticatedVendedoresRoute
   '/visitas': typeof AuthenticatedVisitasRoute
   '/billing/unlock': typeof BillingUnlockRoute
+  '/p/$orgSlug/portal': typeof AuthenticatedPOrgSlugPortalRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -155,6 +163,7 @@ export interface FileRoutesByTo {
   '/vendedores': typeof AuthenticatedVendedoresRoute
   '/visitas': typeof AuthenticatedVisitasRoute
   '/billing/unlock': typeof BillingUnlockRoute
+  '/p/$orgSlug/portal': typeof AuthenticatedPOrgSlugPortalRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -176,6 +185,7 @@ export interface FileRoutesById {
   '/_authenticated/vendedores': typeof AuthenticatedVendedoresRoute
   '/_authenticated/visitas': typeof AuthenticatedVisitasRoute
   '/billing/unlock': typeof BillingUnlockRoute
+  '/_authenticated/p/$orgSlug/portal': typeof AuthenticatedPOrgSlugPortalRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -197,6 +207,7 @@ export interface FileRouteTypes {
     | '/vendedores'
     | '/visitas'
     | '/billing/unlock'
+    | '/p/$orgSlug/portal'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -216,6 +227,7 @@ export interface FileRouteTypes {
     | '/vendedores'
     | '/visitas'
     | '/billing/unlock'
+    | '/p/$orgSlug/portal'
   id:
     | '__root__'
     | '/'
@@ -236,6 +248,7 @@ export interface FileRouteTypes {
     | '/_authenticated/vendedores'
     | '/_authenticated/visitas'
     | '/billing/unlock'
+    | '/_authenticated/p/$orgSlug/portal'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -377,6 +390,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAssinaturaRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/p/$orgSlug/portal': {
+      id: '/_authenticated/p/$orgSlug/portal'
+      path: '/p/$orgSlug/portal'
+      fullPath: '/p/$orgSlug/portal'
+      preLoaderRoute: typeof AuthenticatedPOrgSlugPortalRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
   }
 }
 
@@ -391,6 +411,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedPortalRoute: typeof AuthenticatedPortalRoute
   AuthenticatedVendedoresRoute: typeof AuthenticatedVendedoresRoute
   AuthenticatedVisitasRoute: typeof AuthenticatedVisitasRoute
+  AuthenticatedPOrgSlugPortalRoute: typeof AuthenticatedPOrgSlugPortalRoute
 }
 
 const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
@@ -404,6 +425,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedPortalRoute: AuthenticatedPortalRoute,
   AuthenticatedVendedoresRoute: AuthenticatedVendedoresRoute,
   AuthenticatedVisitasRoute: AuthenticatedVisitasRoute,
+  AuthenticatedPOrgSlugPortalRoute: AuthenticatedPOrgSlugPortalRoute,
 }
 
 const AuthenticatedRouteWithChildren = AuthenticatedRoute._addFileChildren(
