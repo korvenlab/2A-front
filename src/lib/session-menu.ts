@@ -33,8 +33,11 @@ export type MenuKey = keyof MenuFlags;
 export interface BillingFlags {
   required: boolean;
   satisfied: boolean;
+  /** Assinatura Stripe a nível da organização (webhook legado ou checkout só com org). */
   stripe_active: boolean;
   manual_unlock: boolean;
+  /** Este usuário concluiu pagamento Stripe (referência org:user no checkout). */
+  user_stripe_paid: boolean;
 }
 
 export function defaultBillingFlags(): BillingFlags {
@@ -43,6 +46,7 @@ export function defaultBillingFlags(): BillingFlags {
     satisfied: true,
     stripe_active: false,
     manual_unlock: false,
+    user_stripe_paid: false,
   };
 }
 
@@ -152,6 +156,7 @@ export async function fetchSessionMenu(accessToken: string): Promise<SessionMenu
       satisfied: b?.satisfied !== false,
       stripe_active: !!b?.stripe_active,
       manual_unlock: !!b?.manual_unlock,
+      user_stripe_paid: !!b?.user_stripe_paid,
     };
     return { menu, billing };
   } catch {

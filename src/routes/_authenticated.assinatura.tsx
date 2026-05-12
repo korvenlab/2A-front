@@ -13,7 +13,7 @@ export const Route = createFileRoute("/_authenticated/assinatura")({
 });
 
 function AssinaturaPage() {
-  const { billing, menu, loading, refresh, role, organization } = useAuth();
+  const { billing, menu, loading, refresh, role, organization, user } = useAuth();
   const navigate = useNavigate();
   const { location } = useRouterState();
 
@@ -48,11 +48,16 @@ function AssinaturaPage() {
 
   const openStripePaymentLink = () => {
     const orgId = organization?.id?.trim();
+    const payerId = user?.id?.trim();
     if (!orgId) {
       toast.error("Organização não encontrada. Atualize a página ou entre de novo.");
       return;
     }
-    const url = buildStripePaymentLinkUrl(orgId);
+    if (!payerId) {
+      toast.error("Sessão sem usuário. Entre novamente.");
+      return;
+    }
+    const url = buildStripePaymentLinkUrl(orgId, payerId);
     if (!url) {
       toast.error("Não foi possível montar o link de pagamento.");
       return;
