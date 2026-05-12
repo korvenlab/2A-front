@@ -3,8 +3,13 @@ import { useEffect, useState, type FormEvent } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { persistPendingPromoCode } from "@/lib/billing-redeem-promo";
+import {
+  persistPendingPromoCode,
+  resolvePromoCodeFromSearch,
+  tryApplyPendingPromo,
+} from "@/lib/billing-redeem-promo";
 import { useAuth } from "@/lib/auth-context";
+import { userFacingAuthError } from "@/lib/supabase-user-error";
 import { LoginCarousel } from "@/components/auth/LoginCarousel";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
@@ -42,7 +47,7 @@ function SignupPage() {
   const search = Route.useSearch();
   const inviteToken = search.invite?.trim();
   const hasInvite = !!inviteToken;
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, refresh } = useAuth();
   const navigate = useNavigate();
   const [fullName, setFullName] = useState("");
   const [organizationName, setOrganizationName] = useState("");
@@ -60,19 +65,51 @@ function SignupPage() {
     if (p) persistPendingPromoCode(p);
   }, [search.two_avendas_promo]);
 
-  /** Cliente com conta que abre o link de cadastro: vai direto ao portal para aceitar o convite e vincular a representação. */
+  /** Após sessão ativa: aplica promo pendente (URL/sessionStorage) e redireciona como antes. */
   useEffect(() => {
     if (loading || !isAuthenticated) return;
-    if (!inviteToken) {
+    if (inviteToken && invitePeekLoading) return;
+
+    let cancelled = false;
+    void (async () => {
+      const api = import.meta.env.VITE_API_URL?.trim();
+      const { data: sess } = await supabase.auth.getSession();
+      const token = sess.session?.access_token ?? null;
+      const promoResult = await tryApplyPendingPromo(api, token, search);
+
+      if (cancelled) return;
+      if (promoResult.status === "config") {
+        if (resolvePromoCodeFromSearch(search)?.trim()) {
+          if (promoResult.detail === "no_api") {
+            toast.error(
+              "Não foi possível aplicar o código: o site não tem VITE_API_URL (URL da API). Configure na Vercel e faça redeploy.",
+            );
+          } else {
+            toast.error("Sessão indisponível para aplicar o código. Recarregue a página e entre de novo.");
+          }
+        }
+      } else if (promoResult.status === "redeem_failed") {
+        toast.error(promoResult.message);
+      } else if (promoResult.status === "ok") {
+        toast.success("Acesso promocional aplicado.");
+        await refresh();
+      }
+
+      if (cancelled) return;
+      if (!inviteToken) {
+        navigate({ to: "/dashboard" });
+        return;
+      }
+      if (invitePurpose === "client_catalog") {
+        window.location.replace(`/portal?invite=${encodeURIComponent(inviteToken)}`);
+        return;
+      }
       navigate({ to: "/dashboard" });
-      return;
-    }
-    if (invitePeekLoading) return;
-    if (invitePurpose === "client_catalog") {
-      window.location.replace(`/portal?invite=${encodeURIComponent(inviteToken)}`);
-      return;
-    }
-    navigate({ to: "/dashboard" });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     isAuthenticated,
     loading,
@@ -80,6 +117,8 @@ function SignupPage() {
     inviteToken,
     invitePurpose,
     invitePeekLoading,
+    search.two_avendas_promo,
+    refresh,
   ]);
 
   useEffect(() => {
@@ -179,12 +218,19 @@ function SignupPage() {
       meta.organization_name = r.data.organizationName.trim();
     }
 
+    const promoForEmailLink =
+      resolvePromoCodeFromSearch({ two_avendas_promo: search.two_avendas_promo })?.trim() ?? "";
+    const emailRedirectTo =
+      promoForEmailLink.length > 0
+        ? `${window.location.origin}/dashboard?two_avendas_promo=${encodeURIComponent(promoForEmailLink)}`
+        : `${window.location.origin}/dashboard`;
+
     setSubmitting(true);
-    const { error } = await supabase.auth.signUp({
+    const { data: signUpData, error } = await supabase.auth.signUp({
       email: parsedBase.email,
       password: parsedBase.password,
       options: {
-        emailRedirectTo: `${window.location.origin}/dashboard`,
+        emailRedirectTo,
         data: {
           ...meta,
           full_name: parsedBase.fullName,
@@ -199,6 +245,24 @@ function SignupPage() {
     toast.success(
       hasInvite ? "Conta criada! Você já pode acessar com o papel do convite." : "Conta criada! Você já pode acessar.",
     );
+
+    const api = import.meta.env.VITE_API_URL?.trim();
+    const token = signUpData.session?.access_token ?? null;
+    const promoResult = await tryApplyPendingPromo(api, token, search);
+    if (promoResult.status === "config" && resolvePromoCodeFromSearch(search)?.trim()) {
+      if (promoResult.detail === "no_api") {
+        toast.error(
+          "Não foi possível aplicar o código: o site não tem VITE_API_URL (URL da API). Configure na Vercel e faça redeploy.",
+        );
+      } else {
+        toast.error("Sessão indisponível para aplicar o código. Recarregue a página após confirmar o e-mail ou entre de novo.");
+      }
+    } else if (promoResult.status === "redeem_failed") {
+      toast.error(promoResult.message);
+    } else if (promoResult.status === "ok") {
+      toast.success("Acesso promocional aplicado.");
+      await refresh();
+    }
   };
 
   const headline = !hasInvite

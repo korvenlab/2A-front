@@ -25,6 +25,34 @@ export function resolvePromoCodeFromSearch(search: {
   return peekPendingPromoCode();
 }
 
+export type PromoApplyResult =
+  | { status: "no_promo" }
+  | { status: "ok" }
+  | { status: "config"; detail: "no_api" | "no_token" }
+  | { status: "redeem_failed"; message: string };
+
+/** Tenta resgatar código da URL ou do sessionStorage (fluxo login/cadastro/redirect e-mail). */
+export async function tryApplyPendingPromo(
+  api: string | undefined,
+  accessToken: string | null | undefined,
+  search: { two_avendas_promo?: string },
+): Promise<PromoApplyResult> {
+  const promo = resolvePromoCodeFromSearch(search)?.trim();
+  if (!promo) return { status: "no_promo" };
+  const base = api?.trim();
+  if (!base) return { status: "config", detail: "no_api" };
+  const tok = accessToken?.trim();
+  if (!tok) return { status: "config", detail: "no_token" };
+  try {
+    await redeemTwoAvendasPromo(base, tok, promo);
+    clearPendingPromoCode();
+    return { status: "ok" };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return { status: "redeem_failed", message };
+  }
+}
+
 export async function redeemTwoAvendasPromo(apiBase: string, accessToken: string, code: string): Promise<void> {
   const base = apiBase.replace(/\/+$/, "");
   const res = await fetch(`${base}/api/billing/redeem-promo`, {

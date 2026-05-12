@@ -13,10 +13,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
-  clearPendingPromoCode,
   persistPendingPromoCode,
-  redeemTwoAvendasPromo,
   resolvePromoCodeFromSearch,
+  tryApplyPendingPromo,
 } from "@/lib/billing-redeem-promo";
 
 const REMEMBER_KEY = "2avendas.rememberedEmail";
@@ -62,33 +61,6 @@ function inviteTokenFromLoginSearch(search: { invite?: string; redirect?: string
 }
 
 type InvitePurposePeek = { purpose: string };
-
-type PromoApplyResult =
-  | { status: "no_promo" }
-  | { status: "ok" }
-  | { status: "config"; detail: "no_api" | "no_token" }
-  | { status: "redeem_failed"; message: string };
-
-async function tryRedeemLoginPromo(
-  api: string | undefined,
-  accessToken: string | null | undefined,
-  search: { two_avendas_promo?: string },
-): Promise<PromoApplyResult> {
-  const promo = resolvePromoCodeFromSearch(search)?.trim();
-  if (!promo) return { status: "no_promo" };
-  const base = api?.trim();
-  if (!base) return { status: "config", detail: "no_api" };
-  const tok = accessToken?.trim();
-  if (!tok) return { status: "config", detail: "no_token" };
-  try {
-    await redeemTwoAvendasPromo(base, tok, promo);
-    clearPendingPromoCode();
-    return { status: "ok" };
-  } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
-    return { status: "redeem_failed", message };
-  }
-}
 
 async function postLoginNavigation(
   navigate: ReturnType<typeof useNavigate>,
@@ -152,7 +124,7 @@ function LoginPage() {
       const api = import.meta.env.VITE_API_URL?.trim();
       const { data: sess } = await supabase.auth.getSession();
       const token = sess.session?.access_token ?? null;
-      const promoResult = await tryRedeemLoginPromo(api, token, search);
+      const promoResult = await tryApplyPendingPromo(api, token, search);
       if (cancelled) return;
       if (promoResult.status === "config") {
         if (resolvePromoCodeFromSearch(search)?.trim()) {
@@ -198,7 +170,7 @@ function LoginPage() {
     }
     const api = import.meta.env.VITE_API_URL?.trim();
     const accessToken = signData.session?.access_token ?? null;
-    const promoResult = await tryRedeemLoginPromo(api, accessToken, search);
+    const promoResult = await tryApplyPendingPromo(api, accessToken, search);
     if (promoResult.status === "config" && resolvePromoCodeFromSearch(search)?.trim()) {
       if (promoResult.detail === "no_api") {
         toast.error(

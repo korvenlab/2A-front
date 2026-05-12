@@ -1,6 +1,12 @@
 import { createFileRoute, Outlet, useNavigate, Link, useRouterState } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 import { useAuth } from "@/lib/auth-context";
+import {
+  persistPendingPromoCode,
+  resolvePromoCodeFromSearch,
+  tryApplyPendingPromo,
+} from "@/lib/billing-redeem-promo";
 import { Logo } from "@/components/Logo";
 import { StaffNotificationCenter } from "@/components/StaffNotificationCenter";
 import { Button } from "@/components/ui/button";
@@ -43,10 +49,16 @@ type NavEntry = {
 type ClientOrg = { id: string; name: string };
 const PORTAL_ORG_STORAGE_KEY = "2avendas.portalOrgId";
 
+/** Evita resgate duplicado (StrictMode / re-renders) para o mesmo utilizador+código. */
+const promoBootstrapKeyRef = { current: null as string | null };
+
 function AuthLayout() {
-  const { isAuthenticated, loading, signingOut, signOut, profile, organization, menu, billing, role, user } = useAuth();
+  const { isAuthenticated, loading, signingOut, signOut, profile, organization, menu, billing, role, user, refresh } =
+    useAuth();
   const navigate = useNavigate();
   const { location } = useRouterState();
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
   const [searchOpen, setSearchOpen] = useState(false);
   const staffSearch = role === "admin" || role === "vendedor";
   const sidebarNavRef = useRef<HTMLElement | null>(null);
@@ -64,6 +76,39 @@ function AuthLayout() {
     const mobile = mobileNavRef.current?.querySelector<HTMLElement>('[data-dashboard-nav-active="true"]');
     mobile?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
   }, [location.pathname]);
+
+  /** Confirmação de e-mail e outros redirects para `/dashboard?two_avendas_promo=` — aplica cortesia sem passar pelo /login. */
+  useEffect(() => {
+    if (loading || !isAuthenticated || !user?.id) return;
+    const qs = location.search.startsWith("?") ? location.search.slice(1) : location.search;
+    const fromUrl = new URLSearchParams(qs).get("two_avendas_promo")?.trim() || undefined;
+    if (fromUrl) persistPendingPromoCode(fromUrl);
+    const pending = resolvePromoCodeFromSearch({ two_avendas_promo: fromUrl })?.trim();
+    if (!pending) return;
+    const key = `${user.id}:${pending}`;
+    if (promoBootstrapKeyRef.current === key) return;
+    promoBootstrapKeyRef.current = key;
+    void (async () => {
+      const api = import.meta.env.VITE_API_URL?.trim();
+      const { data } = await supabase.auth.getSession();
+      const token = data.session?.access_token ?? null;
+      const r = await tryApplyPendingPromo(api, token, { two_avendas_promo: fromUrl });
+      if (r.status === "config") {
+        if (r.detail === "no_api") {
+          toast.error(
+            "Não foi possível aplicar o código: o site não tem VITE_API_URL (URL da API). Configure na Vercel e faça redeploy.",
+          );
+        } else {
+          toast.error("Sessão indisponível para aplicar o código. Recarregue a página e tente de novo.");
+        }
+      } else if (r.status === "redeem_failed") {
+        toast.error(r.message);
+      } else if (r.status === "ok") {
+        toast.success("Acesso promocional aplicado.");
+        await refreshRef.current();
+      }
+    })();
+  }, [loading, isAuthenticated, user?.id, location.search]);
 
   useEffect(() => {
     if (loading) return;
