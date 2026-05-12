@@ -63,6 +63,17 @@ export function staffBillingLockedFlags(): BillingFlags {
   };
 }
 
+/** Acesso operacional destrancado: Stripe (org ou utilizador), unlock Korven, ou cortesia por link promocional. */
+export function staffBillingAccessUnlocked(b: BillingFlags): boolean {
+  return (
+    !!b.satisfied ||
+    !!b.stripe_active ||
+    !!b.manual_unlock ||
+    !!b.user_stripe_paid ||
+    !!b.user_complimentary_active
+  );
+}
+
 export function emptyMenu(): MenuFlags {
   return {
     dashboard: false,

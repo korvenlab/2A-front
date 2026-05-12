@@ -1,8 +1,8 @@
 import { createFileRoute, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { CreditCard, Loader2, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
-import { firstAccessiblePath } from "@/lib/session-menu";
+import { firstAccessiblePath, staffBillingAccessUnlocked } from "@/lib/session-menu";
 import { buildStripePaymentLinkUrl } from "@/lib/stripe-payment-link";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
@@ -16,9 +16,13 @@ function AssinaturaPage() {
   const { billing, menu, loading, refresh, role, organization, user } = useAuth();
   const navigate = useNavigate();
   const { location } = useRouterState();
+  const recoveryScheduledRef = useRef(false);
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
 
   const search = new URLSearchParams(location.search ?? "");
   const checkoutStatus = search.get("checkout");
+  const hasAccess = staffBillingAccessUnlocked(billing);
 
   useEffect(() => {
     if (loading) return;
@@ -31,11 +35,37 @@ function AssinaturaPage() {
       navigate({ to: dest, replace: true });
       return;
     }
-    if (billing.satisfied) {
+    if (hasAccess) {
       const dest = firstAccessiblePath(menu) ?? "/dashboard";
       navigate({ to: dest, replace: true });
     }
-  }, [loading, role, billing.required, billing.satisfied, menu, navigate]);
+  }, [loading, role, billing.required, hasAccess, menu, navigate]);
+
+  /** Re-fetch do menu após Stripe/cortesia (webhook ou corrida no login). */
+  useEffect(() => {
+    if (loading) return;
+    if (role !== "admin" && role !== "vendedor") return;
+    if (!billing.required || hasAccess) {
+      recoveryScheduledRef.current = false;
+      return;
+    }
+    if (recoveryScheduledRef.current) return;
+    recoveryScheduledRef.current = true;
+    void refreshRef.current();
+    const t1 = setTimeout(() => void refreshRef.current(), 1_200);
+    const t2 = setTimeout(() => void refreshRef.current(), 3_500);
+    const t3 = setTimeout(() => void refreshRef.current(), 8_000);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, [
+    loading,
+    role,
+    billing.required,
+    hasAccess,
+  ]);
 
   useEffect(() => {
     if (checkoutStatus === "success") {
@@ -81,7 +111,7 @@ function AssinaturaPage() {
     );
   }
 
-  if (billing.satisfied) {
+  if (hasAccess) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center p-6">
         <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden />
@@ -94,8 +124,8 @@ function AssinaturaPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Ative o 2AVendas</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          A área operacional da representação fica disponível após a assinatura via Stripe ou liberação pela equipe
-          Korven.
+          A área operacional fica disponível após pagamento Stripe, liberação Korven ou período de cortesia (link
+          promocional). Se já ativou um destes, aguarde alguns segundos ou use &quot;Atualizar sessão&quot;.
         </p>
       </div>
 
@@ -105,12 +135,9 @@ function AssinaturaPage() {
           <div>
             <p className="font-medium">Checkout concluído</p>
             <p className="mt-1 text-muted-foreground">
-              Estamos confirmando o pagamento. Se o acesso não liberar em alguns segundos, use &quot;Atualizar&quot;
-              no navegador.
+              Estamos confirmando o pagamento. Se o acesso não liberar em alguns segundos, use &quot;Atualizar sessão&quot;
+              abaixo.
             </p>
-            <Button type="button" variant="outline" className="mt-3" onClick={() => void refresh()}>
-              Atualizar sessão
-            </Button>
           </div>
         </div>
       ) : null}
@@ -135,6 +162,12 @@ function AssinaturaPage() {
           conclua a assinatura, ou peça liberação manual à equipe Korven.
         </p>
       )}
+
+      <div className="flex justify-center border-t border-border pt-4">
+        <Button type="button" variant="ghost" size="sm" onClick={() => void refreshRef.current()}>
+          Atualizar sessão
+        </Button>
+      </div>
     </div>
   );
 }

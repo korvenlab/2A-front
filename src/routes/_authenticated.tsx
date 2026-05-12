@@ -12,6 +12,7 @@ import { StaffNotificationCenter } from "@/components/StaffNotificationCenter";
 import { Button } from "@/components/ui/button";
 import { GlobalSearchDialog } from "@/components/GlobalSearchDialog";
 import { supabase } from "@/integrations/supabase/client";
+import { staffBillingAccessUnlocked } from "@/lib/session-menu";
 import {
   Select,
   SelectContent,
@@ -139,12 +140,11 @@ function AuthLayout() {
     if (!isAuthenticated || signingOut) return;
     const staff = role === "admin" || role === "vendedor";
     if (!staff) return;
-    if (!billing.required || billing.satisfied) return;
+    if (!billing.required || staffBillingAccessUnlocked(billing)) return;
     if (pathname.startsWith("/assinatura")) return;
     navigate({ to: "/assinatura", replace: true });
   }, [
-    billing.required,
-    billing.satisfied,
+    billing,
     isAuthenticated,
     loading,
     pathname,
@@ -237,7 +237,7 @@ function AuthLayout() {
       };
     }
 
-    if (billing.required && !billing.satisfied) {
+    if (billing.required && !staffBillingAccessUnlocked(billing)) {
       items.push({
         to: "/assinatura",
         label: "Assinatura",
@@ -263,7 +263,7 @@ function AuthLayout() {
     if (menu.portal) items.push({ to: "/portal", label: "Portal de Compras", icon: Store });
     if (vendedoresEntry) items.push(vendedoresEntry);
     return items;
-  }, [menu, role, billing.required, billing.satisfied]);
+  }, [menu, role, billing]);
 
   if (loading || !isAuthenticated) {
     return (
