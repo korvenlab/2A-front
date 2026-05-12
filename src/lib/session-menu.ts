@@ -1,5 +1,7 @@
 /** Mapa espelho do GET /api/session/menu do backend — use VITE_API_URL para leitura pelo JWT. */
 
+import { supabase } from "@/integrations/supabase/client";
+
 const MENU_FETCH_TIMEOUT_MS = 12_000;
 
 function menuAbortSignal(): AbortSignal | undefined {
@@ -128,12 +130,79 @@ export function fallbackMenuFromRole(role: FallbackRole | null): MenuFlags {
   };
 }
 
+/** Cortesia ainda válida (Supabase pode devolver ISO string ou Date). */
+export function complimentaryUntilActive(raw: unknown): boolean {
+  if (raw == null) return false;
+  let ms: number;
+  if (typeof raw === "string") {
+    const s = raw.trim();
+    if (!s) return false;
+    ms = Date.parse(s);
+  } else if (typeof raw === "number" && Number.isFinite(raw)) {
+    ms = raw < 1e12 ? raw * 1000 : raw;
+  } else if (raw instanceof Date) {
+    ms = raw.getTime();
+  } else {
+    return false;
+  }
+  return Number.isFinite(ms) && ms > Date.now();
+}
+
+/**
+ * Quando o GET /api/session/menu falha (CORS, rede, URL errada), staff ainda pode ler a própria linha em
+ * `app_users` + org via RLS — evita ficar preso em /assinatura com cortesia já gravada na base.
+ */
+export async function fetchStaffBillingFallbackFromSupabase(userId: string): Promise<BillingFlags | null> {
+  const { data: au, error } = await supabase
+    .from("app_users")
+    .select("organization_id, billing_stripe_access_at, billing_complimentary_access_until")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error || !au) return null;
+
+  const row = au as {
+    organization_id?: string | null;
+    billing_stripe_access_at?: unknown;
+    billing_complimentary_access_until?: unknown;
+  };
+  const orgIdRaw = row.organization_id;
+  const orgId =
+    orgIdRaw != null && String(orgIdRaw).trim() !== "" ? String(orgIdRaw).trim() : null;
+
+  let stripe_active = false;
+  let manual_unlock = false;
+  if (orgId) {
+    const { data: org } = await supabase
+      .from("organizations")
+      .select("billing_stripe_active, billing_manual_unlock")
+      .eq("id", orgId)
+      .maybeSingle();
+    const o = org as { billing_stripe_active?: boolean | null; billing_manual_unlock?: boolean | null } | null;
+    stripe_active = !!o?.billing_stripe_active;
+    manual_unlock = !!o?.billing_manual_unlock;
+  }
+
+  const user_stripe_paid = !!row.billing_stripe_access_at;
+  const complimentary = complimentaryUntilActive(row.billing_complimentary_access_until);
+  const required = !!orgId;
+  const coreUnlocked = stripe_active || manual_unlock || user_stripe_paid || complimentary;
+
+  return {
+    required,
+    satisfied: !required || coreUnlocked,
+    stripe_active,
+    manual_unlock,
+    user_stripe_paid,
+    user_complimentary_active: complimentary || undefined,
+  };
+}
+
 export interface SessionMenuPayload {
   menu: MenuFlags;
   billing: BillingFlags;
 }
 
-export async function fetchSessionMenu(accessToken: string): Promise<SessionMenuPayload | null> {
+async function fetchSessionMenuOnce(accessToken: string): Promise<SessionMenuPayload | null> {
   const raw = import.meta.env.VITE_API_URL?.trim();
   if (!raw) return null;
   const base = raw.replace(/\/$/, "");
@@ -170,7 +239,6 @@ export async function fetchSessionMenu(accessToken: string): Promise<SessionMenu
       pedidos: !!m.pedidos,
       orcamentos: !!m.orcamentos,
       funil: !!m.funil,
-      /** API antiga sem `visitas`: espelha carteira de clientes (mesmo público do CRM). */
       visitas: !!(m.visitas ?? m.clientes),
       portal: !!m.portal,
       vendedores: !!m.vendedores,
@@ -188,6 +256,13 @@ export async function fetchSessionMenu(accessToken: string): Promise<SessionMenu
   } catch {
     return null;
   }
+}
+
+export async function fetchSessionMenu(accessToken: string): Promise<SessionMenuPayload | null> {
+  const first = await fetchSessionMenuOnce(accessToken);
+  if (first) return first;
+  await new Promise((r) => setTimeout(r, 450));
+  return fetchSessionMenuOnce(accessToken);
 }
 
 /** Primeira rota que o papel pode usar (`null` = nenhuma; evite redirect em loop). */

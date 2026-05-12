@@ -9,6 +9,8 @@ import {
   emptyMenu,
   fallbackMenuFromRole,
   fetchSessionMenu,
+  fetchStaffBillingFallbackFromSupabase,
+  staffBillingAccessUnlocked,
   staffBillingLockedFlags,
   type BillingFlags,
   type MenuFlags,
@@ -70,11 +72,41 @@ function resolvePublicHomeUrl(): string {
   return "/";
 }
 
-async function resolveMenu(accessToken: string | null | undefined, currentRole: AppRole | null) {
+/** Se o GET /menu sub-reportar cortesia/Stripe, cruza com leitura RLS em `app_users` + `organizations`. */
+function mergeStaffBillingFromFallback(api: BillingFlags, fb: BillingFlags): BillingFlags {
+  const merged: BillingFlags = {
+    required: api.required,
+    stripe_active: api.stripe_active || fb.stripe_active,
+    manual_unlock: api.manual_unlock || fb.manual_unlock,
+    user_stripe_paid: api.user_stripe_paid || fb.user_stripe_paid,
+    user_complimentary_active: api.user_complimentary_active || fb.user_complimentary_active,
+    satisfied: false,
+  };
+  merged.satisfied = !merged.required || staffBillingAccessUnlocked(merged);
+  return merged;
+}
+
+async function resolveMenu(
+  accessToken: string | null | undefined,
+  userId: string,
+  currentRole: AppRole | null,
+) {
   if (!accessToken) return { menu: emptyMenu(), billing: defaultBillingFlags() };
   const fetched = await fetchSessionMenu(accessToken);
   if (!fetched) {
     if (currentRole === "admin" || currentRole === "vendedor") {
+      const fb = await fetchStaffBillingFallbackFromSupabase(userId);
+      if (fb && staffBillingAccessUnlocked(fb)) {
+        const unlocked = staffBillingAccessUnlocked(fb);
+        return {
+          menu: fallbackMenuFromRole(currentRole),
+          billing: {
+            ...fb,
+            required: fb.required,
+            satisfied: !fb.required || unlocked,
+          },
+        };
+      }
       return { menu: emptyMenu(), billing: staffBillingLockedFlags() };
     }
     return {
@@ -83,12 +115,26 @@ async function resolveMenu(accessToken: string | null | undefined, currentRole: 
     };
   }
   let menu = fetched.menu;
+  let billing = fetched.billing;
+  if (
+    (currentRole === "admin" || currentRole === "vendedor") &&
+    billing.required &&
+    !staffBillingAccessUnlocked(billing)
+  ) {
+    const fb = await fetchStaffBillingFallbackFromSupabase(userId);
+    if (fb && staffBillingAccessUnlocked(fb)) {
+      billing = mergeStaffBillingFromFallback(billing, fb);
+      if (!menu.dashboard) {
+        menu = fallbackMenuFromRole(currentRole);
+      }
+    }
+  }
   /** Reforço: API antiga sem sellers:view — só quando billing já permite operar (evita abrir /vendedores sem pagamento). */
-  const billingOk = !fetched.billing.required || fetched.billing.satisfied;
+  const billingOk = !billing.required || billing.satisfied || staffBillingAccessUnlocked(billing);
   if (currentRole === "admin" && billingOk) {
     menu = { ...menu, vendedores: menu.vendedores || true };
   }
-  return { menu, billing: fetched.billing };
+  return { menu, billing };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -193,7 +239,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ).data.session?.access_token ??
       null;
     await redeemPendingPromoBeforeMenuForStaff(token, primary);
-    const next = await resolveMenu(token, primary);
+    const next = await resolveMenu(token, uid, primary);
 
     if (seq !== loadUserDataSeqRef.current) return;
 
