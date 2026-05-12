@@ -38,6 +38,8 @@ export interface BillingFlags {
   manual_unlock: boolean;
   /** Este usuário concluiu pagamento Stripe (referência org:user no checkout). */
   user_stripe_paid: boolean;
+  /** Cortesia por link promocional ainda válida (GET /api/session/menu). */
+  user_complimentary_active?: boolean;
 }
 
 export function defaultBillingFlags(): BillingFlags {
@@ -162,12 +164,14 @@ export async function fetchSessionMenu(accessToken: string): Promise<SessionMenu
       portal: !!m.portal,
       vendedores: !!m.vendedores,
     };
+    const complimentary = !!b?.user_complimentary_active;
     const billing: BillingFlags = {
       required: !!b?.required,
-      satisfied: b?.satisfied !== false,
+      satisfied: !!(b?.satisfied || complimentary),
       stripe_active: !!b?.stripe_active,
       manual_unlock: !!b?.manual_unlock,
       user_stripe_paid: !!b?.user_stripe_paid,
+      user_complimentary_active: complimentary || undefined,
     };
     return { menu, billing };
   } catch {

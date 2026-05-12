@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
 import type { Session, User } from "@supabase/supabase-js";
 import { Loader2 } from "lucide-react";
@@ -99,8 +99,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [billing, setBilling] = useState<BillingFlags>(defaultBillingFlags());
   const [loading, setLoading] = useState(true);
   const [signingOut, setSigningOut] = useState(false);
+  /** Evita que um `loadUserData` antigo sobrescreva menu/billing após resgate promo ou refresh. */
+  const loadUserDataSeqRef = useRef(0);
 
   const loadUserData = async (uid: string, accessToken?: string | null) => {
+    const seq = ++loadUserDataSeqRef.current;
+
     const { data: prof } = await supabase
       .from("profiles")
       .select(
@@ -108,7 +112,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       )
       .eq("id", uid)
       .maybeSingle();
-    setProfile((prof as Profile) ?? null);
 
     const { data: appUserRow } = await supabase
       .from("app_users")
@@ -123,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Mesma prioridade que public.current_user_org() no Postgres (evita path de Storage com org errada).
     let resolvedOrgId: string | null = appUser?.organization_id ?? null;
     if (!resolvedOrgId) {
-      resolvedOrgId = prof?.organization_id ?? null;
+      resolvedOrgId = (prof as Profile | null)?.organization_id ?? null;
     }
     if (!resolvedOrgId) {
       const { data: urRows } = await supabase
@@ -141,6 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       resolvedOrgId = list[0]?.organization_id ?? null;
     }
 
+    let nextOrganization: Organization | null = null;
     if (resolvedOrgId) {
       const { data: org, error: orgFetchErr } = await supabase
         .from("organizations")
@@ -150,20 +154,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (orgFetchErr && import.meta.env.DEV) {
         console.warn("[auth] organizations lookup:", orgFetchErr.message);
       }
-      // Mesmo se o SELECT falhar por RLS/cache, mantemos o id resolvido para inserts alinharem ao tenant do JWT.
       if (org) {
-        setOrganization(org as Organization);
+        nextOrganization = org as Organization;
       } else {
-        setOrganization({
+        nextOrganization = {
           id: resolvedOrgId,
           name: "Representação",
           slug: "representacao",
           owner_user_id: null,
           admin_commission_share_pct: 0,
-        });
+        };
       }
-    } else {
-      setOrganization(null);
     }
 
     /** Unifica app_users + user_roles: não confiar só em app_users (linha desatualizada escondia admin / menu Vendedores). */
@@ -184,8 +185,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (fromApp) candidates.add(fromApp);
     const primary = priority.find((p) => candidates.has(p)) ?? null;
 
-    setRole(primary);
-
     const token =
       accessToken ??
       (
@@ -193,6 +192,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ).data.session?.access_token ??
       null;
     const next = await resolveMenu(token, primary);
+
+    if (seq !== loadUserDataSeqRef.current) return;
+
+    setProfile((prof as Profile) ?? null);
+    setOrganization(nextOrganization);
+    setRole(primary);
     setMenu(next.menu);
     setBilling(next.billing);
   };
