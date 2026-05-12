@@ -118,7 +118,7 @@ async function postLoginNavigation(
 }
 
 function LoginPage() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, refresh } = useAuth();
   const navigate = useNavigate();
   const search = Route.useSearch();
   const inviteToken = inviteTokenFromLoginSearch(search);
@@ -168,6 +168,7 @@ function LoginPage() {
         toast.error(promoResult.message);
       } else if (promoResult.status === "ok") {
         toast.success("Acesso promocional aplicado.");
+        await refresh();
       }
 
       if (cancelled) return;
@@ -210,6 +211,7 @@ function LoginPage() {
       toast.error(promoResult.message);
     } else if (promoResult.status === "ok") {
       toast.success("Acesso promocional aplicado.");
+      await refresh();
     }
 
     if (remember) localStorage.setItem(REMEMBER_KEY, parsed.data.email);
