@@ -8,11 +8,12 @@ export function useMenuGate(required: MenuKey) {
   const { menu, loading } = useAuth();
   const navigate = useNavigate();
   const { location } = useRouterState();
+  const pathname = location.pathname ?? "";
 
   useEffect(() => {
     if (loading) return;
     if (menu[required]) return;
     const dest = firstAccessiblePath(menu);
-    if (dest && dest !== location.pathname) navigate({ to: dest, replace: true });
-  }, [loading, menu, required, navigate, location.pathname]);
+    if (dest && dest !== pathname) navigate({ to: dest, replace: true });
+  }, [loading, menu, required, navigate, pathname]);
 }

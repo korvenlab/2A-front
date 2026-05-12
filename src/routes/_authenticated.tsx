@@ -57,6 +57,9 @@ function AuthLayout() {
     useAuth();
   const navigate = useNavigate();
   const { location } = useRouterState();
+  /** SSR / hidratação: evita TypeError em `.startsWith` / URLSearchParams e cai no boundary genérico. */
+  const pathname = location.pathname ?? "";
+  const searchStr = typeof location.search === "string" ? location.search : "";
   const refreshRef = useRef(refresh);
   refreshRef.current = refresh;
   const [searchOpen, setSearchOpen] = useState(false);
@@ -75,12 +78,12 @@ function AuthLayout() {
 
     const mobile = mobileNavRef.current?.querySelector<HTMLElement>('[data-dashboard-nav-active="true"]');
     mobile?.scrollIntoView({ inline: "center", block: "nearest", behavior: "smooth" });
-  }, [location.pathname]);
+  }, [pathname]);
 
   /** Confirmação de e-mail e outros redirects para `/dashboard?two_avendas_promo=` — aplica cortesia sem passar pelo /login. */
   useEffect(() => {
     if (loading || !isAuthenticated || !user?.id) return;
-    const qs = location.search.startsWith("?") ? location.search.slice(1) : location.search;
+    const qs = searchStr.startsWith("?") ? searchStr.slice(1) : searchStr;
     const fromUrl = new URLSearchParams(qs).get("two_avendas_promo")?.trim() || undefined;
     if (fromUrl) persistPendingPromoCode(fromUrl);
     const pending = resolvePromoCodeFromSearch({ two_avendas_promo: fromUrl })?.trim();
@@ -108,28 +111,28 @@ function AuthLayout() {
         await refreshRef.current();
       }
     })();
-  }, [loading, isAuthenticated, user?.id, location.search]);
+  }, [loading, isAuthenticated, user?.id, searchStr]);
 
   useEffect(() => {
     if (loading) return;
     if (!isAuthenticated) {
       if (signingOut) return;
-      const redirect = `${location.pathname}${location.search}`;
-      const invite = new URLSearchParams(location.search).get("invite") ?? undefined;
+      const redirect = `${pathname}${searchStr}`;
+      const invite = new URLSearchParams(searchStr).get("invite") ?? undefined;
       navigate({
         to: "/login",
         search: invite ? { redirect, invite } : { redirect },
       });
       return;
     }
-    if (!menu.dashboard && menu.portal && location.pathname.startsWith("/dashboard")) {
+    if (!menu.dashboard && menu.portal && pathname.startsWith("/dashboard")) {
       navigate({ to: "/portal" });
       return;
     }
     if (!role) {
       navigate({ to: "/portal" });
     }
-  }, [isAuthenticated, loading, signingOut, menu.dashboard, menu.portal, navigate, location.pathname, location.search]);
+  }, [isAuthenticated, loading, signingOut, menu.dashboard, menu.portal, navigate, pathname, searchStr]);
 
   useEffect(() => {
     if (loading) return;
@@ -137,14 +140,14 @@ function AuthLayout() {
     const staff = role === "admin" || role === "vendedor";
     if (!staff) return;
     if (!billing.required || billing.satisfied) return;
-    if (location.pathname.startsWith("/assinatura")) return;
+    if (pathname.startsWith("/assinatura")) return;
     navigate({ to: "/assinatura", replace: true });
   }, [
     billing.required,
     billing.satisfied,
     isAuthenticated,
     loading,
-    location.pathname,
+    pathname,
     navigate,
     role,
     signingOut,
@@ -203,6 +206,12 @@ function AuthLayout() {
   const selectedClientOrgId =
     clientPinnedOrgId ?? organization?.id ?? clientOrgs[0]?.id ?? "";
 
+  /** Radix Select exige `value` coincidente com um item; string vazia quebra o render. */
+  const validClientOrgSelectValue =
+    selectedClientOrgId && clientOrgs.some((o) => o.id === selectedClientOrgId)
+      ? selectedClientOrgId
+      : (clientOrgs[0]?.id ?? "");
+
   const onClientOrgChange = (nextId: string) => {
     if (!nextId) return;
     sessionStorage.setItem(PORTAL_ORG_STORAGE_KEY, nextId);
@@ -211,7 +220,7 @@ function AuthLayout() {
       window.history.replaceState({}, "", `${window.location.pathname}${window.location.hash}`);
     }
     window.dispatchEvent(new Event("portal-org-changed"));
-    if (location.pathname !== "/portal") navigate({ to: "/portal", replace: true });
+    if (pathname !== "/portal") navigate({ to: "/portal", replace: true });
   };
 
   const navItems = useMemo(() => {
@@ -292,8 +301,10 @@ function AuthLayout() {
                   <p className="text-sm text-foreground/80 mt-1">
                     {clientOrgs[0]?.name ?? organization?.name ?? "—"}
                   </p>
+                ) : !validClientOrgSelectValue ? (
+                  <div className="mt-1 h-10 rounded-md border border-border bg-background/60" />
                 ) : (
-                  <Select value={selectedClientOrgId} onValueChange={onClientOrgChange}>
+                  <Select value={validClientOrgSelectValue} onValueChange={onClientOrgChange}>
                     <SelectTrigger className="h-10 w-full bg-background">
                       <SelectValue placeholder="Escolha a empresa" />
                     </SelectTrigger>
@@ -328,7 +339,7 @@ function AuthLayout() {
             </p>
           )}
           {navItems.map((it) => {
-            const active = location.pathname === it.to;
+            const active = pathname === it.to;
             return (
               <Link
                 key={it.to}
@@ -383,7 +394,7 @@ function AuthLayout() {
           {navItems.length > 0 ? (
             <nav ref={mobileNavRef} className="flex gap-2 overflow-x-auto px-4 pb-3 scroll-smooth">
               {navItems.map((it) => {
-                const active = location.pathname === it.to;
+                const active = pathname === it.to;
                 return (
                   <Link
                     key={it.to}

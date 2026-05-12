@@ -17,7 +17,7 @@ function AssinaturaPage() {
   const navigate = useNavigate();
   const { location } = useRouterState();
 
-  const search = new URLSearchParams(location.search);
+  const search = new URLSearchParams(location.search ?? "");
   const checkoutStatus = search.get("checkout");
 
   useEffect(() => {
