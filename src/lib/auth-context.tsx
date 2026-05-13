@@ -138,6 +138,10 @@ async function resolveMenu(
   if (currentRole === "admin" || currentRole === "vendedor") {
     menu = { ...menu, portal: false };
   }
+  /** Telas operacionais de representação — nunca para cliente (pedidos no portal B2B). */
+  if (currentRole === "cliente") {
+    menu = { ...menu, pedidos: false, orcamentos: false };
+  }
   return { menu, billing };
 }
 
@@ -258,6 +262,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: sub } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
       if (newSession?.user) {
+        /** `TOKEN_REFRESHED` dispara ao voltar à aba (autoRefreshToken). Recarregar perfil/org/menu aqui parece “reload” e degrada UX; `INITIAL_SESSION` já coberto por `getSession` abaixo. */
+        if (event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") {
+          return;
+        }
         /** Após login, `role`/`menu` ainda não existem até `loadUserData` terminar; sem isto o layout autenticado redireciona a /portal por `!role` antes do perfil carregar. */
         const holdUiUntilProfile = event === "SIGNED_IN";
         if (holdUiUntilProfile) setLoading(true);

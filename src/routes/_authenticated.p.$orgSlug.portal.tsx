@@ -205,7 +205,7 @@ function CatalogProductCard({
         )}
         <h3 className="mt-1 line-clamp-2 text-base font-semibold leading-snug">{p.name}</h3>
         <div className="mt-1 text-xs text-muted-foreground">
-          SKU: {p.sku ?? "—"} • Estoque: {p.stock}
+          EAN13: {p.sku ?? "—"} • Estoque: {p.stock}
         </div>
         {p.description && (
           <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{p.description}</p>
@@ -866,7 +866,7 @@ function Portal() {
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar produto, SKU, categoria ou indústria..."
+              placeholder="Buscar produto, EAN13, categoria ou indústria..."
               className="pl-9 h-11"
             />
           </div>

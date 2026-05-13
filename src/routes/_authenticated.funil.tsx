@@ -814,7 +814,7 @@ function FunilPage() {
                         <span className="flex flex-col text-left">
                           <span>{p.name}</span>
                           <span className="text-xs text-muted-foreground">
-                            {p.sku ? `${p.sku} · ` : ""}
+                            {p.sku ? `EAN13: ${p.sku} · ` : ""}
                             {brl(p.price)}
                           </span>
                         </span>

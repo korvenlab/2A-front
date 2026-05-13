@@ -111,7 +111,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: Props) {
 
         const num = /^\d+$/.test(term) ? parseInt(term, 10) : NaN;
         let ordersPromise = Promise.resolve({ data: [] as OrdHit[] });
-        if (!Number.isNaN(num)) {
+        if (menu.pedidos && !Number.isNaN(num)) {
           let oq = supabase
             .from("orders")
             .select("id,order_number")
@@ -137,7 +137,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: Props) {
       cancelled = true;
       window.clearTimeout(t);
     };
-  }, [open, q, organization?.id, role, user?.id]);
+  }, [open, q, organization?.id, role, user?.id, menu.pedidos]);
 
   const go = (to: string) => {
     onOpenChange(false);
@@ -201,7 +201,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: Props) {
           </>
         )}
 
-        {orders.length > 0 && (
+        {menu.pedidos && orders.length > 0 && (
           <>
             <CommandSeparator />
             <CommandGroup heading="Pedidos">

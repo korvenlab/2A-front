@@ -17,6 +17,10 @@ export function useMenuGate(required: MenuKey) {
       navigate({ to: "/dashboard", replace: true });
       return;
     }
+    if (role === "cliente" && (required === "pedidos" || required === "orcamentos")) {
+      navigate({ to: menu.portal ? "/portal" : "/dashboard", replace: true });
+      return;
+    }
     if (menu[required]) return;
     const dest = firstAccessiblePath(menu);
     if (dest && dest !== pathname) navigate({ to: dest, replace: true });

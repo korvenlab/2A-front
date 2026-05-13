@@ -65,7 +65,7 @@ type RecentOrder = {
 
 function Dashboard() {
   useMenuGate("dashboard");
-  const { profile, role, user, organization, refresh } = useAuth();
+  const { profile, role, user, organization, refresh, menu } = useAuth();
   const [stats, setStats] = useState<DashboardStat[]>([
     { label: "Vendas do mês", value: "—", change: "carregando...", icon: DollarSign },
     { label: "Pedidos", value: "—", change: "carregando...", icon: ShoppingBag },
@@ -385,6 +385,7 @@ function Dashboard() {
   };
 
   const showOnboarding =
+    role !== "cliente" &&
     onboarding &&
     !onboarding.dismissed &&
     !(onboarding.hasCustomer && onboarding.hasProduct && onboarding.hasOrder);
@@ -629,7 +630,11 @@ function Dashboard() {
         )}
         <div className="p-4 border-t border-border bg-muted/30">
           <Button variant="outline" size="sm" asChild>
-            <Link to="/pedidos">Ver todos os pedidos</Link>
+            {role === "cliente" ? (
+              <Link to={menu.portal ? "/portal" : "/dashboard"}>Ver pedidos no portal</Link>
+            ) : (
+              <Link to="/pedidos">Ver todos os pedidos</Link>
+            )}
           </Button>
         </div>
       </div>

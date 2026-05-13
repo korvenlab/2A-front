@@ -156,7 +156,7 @@ function CatalogProductGridCard({
           {cat || "Sem categoria"}
         </div>
         <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-snug">{p.name}</h3>
-        <div className="text-xs text-muted-foreground">SKU: {p.sku ?? "—"}</div>
+        <div className="text-xs text-muted-foreground">EAN13 (código de barras): {p.sku ?? "—"}</div>
         <div className="mt-auto flex flex-wrap items-end justify-between gap-2 border-t border-border pt-3">
           <div>
             <div className="text-lg font-bold text-primary">{brl(p.price)}</div>
@@ -182,20 +182,27 @@ interface ProductForm {
   name: string;
   sku: string;
   description: string;
-  price: number;
-  stock: number;
+  /** Texto livre no input (vazio = sem valor digitado; evita `0` preso em input controlado). */
+  price: string;
+  stock: string;
   category: string;
   supplier: string;
   image_urls: string[];
   active: boolean;
 }
 
+function formatPriceForProductInput(n: number): string {
+  const v = moneyNumber(n);
+  if (v === 0) return "";
+  return String(Math.round(v * 100) / 100);
+}
+
 const emptyForm: ProductForm = {
   name: "",
   sku: "",
   description: "",
-  price: 0,
-  stock: 0,
+  price: "",
+  stock: "",
   category: "",
   supplier: "",
   image_urls: [],
@@ -410,8 +417,11 @@ function CatalogPage() {
       name: p.name,
       sku: p.sku ?? "",
       description: p.description ?? "",
-      price: moneyNumber(p.price),
-      stock: Number.isFinite(Number(p.stock)) ? Math.trunc(Number(p.stock)) : 0,
+      price: formatPriceForProductInput(moneyNumber(p.price)),
+      stock: (() => {
+        const s = Number.isFinite(Number(p.stock)) ? Math.trunc(Number(p.stock)) : 0;
+        return s === 0 ? "" : String(s);
+      })(),
       category: p.category ?? "",
       supplier: p.supplier ?? "",
       image_urls: normalizeProductImageUrls(p.image_urls, p.image_url),
@@ -464,6 +474,26 @@ function CatalogPage() {
     }
     setSaving(true);
     try {
+      const priceRaw = form.price.trim().replace(",", ".");
+      const priceNum = priceRaw === "" ? 0 : Number(priceRaw);
+      if (priceRaw !== "" && !Number.isFinite(priceNum)) {
+        toast.error("Preço inválido");
+        return;
+      }
+      if (priceNum < 0) {
+        toast.error("Preço não pode ser negativo");
+        return;
+      }
+      const stockRaw = form.stock.trim();
+      const stockNum = stockRaw === "" ? 0 : parseInt(stockRaw, 10);
+      if (stockRaw !== "" && !Number.isFinite(stockNum)) {
+        toast.error("Estoque inválido");
+        return;
+      }
+      if (stockNum < 0) {
+        toast.error("Estoque não pode ser negativo");
+        return;
+      }
       const payload = {
         name: form.name.trim(),
         sku: form.sku.trim() || null,
@@ -472,8 +502,8 @@ function CatalogPage() {
         supplier: form.supplier.trim() || null,
         image_urls: urls,
         image_url: urls[0] ?? null,
-        price: Number(form.price) || 0,
-        stock: Number(form.stock) || 0,
+        price: priceNum,
+        stock: stockNum,
         active: form.active,
       };
       const { error } = editing
@@ -599,7 +629,7 @@ function CatalogPage() {
     }
     const headers = [
       "Nome",
-      "SKU",
+      "EAN13 (código de barras)",
       "Categoria",
       "Industria",
       "Preço",
@@ -689,7 +719,19 @@ function CatalogPage() {
       const header = rows[0].map((h) => h.trim().toLowerCase());
       const idx = (names: string[]) => header.findIndex((h) => names.includes(h));
       const iName = idx(["nome", "name", "produto"]);
-      const iSku = idx(["sku", "código", "codigo"]);
+      const iSku = idx([
+        "sku",
+        "ean13",
+        "ean",
+        "código",
+        "codigo",
+        "ean13 (código de barras)",
+        "ean13 (codigo de barras)",
+        "código de barras",
+        "codigo de barras",
+        "código de barras (ean13)",
+        "codigo de barras (ean13)",
+      ]);
       const iCat = idx(["categoria", "category"]);
       const iSup = idx(["fornecedor", "fabricante", "supplier", "industria", "indústria", "industria/fabricante"]);
       const iPrice = idx(["preço", "preco", "price"]);
@@ -807,7 +849,7 @@ function CatalogPage() {
 
       const skippedDuplicatedSku = withSku.length - dedupedWithSku.length;
       toast.success(
-        `Importação concluída: ${inserted} inseridos, ${updated} atualizados, ${failed} falhas, ${skippedDuplicatedSku} SKUs duplicados ignorados, ${skippedBadImages} linhas sem imagens válidas ignoradas.`,
+        `Importação concluída: ${inserted} inseridos, ${updated} atualizados, ${failed} falhas, ${skippedDuplicatedSku} EAN13/códigos de barras duplicados ignorados, ${skippedBadImages} linhas sem imagens válidas ignoradas.`,
       );
       load();
     } catch (e) {
@@ -873,10 +915,14 @@ function CatalogPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="grid gap-2">
-                      <Label>SKU</Label>
+                      <Label>EAN13 (código de barras)</Label>
                       <Input
                         value={form.sku ?? ""}
                         onChange={(e) => setForm({ ...form, sku: e.target.value })}
+                        inputMode="numeric"
+                        maxLength={32}
+                        placeholder="13 dígitos (opcional)"
+                        autoComplete="off"
                       />
                     </div>
                     <div className="grid gap-2">
@@ -966,22 +1012,33 @@ function CatalogPage() {
                     <div className="grid gap-2">
                       <Label>Preço (R$)</Label>
                       <Input
-                        type="number"
-                        step="0.01"
+                        type="text"
+                        inputMode="decimal"
+                        autoComplete="off"
+                        placeholder="0"
                         value={form.price}
-                        onChange={(e) =>
-                          setForm({ ...form, price: parseFloat(e.target.value) || 0 })
-                        }
+                        onChange={(e) => {
+                          const v = e.target.value.replace(",", ".");
+                          if (v === "" || /^\d*\.?\d*$/.test(v)) {
+                            setForm({ ...form, price: v });
+                          }
+                        }}
                       />
                     </div>
                     <div className="grid gap-2">
                       <Label>Estoque</Label>
                       <Input
-                        type="number"
+                        type="text"
+                        inputMode="numeric"
+                        autoComplete="off"
+                        placeholder="0"
                         value={form.stock}
-                        onChange={(e) =>
-                          setForm({ ...form, stock: parseInt(e.target.value) || 0 })
-                        }
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (v === "" || /^\d+$/.test(v)) {
+                            setForm({ ...form, stock: v });
+                          }
+                        }}
                       />
                     </div>
                   </div>
@@ -1029,7 +1086,7 @@ function CatalogPage() {
               <Input
                 value={catalogSearch}
                 onChange={(e) => setCatalogSearch(e.target.value)}
-                placeholder="Buscar nome, SKU, descrição, categoria ou indústria…"
+                placeholder="Buscar nome, EAN13, descrição, categoria ou indústria…"
                 className="h-10 pl-9"
               />
             </div>
@@ -1236,7 +1293,7 @@ function CatalogPage() {
                 <TableRow>
                   <TableHead className="w-[8.5rem] min-w-[8.5rem] align-middle">Fotos</TableHead>
                   <TableHead className="min-w-[200px] align-middle">Produto</TableHead>
-                  <TableHead>SKU</TableHead>
+                  <TableHead className="min-w-[9.5rem]">EAN13 (cód. barras)</TableHead>
                   <TableHead className="min-w-[120px]">Indústria</TableHead>
                   <TableHead className="text-right">Preço</TableHead>
                   <TableHead className="text-right">Estoque</TableHead>
