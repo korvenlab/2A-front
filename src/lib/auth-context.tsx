@@ -156,6 +156,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [signingOut, setSigningOut] = useState(false);
   /** Evita que um `loadUserData` antigo sobrescreva menu/billing após resgate promo ou refresh. */
   const loadUserDataSeqRef = useRef(0);
+  /** Após primeiro `loadUserData` com sucesso; usado para ignorar `SIGNED_IN` espúrios ao focar a aba (gotrue-js / visibility). */
+  const hydratedUserIdRef = useRef<string | null>(null);
 
   const loadUserData = async (uid: string, accessToken?: string | null) => {
     const seq = ++loadUserDataSeqRef.current;
@@ -256,6 +258,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRole(primary);
     setMenu(next.menu);
     setBilling(next.billing);
+    hydratedUserIdRef.current = uid;
   };
 
   useEffect(() => {
@@ -264,6 +267,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (newSession?.user) {
         /** `TOKEN_REFRESHED` dispara ao voltar à aba (autoRefreshToken). Recarregar perfil/org/menu aqui parece “reload” e degrada UX; `INITIAL_SESSION` já coberto por `getSession` abaixo. */
         if (event === "TOKEN_REFRESHED" || event === "INITIAL_SESSION") {
+          return;
+        }
+        /** gotrue-js pode emitir `SIGNED_IN` de novo ao focar a aba (visibility) sem mudança real de conta — evita `setLoading(true)` + refetch completo. */
+        if (event === "SIGNED_IN" && newSession.user.id === hydratedUserIdRef.current) {
           return;
         }
         /** Após login, `role`/`menu` ainda não existem até `loadUserData` terminar; sem isto o layout autenticado redireciona a /portal por `!role` antes do perfil carregar. */
@@ -275,6 +282,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           });
         }, 0);
       } else {
+        hydratedUserIdRef.current = null;
         setProfile(null);
         setOrganization(null);
         setRole(null);
