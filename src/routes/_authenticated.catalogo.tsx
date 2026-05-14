@@ -36,7 +36,6 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   Command,
-  CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
@@ -341,6 +340,8 @@ function CatalogPage() {
   const [viewMode, setViewMode] = useState<CatalogViewMode>("table");
   const [industries, setIndustries] = useState<OrganizationIndustry[]>([]);
   const [industryPickerOpen, setIndustryPickerOpen] = useState(false);
+  const [industrySearch, setIndustrySearch] = useState("");
+  const industrySearchInputRef = useRef<HTMLInputElement | null>(null);
   const [industryCreateOpen, setIndustryCreateOpen] = useState(false);
   const [industryForm, setIndustryForm] = useState(emptyIndustryForm);
   const [industrySaving, setIndustrySaving] = useState(false);
@@ -392,6 +393,17 @@ function CatalogPage() {
   useEffect(() => {
     void loadIndustries();
   }, [loadIndustries]);
+
+  useEffect(() => {
+    if (!industryPickerOpen) {
+      setIndustrySearch("");
+      return;
+    }
+    const id = requestAnimationFrame(() => {
+      industrySearchInputRef.current?.focus();
+    });
+    return () => cancelAnimationFrame(id);
+  }, [industryPickerOpen]);
 
   const categoryOptions = useMemo(() => {
     const s = new Set<string>();
@@ -500,6 +512,21 @@ function CatalogPage() {
     [industries, form.industry_id],
   );
 
+  const filteredIndustries = useMemo(() => {
+    const raw = industrySearch.trim();
+    if (!raw) return industries;
+    const lower = raw.toLowerCase();
+    const qDigits = raw.replace(/\D/g, "");
+    return industries.filter((ind) => {
+      if (ind.trade_name.toLowerCase().includes(lower)) return true;
+      const cnpj = ind.cnpj?.trim() ?? "";
+      if (cnpj && cnpj.toLowerCase().includes(lower)) return true;
+      const cnpjDigits = cnpj.replace(/\D/g, "");
+      if (qDigits.length > 0 && cnpjDigits.includes(qDigits)) return true;
+      return false;
+    });
+  }, [industries, industrySearch]);
+
   const saveIndustry = async () => {
     if (!organization?.id) {
       toast.error("Organização não carregada.");
@@ -589,6 +616,12 @@ function CatalogPage() {
       toast.error("Nome é obrigatório");
       return;
     }
+    const industryId = form.industry_id.trim();
+    const industryRow = industries.find((i) => i.id === industryId);
+    if (!industryId || !industryRow) {
+      toast.error("Selecione uma indústria na lista (obrigatório).");
+      return;
+    }
     const urls = form.image_urls.map((u) => u.trim()).filter(Boolean);
     const imgErr = validateProductImageCount(urls);
     if (imgErr) {
@@ -632,8 +665,8 @@ function CatalogPage() {
         sku: form.sku.trim() || null,
         description: form.description.trim() || null,
         category: form.category.trim() || null,
-        industry_id: form.industry_id.trim() || null,
-        supplier: form.supplier.trim() || null,
+        industry_id: industryId,
+        supplier: industryRow.trade_name.trim() || null,
         image_urls: urls,
         image_url: urls[0] ?? null,
         price: priceNum,
@@ -1253,10 +1286,12 @@ function CatalogPage() {
                         </div>
                       </div>
                       <div className="grid gap-2">
-                        <Label>Indústria</Label>
+                        <Label>Indústria *</Label>
                         <p className="text-xs text-muted-foreground">
-                          Escolha um cadastro na lista (busca por nome ou CNPJ) ou use o nome manual
-                          abaixo.
+                          Obrigatório: escolha um cadastro na lista. Ao abrir, digite no campo de
+                          busca para filtrar por nome fantasia ou CNPJ (com ou sem pontuação). Para
+                          incluir outra, use «Cadastrar nova indústria» na lista ou «Nova indústria»
+                          no topo da página.
                         </p>
                         <Popover open={industryPickerOpen} onOpenChange={setIndustryPickerOpen}>
                           <PopoverTrigger asChild>
@@ -1268,10 +1303,15 @@ function CatalogPage() {
                               className="w-full justify-between font-normal"
                             >
                               <span className="truncate text-left">
-                                {selectedIndustry?.trade_name?.trim() ||
-                                  (form.industry_id
-                                    ? form.supplier.trim() || "Indústria selecionada"
-                                    : "Lista ou busca por nome fantasia")}
+                                {selectedIndustry ? (
+                                  <>
+                                    {selectedIndustry.trade_name.trim()} · {selectedIndustry.cnpj}
+                                  </>
+                                ) : editing && form.supplier.trim() ? (
+                                  <>Selecione na lista — texto atual: {form.supplier.trim()}</>
+                                ) : (
+                                  "Selecione uma indústria (obrigatório)"
+                                )}
                               </span>
                               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
@@ -1280,28 +1320,40 @@ function CatalogPage() {
                             className="w-[var(--radix-popover-trigger-width)] p-0"
                             align="start"
                           >
-                            <Command>
-                              <CommandInput placeholder="Buscar por nome ou CNPJ…" />
+                            <Command shouldFilter={false}>
+                              <CommandInput
+                                ref={industrySearchInputRef}
+                                placeholder="Digite para buscar por nome ou CNPJ…"
+                                value={industrySearch}
+                                onValueChange={setIndustrySearch}
+                              />
                               <CommandList>
-                                <CommandEmpty>
-                                  {industries.length === 0
-                                    ? "Nenhuma indústria cadastrada. Use «Nova indústria» no topo."
-                                    : "Nenhum resultado."}
-                                </CommandEmpty>
+                                {industries.length === 0 ? (
+                                  <div className="px-2 py-6 text-center text-sm text-muted-foreground">
+                                    Nenhuma indústria cadastrada. Escolha «Cadastrar nova indústria»
+                                    abaixo ou «Nova indústria» no topo.
+                                  </div>
+                                ) : industrySearch.trim() && filteredIndustries.length === 0 ? (
+                                  <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+                                    Nenhum resultado para «{industrySearch.trim()}». Ajuste a busca
+                                    ou cadastre uma nova indústria.
+                                  </div>
+                                ) : null}
                                 <CommandGroup>
                                   <CommandItem
-                                    value="__manual__"
+                                    value="__new_industry__"
                                     onSelect={() => {
-                                      setForm((prev) => ({ ...prev, industry_id: "" }));
                                       setIndustryPickerOpen(false);
+                                      setIndustryCreateOpen(true);
                                     }}
                                   >
-                                    Usar nome manual (sem cadastro)
+                                    <Plus className="mr-2 h-4 w-4 shrink-0" />
+                                    Cadastrar nova indústria…
                                   </CommandItem>
-                                  {industries.map((ind) => (
+                                  {filteredIndustries.map((ind) => (
                                     <CommandItem
                                       key={ind.id}
-                                      value={`${ind.trade_name} ${ind.cnpj}`}
+                                      value={ind.id}
                                       onSelect={() => {
                                         setForm((prev) => ({
                                           ...prev,
@@ -1330,17 +1382,15 @@ function CatalogPage() {
                             </Command>
                           </PopoverContent>
                         </Popover>
-                        <Input
-                          value={form.supplier ?? ""}
-                          onChange={(e) => setForm({ ...form, supplier: e.target.value })}
-                          placeholder="Nome da indústria no catálogo (manual ou preenchido pela lista)"
-                          disabled={!!form.industry_id}
-                          className={form.industry_id ? "bg-muted/60" : undefined}
-                        />
-                        {form.industry_id ? (
+                        {selectedIndustry ? (
                           <p className="text-xs text-muted-foreground">
-                            Nome sincronizado com o cadastro da indústria. Na lista, escolha «Usar
-                            nome manual» para editar livremente.
+                            O nome da indústria no catálogo segue o cadastro selecionado (nome
+                            fantasia).
+                          </p>
+                        ) : editing && form.supplier.trim() && !form.industry_id ? (
+                          <p className="text-xs text-amber-700 dark:text-amber-500">
+                            Este produto ainda não está vinculado a um cadastro de indústria.
+                            Selecione o correspondente na lista para poder salvar.
                           </p>
                         ) : null}
                       </div>
