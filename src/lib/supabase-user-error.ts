@@ -1,4 +1,4 @@
-/** Mensagens amigáveis para erro de query Supabase — evita texto cru tipo permission denied na UI. */
+/** Mensagens em português para erros de dados; evita jargão técnico na interface. */
 
 function showSupabaseErrorDetail(): boolean {
   if (import.meta.env.DEV) return true;
@@ -42,16 +42,12 @@ export function userFacingAuthError(error: ErrLike): string {
   const lower = m.toLowerCase();
   if (lower.includes("email rate limit") || (lower.includes("rate limit") && lower.includes("email"))) {
     return (
-      "Limite de envio de e-mails atingido (serviço de e-mail do Supabase). " +
-      "Aguarde cerca de uma hora, tente outro endereço ou peça ao administrador para configurar SMTP próprio " +
-      "em Authentication → Emails no painel do projeto."
+      "Muitos e-mails foram enviados em pouco tempo. Aguarde cerca de uma hora, tente outro endereço ou fale com o suporte."
     );
   }
   if (lower.includes("email signups are disabled") || lower.includes("signups are disabled")) {
     return (
-      "Cadastro por e-mail está desativado no projeto Supabase. " +
-      "No painel: Authentication → Providers → Email — ligue o provedor de e-mail e a opção de permitir novos cadastros " +
-      "(Enable email / Allow new users to sign up). Confirmação de e-mail é outra chave; cadastro e confirmação são independentes."
+      "Novos cadastros por e-mail estão desativados no momento. Peça ao responsável pela sua conta para habilitar o cadastro ou use outro método indicado por eles."
     );
   }
   return m || "Não foi possível concluir a operação.";

@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
@@ -217,7 +217,7 @@ interface ProductForm {
   price: string;
   stock: string;
   category: string;
-  /** UUID da linha em `organization_industries`, ou vazio para indústria só em texto. */
+  /** UUID da linha em `organization_industries` (obrigatório para salvar). */
   industry_id: string;
   supplier: string;
   image_urls: string[];
@@ -254,6 +254,32 @@ const emptyIndustryForm = {
   postal_code: "",
   cnpj: "",
 };
+
+type IndustryCsvMatch = { id: string; trade_name: string; cnpj: string };
+
+/** Liga cada linha do CSV a um cadastro de indústria (UUID, nome fantasia exato ou CNPJ completo). */
+function resolveIndustryFromCsvCells(
+  list: IndustryCsvMatch[],
+  industryIdCell: string | undefined,
+  supplierCell: string | undefined,
+): IndustryCsvMatch | null {
+  const idCell = (industryIdCell ?? "").trim();
+  if (idCell) {
+    const byId = list.find((i) => i.id === idCell);
+    if (byId) return byId;
+  }
+  const sup = (supplierCell ?? "").trim();
+  if (!sup) return null;
+  const lower = sup.toLowerCase();
+  const digits = sup.replace(/\D/g, "");
+  const byName = list.find((i) => i.trade_name.trim().toLowerCase() === lower);
+  if (byName) return byName;
+  if (digits.length >= 14) {
+    const byCnpj = list.find((i) => i.cnpj.replace(/\D/g, "") === digits);
+    if (byCnpj) return byCnpj;
+  }
+  return null;
+}
 
 /** Mini-galeria na tabela do catálogo: todas as fotos visíveis, capa destacada. */
 function CatalogTablePhotoMosaic({ urls, productName }: { urls: string[]; productName: string }) {
@@ -359,7 +385,6 @@ function CatalogPage() {
       .eq("organization_id", organization.id)
       .order("trade_name");
     if (error) {
-      if (import.meta.env.DEV) console.warn("[catalogo] industries", error.message);
       setIndustries([]);
       return;
     }
@@ -529,7 +554,7 @@ function CatalogPage() {
 
   const saveIndustry = async () => {
     if (!organization?.id) {
-      toast.error("Organização não carregada.");
+      toast.error("Não foi possível carregar os dados da empresa.");
       return;
     }
     const t = (s: string) => s.trim();
@@ -630,7 +655,7 @@ function CatalogPage() {
     }
     if (!organization) {
       toast.error(
-        "Organização não carregada. Aguarde alguns segundos e tente de novo, ou recarregue a página.",
+        "Não foi possível carregar os dados da empresa. Aguarde um instante ou recarregue a página.",
       );
       return;
     }
@@ -714,7 +739,7 @@ function CatalogPage() {
   const handleImageUpload = async (file: File) => {
     if (!organization) {
       toast.error(
-        "Organização não carregada. Recarregue a página ou aguarde o painel terminar de carregar.",
+        "Não foi possível carregar os dados da empresa. Aguarde um instante ou recarregue a página.",
       );
       return;
     }
@@ -794,6 +819,7 @@ function CatalogPage() {
       "EAN13 (código de barras)",
       "Categoria",
       "Industria",
+      "ID indústria",
       "Preço",
       "Estoque",
       "Ativo",
@@ -813,6 +839,7 @@ function CatalogPage() {
               p.sku ?? "",
               p.category ?? "",
               p.supplier ?? "",
+              p.industry_id ?? "",
               p.price,
               p.stock,
               p.active ? "Sim" : "Não",
@@ -836,7 +863,7 @@ function CatalogPage() {
     toast.success(
       products.length > 0
         ? `${products.length} produtos exportados`
-        : "Modelo CSV (apenas cabeçalhos) exportado",
+        : "Modelo de arquivo exportado (só cabeçalhos)",
     );
   };
 
@@ -881,16 +908,31 @@ function CatalogPage() {
   const handleImport = async (file: File) => {
     if (!organization) {
       toast.error(
-        "Organização não carregada. Recarregue a página ou aguarde o painel terminar de carregar.",
+        "Não foi possível identificar sua empresa. Aguarde um instante e tente de novo, ou recarregue a página.",
       );
       return;
     }
     setImporting(true);
     try {
+      const { data: indList, error: indErr } = await supabase
+        .from("organization_industries")
+        .select("id,trade_name,cnpj")
+        .eq("organization_id", organization.id)
+        .order("trade_name");
+      if (indErr) {
+        toast.error(userFacingDataError(indErr));
+        return;
+      }
+      const importIndustries = (indList ?? []) as IndustryCsvMatch[];
+      if (importIndustries.length === 0) {
+        toast.error("Cadastre ao menos uma indústria antes de importar produtos.");
+        return;
+      }
+
       const text = await file.text();
       const rows = parseCsv(text);
       if (rows.length < 2) {
-        toast.error("CSV vazio ou sem dados");
+        toast.error("Arquivo vazio ou sem linhas de dados.");
         return;
       }
       const header = rows[0].map((h) => h.trim().toLowerCase());
@@ -918,6 +960,20 @@ function CatalogPage() {
         "indústria",
         "industria/fabricante",
       ]);
+      const iIndId = idx([
+        "industry_id",
+        "id_industria",
+        "id indústria",
+        "id industria",
+        "id_indústria",
+        "id da indústria",
+        "uuid indústria",
+        "uuid industria",
+        "id industria (uuid)",
+        "id indústria (uuid)",
+        "id indústria",
+        "id industria",
+      ]);
       const iPrice = idx(["preço", "preco", "price"]);
       const iStock = idx(["estoque", "stock", "quantidade"]);
       const iActive = idx(["ativo", "active"]);
@@ -925,7 +981,7 @@ function CatalogPage() {
       const iImage = idx(["imagem", "image", "image_url", "url_imagem", "url da imagem"]);
       const iImages = idx(["imagens", "images", "urls_imagem", "urls imagem"]);
       if (iName === -1) {
-        toast.error("Coluna 'Nome' não encontrada no CSV");
+        toast.error("Não encontramos a coluna de nome do produto no arquivo.");
         return;
       }
       const num = (v: string | undefined) => {
@@ -934,19 +990,29 @@ function CatalogPage() {
         return isNaN(n) ? parseFloat(v) || 0 : n;
       };
       const ownerSellerId = role === "vendedor" ? (user?.id ?? null) : null;
+      let skippedNoIndustry = 0;
       const rawRows = rows.slice(1).map((r) => {
         const rawImgMulti = iImages >= 0 ? (r[iImages] ?? "").trim() : "";
         const rawImgSingle = iImage >= 0 ? (r[iImage] ?? "").trim() : "";
         const image_urls = rawImgMulti
           ? parseImageUrlsFromCsvCell(rawImgMulti)
           : parseImageUrlsFromCsvCell(rawImgSingle);
+        const nameTrim = (r[iName] ?? "").trim();
+        const industryIdCell = iIndId >= 0 ? r[iIndId] : undefined;
+        const supplierCell = iSup >= 0 ? r[iSup] : undefined;
+        const resolved = resolveIndustryFromCsvCells(
+          importIndustries,
+          industryIdCell,
+          supplierCell,
+        );
+        if (nameTrim && !resolved) skippedNoIndustry += 1;
         return {
           organization_id: organization.id,
-          name: (r[iName] ?? "").trim(),
+          name: nameTrim,
           sku: iSku >= 0 ? (r[iSku] ?? "").trim() || null : null,
           category: iCat >= 0 ? (r[iCat] ?? "").trim() || null : null,
-          supplier: iSup >= 0 ? (r[iSup] ?? "").trim() || null : null,
-          industry_id: null,
+          supplier: resolved ? resolved.trade_name.trim() : null,
+          industry_id: resolved ? resolved.id : null,
           price: iPrice >= 0 ? num(r[iPrice]) : 0,
           stock: iStock >= 0 ? Math.floor(num(r[iStock])) : 0,
           active:
@@ -963,13 +1029,22 @@ function CatalogPage() {
         (p) => p.name && validateProductImageCount(p.image_urls) !== null,
       ).length;
       const payload = rawRows.filter(
-        (p) => p.name && validateProductImageCount(p.image_urls) === null,
+        (p) =>
+          p.name &&
+          p.industry_id &&
+          validateProductImageCount(p.image_urls) === null,
       );
       if (payload.length === 0) {
+        const imgProblem = skippedBadImages > 0;
+        const indProblem = skippedNoIndustry > 0;
         toast.error(
-          skippedBadImages > 0
-            ? "Nenhuma linha válida: cada produto precisa de 1 a 4 imagens (coluna Imagens ou Imagem)."
-            : "Nenhum produto válido encontrado",
+          imgProblem && indProblem
+            ? "Nenhuma linha válida: confira as fotos (1 a 4 por produto) e se a indústria existe (coluna ID indústria, ou nome fantasia / CNPJ iguais ao cadastro)."
+            : indProblem
+              ? "Nenhuma linha válida: cada produto precisa de uma indústria já cadastrada (use a coluna ID indústria do arquivo exportado, ou nome fantasia / CNPJ exatamente como no cadastro)."
+              : imgProblem
+                ? "Nenhuma linha válida: cada produto precisa de 1 a 4 fotos (coluna Imagens ou Imagem)."
+                : "Nenhum produto válido encontrado.",
         );
         return;
       }
@@ -1018,7 +1093,7 @@ function CatalogPage() {
             sku: p.sku,
             category: p.category,
             supplier: p.supplier,
-            industry_id: null,
+            industry_id: p.industry_id,
             price: p.price,
             stock: p.stock,
             active: p.active,
@@ -1043,12 +1118,20 @@ function CatalogPage() {
       }
 
       const skippedDuplicatedSku = withSku.length - dedupedWithSku.length;
+      const summary: string[] = [];
+      if (inserted) summary.push(`${inserted} novo(s)`);
+      if (updated) summary.push(`${updated} atualizado(s)`);
+      if (failed) summary.push(`${failed} com erro`);
+      if (skippedDuplicatedSku)
+        summary.push(`${skippedDuplicatedSku} código duplicado no arquivo`);
+      if (skippedBadImages) summary.push(`${skippedBadImages} ignorado(s) por foto`);
+      if (skippedNoIndustry) summary.push(`${skippedNoIndustry} sem indústria reconhecida`);
       toast.success(
-        `Importação concluída: ${inserted} inseridos, ${updated} atualizados, ${failed} falhas, ${skippedDuplicatedSku} EAN13/códigos de barras duplicados ignorados, ${skippedBadImages} linhas sem imagens válidas ignoradas.`,
+        summary.length > 0 ? `Importação concluída: ${summary.join("; ")}.` : "Importação concluída.",
       );
       load();
     } catch (e) {
-      toast.error("Erro ao processar CSV");
+      toast.error("Não foi possível ler o arquivo.");
     } finally {
       setImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -1163,18 +1246,11 @@ function CatalogPage() {
             <div className="min-w-0 space-y-1">
               <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                 <Link2 className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-                Link do catálogo para clientes (visualização)
+                Link público do catálogo
               </div>
               <p className="text-xs text-muted-foreground">
-                Quem abre o link vê os produtos ativos sem login. Para montar o carrinho, o cliente
-                entra ou cadastra-se — o cadastro segue o mesmo fluxo do convite universal em{" "}
-                <Link
-                  to="/clientes"
-                  className="font-medium text-foreground underline underline-offset-2"
-                >
-                  Clientes
-                </Link>
-                .
+                Qualquer pessoa com o endereço pode ver os produtos ativos. Para montar o carrinho e
+                enviar pedidos, é preciso entrar ou criar uma conta de cliente.
               </p>
               <p className="break-all font-mono text-[11px] text-foreground/90">
                 {typeof window !== "undefined"
@@ -1190,7 +1266,7 @@ function CatalogPage() {
               onClick={async () => {
                 const url = publicStorefrontCatalogUrl(organization.slug!.trim());
                 const ok = await copyTextToClipboard(url);
-                if (ok) toast.success("Link do catálogo público copiado.");
+                if (ok) toast.success("Link copiado.");
                 else toast.error("Não foi possível copiar. Use HTTPS ou copie manualmente.");
               }}
             >
@@ -1200,7 +1276,7 @@ function CatalogPage() {
         ) : null}
         <PageHeader
           title="Catálogo"
-          description="Filtre por categoria e indústria, ordene e alterne entre tabela e grade. Os itens ficam agrupados por categoria para localizar mais rápido."
+          description="Filtre por categoria e indústria, ordene e alterne entre tabela e grade. Ao importar um arquivo, cada linha precisa de indústria cadastrada: use a coluna «ID indústria» do arquivo exportado, ou o nome fantasia / CNPJ exatamente como no cadastro de indústrias."
           action={
             <div className="flex flex-wrap gap-2">
               <input
@@ -1288,10 +1364,8 @@ function CatalogPage() {
                       <div className="grid gap-2">
                         <Label>Indústria *</Label>
                         <p className="text-xs text-muted-foreground">
-                          Obrigatório: escolha um cadastro na lista. Ao abrir, digite no campo de
-                          busca para filtrar por nome fantasia ou CNPJ (com ou sem pontuação). Para
-                          incluir outra, use «Cadastrar nova indústria» na lista ou «Nova indústria»
-                          no topo da página.
+                          Escolha um cadastro na lista (busca por nome ou CNPJ). Para incluir outra
+                          indústria, use o primeiro item da lista ou o botão «Nova indústria» acima.
                         </p>
                         <Popover open={industryPickerOpen} onOpenChange={setIndustryPickerOpen}>
                           <PopoverTrigger asChild>
@@ -1384,13 +1458,12 @@ function CatalogPage() {
                         </Popover>
                         {selectedIndustry ? (
                           <p className="text-xs text-muted-foreground">
-                            O nome da indústria no catálogo segue o cadastro selecionado (nome
-                            fantasia).
+                            No catálogo, a indústria aparece com o nome fantasia deste cadastro.
                           </p>
                         ) : editing && form.supplier.trim() && !form.industry_id ? (
                           <p className="text-xs text-amber-700 dark:text-amber-500">
-                            Este produto ainda não está vinculado a um cadastro de indústria.
-                            Selecione o correspondente na lista para poder salvar.
+                            Este produto ainda não está vinculado a uma indústria cadastrada. Escolha
+                            a correspondente na lista para salvar.
                           </p>
                         ) : null}
                       </div>

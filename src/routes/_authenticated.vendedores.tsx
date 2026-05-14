@@ -180,7 +180,7 @@ function SellersPage() {
     if (pct === null) return toast.error("Informe um percentual de comissão válido (0 a 100).");
     if (!organization) {
       toast.error(
-        "Organização não carregada. Recarregue a página ou aguarde o painel terminar de carregar.",
+        "Não foi possível carregar os dados da empresa. Aguarde um instante ou recarregue a página.",
       );
       return;
     }
@@ -269,11 +269,11 @@ function SellersPage() {
       <div className="p-6 lg:p-10 space-y-6">
         <PageHeader
           title="Vendedores"
-          description="Somente administradores gerenciam a equipe de vendedores aqui. Para convidar clientes ao catálogo, use a página Clientes e o botão Convidar cliente."
+          description="Somente administradores gerenciam a equipe de vendedores nesta página. Convites para clientes ficam na área de clientes."
         />
         <div className="rounded-2xl border border-border bg-card p-8 text-center space-y-4">
           <p className="text-sm text-muted-foreground">
-            Convites para <strong className="text-foreground">clientes</strong> ficam em{" "}
+            Convites para clientes ficam na área de{" "}
             <strong className="text-foreground">Clientes</strong>.
           </p>
           <Button asChild>
@@ -288,7 +288,7 @@ function SellersPage() {
     <div className="p-6 lg:p-10 space-y-8">
       <PageHeader
         title="Vendedores"
-        description="Quem criou a conta como administrador aparece também como representante, com a etiqueta (Eu) ao lado do nome quando for você, e comissão própria. Demais vendedores vêm por convite. Somente administradores alteram a equipe aqui. Clientes B2B ficam na página Clientes."
+        description="Administradores aparecem na lista com a etiqueta (Eu). Demais representantes entram por convite. Só administradores alteram a equipe aqui."
         action={
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>

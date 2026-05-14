@@ -346,7 +346,7 @@ function CustomersPage() {
     }
     if (!organization) {
       toast.error(
-        "Organização não carregada. Aguarde alguns segundos e tente de novo, ou recarregue a página.",
+        "Não foi possível carregar os dados da empresa. Aguarde um instante ou recarregue a página.",
       );
       return;
     }
@@ -418,7 +418,7 @@ function CustomersPage() {
   const ensureUniversalClientInvite = async (): Promise<ClientInvitation | null> => {
     if (!organization) {
       toast.error(
-        "Organização não carregada. Aguarde alguns segundos e recarregue se precisar.",
+        "Não foi possível carregar os dados da empresa. Aguarde um instante ou recarregue a página.",
       );
       return null;
     }
@@ -435,7 +435,7 @@ function CustomersPage() {
         const fromDb = await fetchUniversalClientInviteFromDb();
         if (fromDb) return fromDb;
         toast.error(
-          "O link de cadastro ao catálogo ainda não foi ativado. Peça ao administrador para abrir Clientes e usar «Copiar link de cadastro» uma vez — depois todos da empresa usam o mesmo link.",
+          "O link de cadastro ainda não está ativo. Peça a um administrador da empresa para ativá-lo na área de clientes.",
         );
         return null;
       }
@@ -499,8 +499,8 @@ function CustomersPage() {
         title="Clientes"
         description={
           isAdmin
-            ? "Carteira B2B: cadastro manual, link exclusivo desta empresa para clientes criarem conta (cada representação tem seu próprio token) e filtros por UF, indústria e vendedor. Quem se cadastra pelo link aparece aqui automaticamente. Vendedores copiam o mesmo link. Novos representantes em Vendedores."
-            : "Sua carteira de clientes da empresa. Cadastre empresas manualmente. O link de cadastro ao catálogo é único por empresa: o administrador ativa o convite uma vez; depois você copia aqui o mesmo link."
+            ? "Cadastre empresas, acompanhe a carteira e compartilhe o link de cadastro com clientes. Filtre por UF, indústria e vendedor."
+            : "Cadastre empresas e acompanhe a carteira de clientes da empresa. Use o link de cadastro fornecido pelo administrador quando precisar compartilhá-lo."
         }
         action={
           <div className="flex flex-col items-end gap-2">
@@ -521,10 +521,7 @@ function CustomersPage() {
               onClick={async () => {
                 const inv = await ensureUniversalClientInvite();
                 if (!inv) return;
-                await copyInvite(
-                  inviteSignupUrl(inv.token),
-                  "Link copiado: mesmo link da empresa (cadastro só na sua representação).",
-                );
+                await copyInvite(inviteSignupUrl(inv.token), "Link copiado.");
               }}
             >
               {inviteSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}

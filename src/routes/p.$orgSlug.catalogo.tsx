@@ -207,14 +207,13 @@ function PublicStorefrontCatalog() {
                 </p>
                 {inviteToken ? (
                   <p>
-                    Use <strong className="text-foreground">Registrar</strong> para criar conta como
-                    cliente desta empresa (mesmo fluxo do link de convite ao catálogo) e depois
-                    comprar no portal B2B.
+                    Use <strong className="text-foreground">Registrar</strong> para criar sua conta
+                    de cliente desta empresa e, em seguida, comprar no portal.
                   </p>
                 ) : (
                   <p>
-                    Quando o administrador ativar o convite de clientes no painel, aparecerão aqui
-                    as opções de entrar e registrar-se com o vínculo automático a esta empresa.
+                    Quando o cadastro de novos clientes estiver disponível para esta empresa,
+                    aparecerão aqui as opções de entrar e de registrar-se.
                   </p>
                 )}
               </div>
@@ -280,7 +279,7 @@ function PublicStorefrontCatalog() {
           <div className="flex flex-wrap items-center justify-end gap-2 sm:shrink-0">
             {!authLoading && isAuthenticated && (role === "admin" || role === "vendedor") ? (
               <Button variant="outline" size="sm" asChild>
-                <Link to="/catalogo">Painel — catálogo</Link>
+                <Link to="/catalogo">Meu catálogo</Link>
               </Button>
             ) : null}
             {!authLoading && isAuthenticated ? (
@@ -333,16 +332,13 @@ function PublicStorefrontCatalog() {
             <div className="mb-6 rounded-xl border border-border bg-muted/30 p-4 text-sm text-muted-foreground">
               <p>
                 Esta página é só para <strong className="text-foreground">visualização</strong>.
-                Para montar o carrinho e enviar pedidos, entre ou cadastre-se como cliente — o
-                cadastro pela representação vincula você a esta empresa, no mesmo fluxo do link de
-                convite ao catálogo.
+                Para montar o carrinho e enviar pedidos, entre na sua conta ou cadastre-se como
+                cliente desta empresa.
               </p>
               {!inviteToken && !authLoading ? (
                 <p className="mt-2 border-l-2 border-amber-500/60 pl-3 text-amber-950 dark:text-amber-100">
-                  O administrador ainda não ativou o convite universal de clientes. Peça para abrir{" "}
-                  <strong className="text-foreground">Clientes</strong> no painel e usar «Copiar
-                  link de cadastro» uma vez; depois os botões de entrar e cadastrar aparecem aqui
-                  também.
+                  O cadastro de novos clientes ainda não está disponível por aqui. Peça ao
+                  representante o link de cadastro ou orientações para acessar o portal.
                 </p>
               ) : null}
             </div>

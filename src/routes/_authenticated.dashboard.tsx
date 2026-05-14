@@ -424,7 +424,7 @@ function Dashboard() {
           </Button>
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Primeiros passos</h2>
           <p className="mt-1 text-sm text-muted-foreground max-w-2xl">
-            Complete o essencial para sua operação rodar com fluxo comercial (cliente → catálogo → pedido).
+            Complete o essencial: clientes, catálogo e pedidos.
           </p>
           <ul className="mt-4 space-y-3">
             <li className="flex items-start gap-3">

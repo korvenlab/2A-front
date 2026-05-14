@@ -591,13 +591,13 @@ function Portal() {
       return toast.error(
         p.owner_seller_id
           ? "Não foi possível identificar o representante do produto."
-          : "Esta representação não tem administrador cadastrado para pedidos de produtos sem vendedor no cadastro. Fale com o suporte.",
+          : "Este produto não pode ser adicionado ao carrinho no momento. Fale com seu representante ou com o suporte.",
       );
     }
     const existingSeller = cart[0] ? effectiveLineSellerId(cart[0].product) : null;
     if (existingSeller && existingSeller !== lineSeller) {
       return toast.error(
-        "Seu carrinho só pode ter produtos do mesmo representante (incluindo catálogo geral da empresa). Finalize ou limpe o carrinho para trocar.",
+        "O carrinho só pode ter produtos do mesmo representante. Finalize o pedido ou esvazie o carrinho para continuar.",
       );
     }
     const normalizedQty = Math.max(1, Math.min(qty, p.stock));
@@ -638,7 +638,7 @@ function Portal() {
 
   const placeOrder = async () => {
     const orderOrgId = portalOrgId ?? organization?.id;
-    if (!orderOrgId || !customerId) return toast.error("Cadastro do cliente não disponível");
+    if (!orderOrgId || !customerId) return toast.error("Não foi possível identificar seu cadastro. Atualize a página ou entre de novo.");
     if (cart.length === 0) return toast.error("Adicione produtos ao carrinho");
     const orderSellerId = effectiveLineSellerId(cart[0].product);
     if (!orderSellerId) {

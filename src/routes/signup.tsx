@@ -277,14 +277,14 @@ function SignupPage() {
 
   const sub =
     !hasInvite
-      ? "14 dias grátis. Sem cartão de crédito. Informe a empresa da sua representação (tenant operacional)."
+      ? "14 dias grátis. Sem cartão de crédito. Informe o nome da empresa da sua representação."
       : invitePurpose === "client_catalog"
-        ? "Bem-vindo ao 2AVendas. Este link é exclusivo da representação que o enviou; após o cadastro você verá o catálogo e passará a constar na carteira deles."
+        ? "Este link é da representação que o enviou. Depois do cadastro você verá o catálogo e fará parte da carteira deles."
         : invitePurpose === "seller_signup"
-          ? "Opcional: nome da equipe ou como aparece na carteira; por padrão usamos o nome da representação do convite."
+          ? "Opcional: como prefere aparecer na carteira; se deixar em branco, usamos o nome indicado no convite."
           : invitePeekLoading
             ? "Validando convite…"
-            : "Use o mesmo e-mail indicado no convite e informe a empresa conforme o tipo de convite.";
+            : "Use o mesmo e-mail combinado com quem enviou o convite e preencha os dados da empresa.";
 
   const disableSubmit = submitting || (hasInvite && invitePeekLoading);
 
@@ -298,7 +298,7 @@ function SignupPage() {
         <div className="border-b border-[#E8ECF2] bg-[#F9F9F9] px-5 py-4 lg:hidden">
           <p className="text-[10px] font-mono uppercase tracking-[0.2em] text-[#007AFF]">2AVendas</p>
           <p className="mt-2 text-sm leading-relaxed text-[#003366]">
-            Cadastro rápido: representação própria ou conta via convite de cliente ou vendedor.
+            Cadastro: representação própria ou convite de cliente ou vendedor.
           </p>
         </div>
 
@@ -344,7 +344,7 @@ function SignupPage() {
                     className={signupInputClass}
                   />
                   <p className="mt-1 text-xs text-[#64748B]">
-                    Administradores e vendedores compartilham esta mesma empresa operacional (tenant).
+                    Administradores e vendedores usam o mesmo nome de empresa informado aqui.
                   </p>
                 </div>
               )}
@@ -377,11 +377,13 @@ function SignupPage() {
                       placeholder="Denominação conforme contrato ou CNPJ"
                     />
                     <p className="mt-1 text-xs text-[#64748B]">
-                      Campo distinto do nome fantasia; ambos aparecem para a representação na carteira de clientes. O segmento ou indústria pode ser preenchido depois pelo administrador ou vendedor na carteira.
+                      O segmento ou ramo de atividade pode ser preenchido depois pelo representante na
+                      ficha do cliente.
                     </p>
                   </div>
                   <p className="border-l-2 border-[rgba(0,122,255,0.28)] py-1 pl-3 text-xs text-[#64748B]">
-                    Já tem cadastro em outra representação? Não crie outra conta com o mesmo e-mail — peça o link “para quem já tem conta” e entre pelo login para vincular esta empresa também.
+                    Já tem conta em outra representação? Não crie outro cadastro com o mesmo e-mail:
+                    entre pelo login e use o link «para quem já tem conta» para vincular esta empresa.
                   </p>
                 </div>
               )}
@@ -396,7 +398,7 @@ function SignupPage() {
                     value={staffOrganizationName}
                     onChange={(e) => setStaffOrganizationName(e.target.value)}
                     className={signupInputClass}
-                    placeholder="Mesma representação do convite se deixar em branco"
+                    placeholder="Deixe em branco para usar o nome indicado no convite"
                   />
                 </div>
               )}
@@ -414,7 +416,7 @@ function SignupPage() {
                     className={signupInputClass}
                   />
                   <p className="mt-1 text-xs text-[#64748B]">
-                    Não foi possível ler o tipo de convite; use o nome orientado pelo representante.
+                    Use o nome da empresa como combinado com quem enviou o convite.
                   </p>
                 </div>
               )}

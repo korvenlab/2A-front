@@ -557,8 +557,7 @@ function FunilPage() {
       {stages.length === 0 ? (
         <Card>
           <CardContent className="py-10 text-center text-muted-foreground">
-            Nenhum estágio do funil encontrado. Aplique a migration do CRM no Supabase ou aguarde a criação da
-            organização (estágios padrão são gerados automaticamente).
+            Nenhuma etapa do funil encontrada. Aguarde alguns minutos ou entre em contato com o suporte se o problema continuar.
           </CardContent>
         </Card>
       ) : view === "kanban" ? (
