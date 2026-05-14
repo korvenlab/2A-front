@@ -27,6 +27,7 @@ import { Route as AuthenticatedDashboardRouteImport } from './routes/_authentica
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated.clientes'
 import { Route as AuthenticatedCatalogoRouteImport } from './routes/_authenticated.catalogo'
 import { Route as AuthenticatedAssinaturaRouteImport } from './routes/_authenticated.assinatura'
+import { Route as POrgSlugCatalogoRouteImport } from './routes/p.$orgSlug.catalogo'
 import { Route as AuthenticatedPOrgSlugPortalRouteImport } from './routes/_authenticated.p.$orgSlug.portal'
 
 const SignupRoute = SignupRouteImport.update({
@@ -118,6 +119,11 @@ const AuthenticatedAssinaturaRoute = AuthenticatedAssinaturaRouteImport.update({
   path: '/assinatura',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const POrgSlugCatalogoRoute = POrgSlugCatalogoRouteImport.update({
+  id: '/p/$orgSlug/catalogo',
+  path: '/p/$orgSlug/catalogo',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedPOrgSlugPortalRoute =
   AuthenticatedPOrgSlugPortalRouteImport.update({
     id: '/p/$orgSlug/portal',
@@ -143,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/vendedores': typeof AuthenticatedVendedoresRoute
   '/visitas': typeof AuthenticatedVisitasRoute
   '/billing/unlock': typeof BillingUnlockRoute
+  '/p/$orgSlug/catalogo': typeof POrgSlugCatalogoRoute
   '/p/$orgSlug/portal': typeof AuthenticatedPOrgSlugPortalRoute
 }
 export interface FileRoutesByTo {
@@ -163,6 +170,7 @@ export interface FileRoutesByTo {
   '/vendedores': typeof AuthenticatedVendedoresRoute
   '/visitas': typeof AuthenticatedVisitasRoute
   '/billing/unlock': typeof BillingUnlockRoute
+  '/p/$orgSlug/catalogo': typeof POrgSlugCatalogoRoute
   '/p/$orgSlug/portal': typeof AuthenticatedPOrgSlugPortalRoute
 }
 export interface FileRoutesById {
@@ -185,6 +193,7 @@ export interface FileRoutesById {
   '/_authenticated/vendedores': typeof AuthenticatedVendedoresRoute
   '/_authenticated/visitas': typeof AuthenticatedVisitasRoute
   '/billing/unlock': typeof BillingUnlockRoute
+  '/p/$orgSlug/catalogo': typeof POrgSlugCatalogoRoute
   '/_authenticated/p/$orgSlug/portal': typeof AuthenticatedPOrgSlugPortalRoute
 }
 export interface FileRouteTypes {
@@ -207,6 +216,7 @@ export interface FileRouteTypes {
     | '/vendedores'
     | '/visitas'
     | '/billing/unlock'
+    | '/p/$orgSlug/catalogo'
     | '/p/$orgSlug/portal'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -227,6 +237,7 @@ export interface FileRouteTypes {
     | '/vendedores'
     | '/visitas'
     | '/billing/unlock'
+    | '/p/$orgSlug/catalogo'
     | '/p/$orgSlug/portal'
   id:
     | '__root__'
@@ -248,6 +259,7 @@ export interface FileRouteTypes {
     | '/_authenticated/vendedores'
     | '/_authenticated/visitas'
     | '/billing/unlock'
+    | '/p/$orgSlug/catalogo'
     | '/_authenticated/p/$orgSlug/portal'
   fileRoutesById: FileRoutesById
 }
@@ -260,6 +272,7 @@ export interface RootRouteChildren {
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignupRoute: typeof SignupRoute
   BillingUnlockRoute: typeof BillingUnlockRoute
+  POrgSlugCatalogoRoute: typeof POrgSlugCatalogoRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -390,6 +403,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAssinaturaRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/p/$orgSlug/catalogo': {
+      id: '/p/$orgSlug/catalogo'
+      path: '/p/$orgSlug/catalogo'
+      fullPath: '/p/$orgSlug/catalogo'
+      preLoaderRoute: typeof POrgSlugCatalogoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/p/$orgSlug/portal': {
       id: '/_authenticated/p/$orgSlug/portal'
       path: '/p/$orgSlug/portal'
@@ -441,6 +461,7 @@ const rootRouteChildren: RootRouteChildren = {
   ResetPasswordRoute: ResetPasswordRoute,
   SignupRoute: SignupRoute,
   BillingUnlockRoute: BillingUnlockRoute,
+  POrgSlugCatalogoRoute: POrgSlugCatalogoRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -27,3 +27,11 @@ export function invitePortalLoginUrl(token: string, organizationSlug?: string | 
     : `/portal?invite=${encodeURIComponent(token)}`;
   return `${origin}/login?redirect=${encodeURIComponent(portalPath)}`;
 }
+
+/** Vitrine pública: só visualização; compra exige conta cliente (mesmo convite universal). */
+export function publicStorefrontCatalogUrl(orgSlug: string): string {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const s = orgSlug.trim();
+  if (!s) return `${origin}/`;
+  return `${origin}/p/${encodeURIComponent(s)}/catalogo`;
+}

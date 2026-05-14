@@ -767,6 +767,62 @@ export type Database = {
         }
         Relationships: []
       }
+      organization_industries: {
+        Row: {
+          address_line: string
+          city: string
+          cnpj: string
+          created_at: string
+          email: string
+          id: string
+          organization_id: string
+          phone: string
+          postal_code: string
+          responsible_name: string
+          state: string
+          trade_name: string
+          updated_at: string
+        }
+        Insert: {
+          address_line: string
+          city: string
+          cnpj: string
+          created_at?: string
+          email: string
+          id?: string
+          organization_id: string
+          phone: string
+          postal_code: string
+          responsible_name: string
+          state: string
+          trade_name: string
+          updated_at?: string
+        }
+        Update: {
+          address_line?: string
+          city?: string
+          cnpj?: string
+          created_at?: string
+          email?: string
+          id?: string
+          organization_id?: string
+          phone?: string
+          postal_code?: string
+          responsible_name?: string
+          state?: string
+          trade_name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_industries_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       organization_seller_commissions: {
         Row: {
           commission_pct: number
@@ -805,6 +861,7 @@ export type Database = {
           id: string
           image_url: string | null
           image_urls: Json
+          industry_id: string | null
           name: string
           organization_id: string
           price: number
@@ -821,6 +878,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           image_urls?: Json
+          industry_id?: string | null
           name: string
           organization_id: string
           price?: number
@@ -837,6 +895,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           image_urls?: Json
+          industry_id?: string | null
           name?: string
           organization_id?: string
           price?: number
@@ -846,6 +905,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "products_industry_id_fkey"
+            columns: ["industry_id"]
+            isOneToOne: false
+            referencedRelation: "organization_industries"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "products_organization_id_fkey"
             columns: ["organization_id"]
