@@ -1,6 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { moneyNumber } from "@/lib/format";
 
+/** Código sequencial por organização (ex.: 000042). */
+export function formatOrderCode(orderNumber: number | null | undefined): string {
+  const n = Math.trunc(moneyNumber(orderNumber));
+  if (n <= 0) return "—";
+  return n.toString().padStart(6, "0");
+}
+
 export interface OrderItemLineSummary {
   product_name: string;
   quantity: number;

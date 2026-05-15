@@ -67,6 +67,7 @@ import { SavedViewsBar } from "@/components/SavedViewsBar";
 import {
   fetchOrderItemsByOrderIds,
   fetchOrderTotalsFallback,
+  formatOrderCode,
   formatOrderItemsPreview,
   repLabelForSellerId,
   type OrderItemLineSummary,
@@ -355,7 +356,15 @@ function OrdersPage() {
     );
   }, [products, productPickSearch]);
 
+  const newOrdersCount = useMemo(
+    () => orders.filter((o) => o.status === "enviado").length,
+    [orders],
+  );
+
   const ordersFiltered = useMemo(() => {
+    if (statusFilter === "__new__") {
+      return orders.filter((o) => o.status === "enviado");
+    }
     if (statusFilter === "__all__") return orders;
     return orders.filter((o) => o.status === statusFilter);
   }, [orders, statusFilter]);
@@ -364,7 +373,7 @@ function OrdersPage() {
     downloadCsv(
       `pedidos-${new Date().toISOString().slice(0, 10)}.csv`,
       [
-        "Pedido",
+        "Código",
         "Status",
         "Cliente",
         "Produtos",
@@ -379,7 +388,7 @@ function OrdersPage() {
         const pct = sid && commissionBySeller[sid] != null ? commissionBySeller[sid] : 0;
         const est = sid ? commissionFromTotal(o.total, pct) : null;
         return [
-          String(o.order_number),
+          formatOrderCode(o.order_number),
           statusLabels[o.status] ?? o.status,
           o.customers?.name ?? "",
           formatOrderItemsPreview(orderItemsByOrderId[o.id]) || "—",
@@ -398,13 +407,14 @@ function OrdersPage() {
     const to = o.customers?.email?.trim();
     if (!to) return toast.error("Cliente sem e-mail.");
     if (!organization?.id) return;
-    const subject = `Pedido #${String(o.order_number).padStart(4, "0")} — ${organization.name}`;
-    const body = `Olá,\n\nSegue o pedido #${String(o.order_number).padStart(4, "0")} no valor de ${brl(o.total)} (${statusLabels[o.status]}).\n\n`;
+    const code = formatOrderCode(o.order_number);
+    const subject = `Pedido ${code} — ${organization.name}`;
+    const body = `Olá,\n\nSegue o pedido ${code} no valor de ${brl(o.total)} (${statusLabels[o.status]}).\n\n`;
     window.location.href = mailtoUrl(to, subject, body);
     const { error } = await recordOutreach(supabase, {
       organization_id: organization.id,
       channel: "email",
-      summary: `Pedido #${String(o.order_number).padStart(4, "0")} — e-mail`,
+      summary: `Pedido ${code} — e-mail`,
       body,
       customer_id: o.customer_id,
       order_id: o.id,
@@ -417,14 +427,15 @@ function OrdersPage() {
     const phone = o.customers?.phone?.trim();
     if (!phone) return toast.error("Cliente sem telefone.");
     if (!organization?.id) return;
-    const msg = `Olá! Referente ao pedido #${String(o.order_number).padStart(4, "0")} (${organization.name}) — total ${brl(o.total)}.`;
+    const code = formatOrderCode(o.order_number);
+    const msg = `Olá! Referente ao pedido ${code} (${organization.name}) — total ${brl(o.total)}.`;
     const url = whatsAppShareUrl(phone, msg);
     if (!url) return toast.error("Telefone inválido.");
     window.open(url, "_blank", "noopener,noreferrer");
     const { error } = await recordOutreach(supabase, {
       organization_id: organization.id,
       channel: "whatsapp",
-      summary: `Pedido #${String(o.order_number).padStart(4, "0")} — WhatsApp`,
+      summary: `Pedido ${code} — WhatsApp`,
       body: msg,
       customer_id: o.customer_id,
       order_id: o.id,
@@ -525,7 +536,12 @@ function OrdersPage() {
     const { error } = await supabase.from("orders").update({ status }).eq("id", id);
     if (error) {
       toast.error(userFacingDataError(error) ?? "Não foi possível alterar o status.");
-    } else load();
+    } else {
+      setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
+      if (orderDetail?.id === id) setOrderDetail({ ...orderDetail, status });
+      toast.success("Status atualizado.");
+      void load();
+    }
   };
 
   const openOrderDetail = useCallback(async (o: Order) => {
@@ -858,6 +874,9 @@ function OrdersPage() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="__all__">Todos os status</SelectItem>
+              <SelectItem value="__new__">
+                Novos{newOrdersCount > 0 ? ` (${newOrdersCount})` : ""}
+              </SelectItem>
               {(Object.keys(statusLabels) as OrderStatus[]).map((s) => (
                 <SelectItem key={s} value={s}>
                   {statusLabels[s]}
@@ -899,7 +918,7 @@ function OrdersPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>#</TableHead>
+                <TableHead className="w-[120px]">Código</TableHead>
                 <TableHead>Cliente</TableHead>
                 <TableHead className="min-w-[200px] max-w-[280px]">Produtos</TableHead>
                 <TableHead className="hidden xl:table-cell">Contato</TableHead>
@@ -928,8 +947,8 @@ function OrdersPage() {
                     void openOrderDetail(o);
                   }}
                 >
-                  <TableCell className="font-mono text-sm">
-                    #{String(o.order_number).padStart(4, "0")}
+                  <TableCell className="font-mono text-sm tabular-nums">
+                    {formatOrderCode(o.order_number)}
                   </TableCell>
                   <TableCell className="font-medium">
                     <div>{o.customers?.name ?? "—"}</div>
@@ -1060,11 +1079,14 @@ function OrdersPage() {
                           ))}
                         </SelectContent>
                       </Select>
-                      {o.status === "enviado" && (
-                        <Badge variant="default" className="whitespace-nowrap">
+                      {o.status === "enviado" ? (
+                        <Badge
+                          variant="outline"
+                          className="whitespace-nowrap border-emerald-300/80 bg-emerald-100/90 text-emerald-900 shadow-sm motion-safe:animate-pulse"
+                        >
                           Novo pedido do cliente
                         </Badge>
-                      )}
+                      ) : null}
                     </div>
                   </TableCell>
                   <TableCell className="text-right">
@@ -1120,8 +1142,16 @@ function OrdersPage() {
             <>
               <SheetHeader className="space-y-1 pr-8 text-left">
                 <SheetTitle className="text-lg">
-                  Pedido #{String(orderDetail.order_number).padStart(4, "0")}
+                  Pedido {formatOrderCode(orderDetail.order_number)}
                 </SheetTitle>
+                {orderDetail.status === "enviado" ? (
+                  <Badge
+                    variant="outline"
+                    className="mt-2 w-fit border-emerald-300/80 bg-emerald-100/90 text-emerald-900 motion-safe:animate-pulse"
+                  >
+                    Novo pedido do cliente
+                  </Badge>
+                ) : null}
                 <p className="text-xs text-muted-foreground">
                   {dt(orderDetail.created_at)} · {statusLabels[orderDetail.status]}
                 </p>
@@ -1226,7 +1256,9 @@ function OrdersPage() {
               <div className="space-y-2 text-sm">
                 <p>
                   O pedido{" "}
-                  <strong>#{deleteOrderTarget ? String(deleteOrderTarget.order_number).padStart(4, "0") : ""}</strong>{" "}
+                  <strong>
+                    {deleteOrderTarget ? formatOrderCode(deleteOrderTarget.order_number) : ""}
+                  </strong>{" "}
                   de <strong>{deleteOrderTarget?.customers?.name ?? "cliente"}</strong> será removido com todos os
                   itens.
                 </p>
@@ -1257,7 +1289,7 @@ function OrdersPage() {
           </DialogHeader>
           <p className="text-xs text-muted-foreground">
             A emissão fiscal continua no seu ERP ou contador. Aqui você apenas associa a chave ao pedido{" "}
-            {nfeTarget ? `#${String(nfeTarget.order_number).padStart(4, "0")}` : ""}.
+            {nfeTarget ? formatOrderCode(nfeTarget.order_number) : ""}.
           </p>
           <div className="grid gap-3 py-2">
             <div className="grid gap-2">
