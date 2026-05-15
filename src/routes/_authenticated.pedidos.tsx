@@ -158,7 +158,7 @@ const statusVariant: Record<OrderStatus, "default" | "secondary" | "outline" | "
 
 function OrdersPage() {
   useMenuGate("pedidos");
-  const { organization, user, role } = useAuth();
+  const { organization, user, role, profile } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [customers, setCustomers] = useState<CustomerOpt[]>([]);
   const [products, setProducts] = useState<ProductOpt[]>([]);
@@ -425,7 +425,10 @@ function OrdersPage() {
       }));
     }
 
-    const representationName = (organization.name ?? "").trim() || "Representação";
+    const representationName =
+      profile?.organization_staff?.trim() ||
+      organization.name?.trim() ||
+      "Representação";
     const customerName = o.customers?.name?.trim() || "Cliente";
 
     const msg = buildOrderWhatsAppMessage({
