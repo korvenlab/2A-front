@@ -44,6 +44,7 @@ import { userFacingDataError } from "@/lib/supabase-user-error";
 import { normalizeProductImageUrls } from "@/lib/product-images";
 import { UNIVERSAL_CLIENT_INVITE_EMAIL } from "@/lib/invite-links";
 import { persistPortalOrgContext } from "@/lib/portal-paths";
+import { formatOrderCode } from "@/lib/order-display";
 
 /** Persistência do catálogo da representação escolhida (cliente com várias vínculos). */
 const PORTAL_ORG_STORAGE_KEY = "2avendas.portalOrgId";
@@ -653,14 +654,31 @@ function Portal() {
         seller_id: orderSellerId,
         status: "enviado",
         notes: notes || null,
+        order_number: 0,
       })
-      .select("id")
+      .select("id,order_number")
       .single();
     if (error || !order) {
       setPlacing(false);
       return toast.error(userFacingDataError(error) ?? "Erro ao criar pedido");
     }
-    const items = cart.map((l) => {
+    let resolvedNumber = Math.trunc(moneyNumber(order.order_number));
+    if (resolvedNumber <= 0) {
+      const { data: ensured, error: ensureErr } = await supabase.rpc("ensure_order_number", {
+        p_order_id: order.id,
+      });
+      if (ensureErr || ensured == null || Math.trunc(moneyNumber(ensured)) <= 0) {
+        await supabase.from("orders").delete().eq("id", order.id);
+        setPlacing(false);
+        return toast.error(
+          userFacingDataError(ensureErr) ??
+            "Não foi possível gerar o código do pedido. Atualize o sistema ou tente novamente.",
+        );
+      }
+      resolvedNumber = Math.trunc(moneyNumber(ensured));
+    }
+
+    const itemsPayload = cart.map((l) => {
       const unit = moneyNumber(l.product.price);
       return {
         order_id: order.id,
@@ -671,10 +689,17 @@ function Portal() {
         subtotal: Math.round(unit * l.quantity * 100) / 100,
       };
     });
-    const { error: itemsError } = await supabase.from("order_items").insert(items);
+    const { error: itemsError } = await supabase.from("order_items").insert(itemsPayload);
     setPlacing(false);
-    if (itemsError) return toast.error(userFacingDataError(itemsError));
-    toast.success("Pedido enviado com sucesso!");
+    if (itemsError) {
+      await supabase.from("orders").delete().eq("id", order.id);
+      return toast.error(userFacingDataError(itemsError));
+    }
+    toast.success(
+      resolvedNumber > 0
+        ? `Pedido ${formatOrderCode(resolvedNumber)} enviado com sucesso!`
+        : "Pedido enviado com sucesso!",
+    );
     setCart([]);
     setNotes("");
     setCartOpen(false);

@@ -1071,6 +1071,10 @@ export type Database = {
         Args: { p_organization_id: string }
         Returns: string | null
       }
+      ensure_order_number: {
+        Args: { p_order_id: string }
+        Returns: number
+      }
     }
     Enums: {
       app_role: "admin" | "vendedor" | "cliente"

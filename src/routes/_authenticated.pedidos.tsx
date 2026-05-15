@@ -462,6 +462,14 @@ function OrdersPage() {
     [items],
   );
 
+  const draftTotals = useMemo(() => {
+    let units = 0;
+    for (const it of items) {
+      units += Math.max(1, Math.trunc(moneyNumber(it.quantity)) || 1);
+    }
+    return { lines: items.length, units };
+  }, [items]);
+
   const reset = () => {
     setCustomerId("");
     setCustomerPickSearch("");
@@ -514,13 +522,30 @@ function OrdersPage() {
         seller_id: user.id,
         notes: notes || null,
         status: "rascunho" as OrderStatus,
+        order_number: 0,
       })
-      .select("id")
+      .select("id,order_number")
       .single();
     if (error || !ord) {
       setSaving(false);
       return toast.error(userFacingDataError(error) ?? "Falha ao criar pedido");
     }
+    let resolvedNumber = Math.trunc(moneyNumber(ord.order_number));
+    if (resolvedNumber <= 0) {
+      const { data: ensured, error: ensureErr } = await supabase.rpc("ensure_order_number", {
+        p_order_id: ord.id,
+      });
+      if (ensureErr || ensured == null || Math.trunc(moneyNumber(ensured)) <= 0) {
+        await supabase.from("orders").delete().eq("id", ord.id);
+        setSaving(false);
+        return toast.error(
+          userFacingDataError(ensureErr) ??
+            "Não foi possível gerar o código do pedido. Rode as migrações do Supabase (ensure_order_number) e tente de novo.",
+        );
+      }
+      resolvedNumber = Math.trunc(moneyNumber(ensured));
+    }
+
     const { error: errIt } = await supabase.from("order_items").insert(
       items.map((it) => {
         const unit = moneyNumber(it.unit_price);
@@ -536,8 +561,15 @@ function OrdersPage() {
       }),
     );
     setSaving(false);
-    if (errIt) return toast.error(userFacingDataError(errIt));
-    toast.success("Pedido criado");
+    if (errIt) {
+      await supabase.from("orders").delete().eq("id", ord.id);
+      return toast.error(userFacingDataError(errIt));
+    }
+    toast.success(
+      resolvedNumber > 0
+        ? `Pedido ${formatOrderCode(resolvedNumber)} criado.`
+        : "Pedido criado.",
+    );
     setOpen(false);
     reset();
     load();
@@ -764,92 +796,113 @@ function OrdersPage() {
                 </div>
 
                 {items.length > 0 && (
-                  <div className="rounded-lg border border-border overflow-hidden">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="min-w-[200px]">Produto</TableHead>
-                          <TableHead className="w-24">Qtd</TableHead>
-                          <TableHead className="w-32">Preço</TableHead>
-                          <TableHead className="w-28 text-right">Subtotal</TableHead>
-                          <TableHead className="w-12"></TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {items.map((it, idx) => (
-                          <TableRow key={it.product_id}>
-                            <TableCell>
-                              <div className="flex items-start gap-3">
-                                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
-                                  {it.thumb_url ? (
-                                    <img
-                                      src={it.thumb_url}
-                                      alt=""
-                                      className="h-full w-full object-cover"
-                                      loading="lazy"
-                                    />
-                                  ) : (
-                                    <div className="flex h-full w-full items-center justify-center">
-                                      <Package className="h-5 w-5 text-muted-foreground/40" />
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/25 bg-primary/[0.06] px-3 py-2.5 text-sm">
+                      <p className="text-foreground">
+                        <span className="font-semibold tabular-nums">{draftTotals.lines}</span>{" "}
+                        {draftTotals.lines === 1 ? "linha" : "linhas"}{" "}
+                        <span className="text-muted-foreground">·</span>{" "}
+                        <span className="font-semibold tabular-nums">{draftTotals.units}</span> unidades
+                        no total
+                      </p>
+                    </div>
+                    <div className="rounded-lg border border-border overflow-hidden">
+                      <div className="max-h-[min(380px,48vh)] overflow-auto">
+                        <Table>
+                          <TableHeader className="sticky top-0 z-10 border-b border-border bg-card">
+                            <TableRow className="border-0 hover:bg-transparent">
+                              <TableHead className="w-11 text-center text-muted-foreground font-normal">
+                                Nº
+                              </TableHead>
+                              <TableHead className="min-w-[200px]">Produto</TableHead>
+                              <TableHead className="w-[6.5rem] min-w-[6.5rem]">Qtd</TableHead>
+                              <TableHead className="w-[7.5rem] min-w-[7.5rem]">Preço</TableHead>
+                              <TableHead className="w-28 min-w-[7rem] text-right">Subtotal</TableHead>
+                              <TableHead className="w-12 p-2" />
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {items.map((it, idx) => (
+                              <TableRow key={it.product_id}>
+                                <TableCell className="text-center tabular-nums text-muted-foreground font-medium align-top pt-4">
+                                  {idx + 1}
+                                </TableCell>
+                                <TableCell>
+                                  <div className="flex items-start gap-3">
+                                    <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-lg border border-border bg-muted">
+                                      {it.thumb_url ? (
+                                        <img
+                                          src={it.thumb_url}
+                                          alt=""
+                                          className="h-full w-full object-cover"
+                                          loading="lazy"
+                                        />
+                                      ) : (
+                                        <div className="flex h-full w-full items-center justify-center">
+                                          <Package className="h-5 w-5 text-muted-foreground/40" />
+                                        </div>
+                                      )}
                                     </div>
-                                  )}
-                                </div>
-                                <div className="min-w-0 pt-0.5">
-                                  <div className="font-semibold leading-snug">{it.product_name}</div>
-                                  {it.supplier && (
-                                    <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
-                                      <Building2 className="h-3 w-3 shrink-0 text-primary" aria-hidden />
-                                      <span className="truncate">{it.supplier}</span>
+                                    <div className="min-w-0 pt-0.5">
+                                      <div className="font-semibold leading-snug">{it.product_name}</div>
+                                      {it.supplier && (
+                                        <div className="mt-1 flex items-center gap-1 text-xs text-muted-foreground">
+                                          <Building2 className="h-3 w-3 shrink-0 text-primary" aria-hidden />
+                                          <span className="truncate">{it.supplier}</span>
+                                        </div>
+                                      )}
                                     </div>
-                                  )}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                min={1}
-                                value={it.quantity}
-                                onChange={(e) =>
-                                  updateItem(idx, {
-                                    quantity: Math.max(1, parseInt(e.target.value, 10) || 1),
-                                  })
-                                }
-                              />
-                            </TableCell>
-                            <TableCell>
-                              <Input
-                                type="number"
-                                step="0.01"
-                                value={moneyNumber(it.unit_price)}
-                                onChange={(e) =>
-                                  updateItem(idx, {
-                                    unit_price: moneyNumber(e.target.value),
-                                  })
-                                }
-                              />
-                            </TableCell>
-                            <TableCell className="text-right font-medium">
-                              {brl(moneyNumber(it.unit_price) * moneyNumber(it.quantity))}
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() =>
-                                  setItems(items.filter((_, i) => i !== idx))
-                                }
-                              >
-                                <Trash2 className="h-4 w-4 text-destructive" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                    <div className="flex justify-end items-center gap-3 px-4 py-3 bg-secondary/30 border-t border-border">
-                      <span className="text-sm text-muted-foreground">Total</span>
-                      <span className="text-lg font-bold">{brl(total)}</span>
+                                  </div>
+                                </TableCell>
+                                <TableCell className="align-top">
+                                  <Input
+                                    type="number"
+                                    min={1}
+                                    className="tabular-nums text-right min-w-[5.25rem] w-full h-9 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                    value={it.quantity}
+                                    onChange={(e) =>
+                                      updateItem(idx, {
+                                        quantity: Math.max(1, parseInt(e.target.value, 10) || 1),
+                                      })
+                                    }
+                                  />
+                                </TableCell>
+                                <TableCell className="align-top">
+                                  <Input
+                                    type="number"
+                                    step="0.01"
+                                    className="tabular-nums text-right min-w-[6.25rem] w-full h-9 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                    value={moneyNumber(it.unit_price)}
+                                    onChange={(e) =>
+                                      updateItem(idx, {
+                                        unit_price: moneyNumber(e.target.value),
+                                      })
+                                    }
+                                  />
+                                </TableCell>
+                                <TableCell className="text-right font-medium tabular-nums align-top pt-4">
+                                  {brl(moneyNumber(it.unit_price) * moneyNumber(it.quantity))}
+                                </TableCell>
+                                <TableCell className="align-top p-2">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() =>
+                                      setItems(items.filter((_, i) => i !== idx))
+                                    }
+                                  >
+                                    <Trash2 className="h-4 w-4 text-destructive" />
+                                  </Button>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      <div className="flex justify-end items-center gap-3 px-4 py-3 bg-secondary/30 border-t border-border">
+                        <span className="text-sm text-muted-foreground">Total</span>
+                        <span className="text-lg font-bold tabular-nums">{brl(total)}</span>
+                      </div>
                     </div>
                   </div>
                 )}
