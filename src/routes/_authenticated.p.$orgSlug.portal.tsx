@@ -205,7 +205,7 @@ function CatalogProductCard({
         )}
         <h3 className="mt-1 line-clamp-2 text-base font-semibold leading-snug">{p.name}</h3>
         <div className="mt-1 text-xs text-muted-foreground">
-          EAN13: {p.sku ?? "—"} • Estoque: {p.stock}
+          EAN13: {p.sku ?? "—"}
         </div>
         {p.description && (
           <p className="mt-1 text-sm text-muted-foreground line-clamp-2">{p.description}</p>
@@ -221,7 +221,6 @@ function CatalogProductCard({
             <Input
               type="number"
               min={1}
-              max={Math.max(p.stock, 1)}
               value={draftQty}
               onChange={(e) => onDraftQty(Math.max(1, parseInt(e.target.value) || 1))}
               className="h-9 w-24"
@@ -231,7 +230,7 @@ function CatalogProductCard({
         </div>
         <div className="mt-auto pt-3 flex items-center justify-between">
           <span className="text-lg font-bold text-primary">{brl(p.price)}</span>
-          <Button size="sm" disabled={p.stock <= 0} onClick={onAdd}>
+          <Button size="sm" onClick={onAdd}>
             <Plus className="h-4 w-4" /> Adicionar
           </Button>
         </div>
@@ -585,7 +584,6 @@ function Portal() {
   const effectiveLineSellerId = (p: Product) => p.owner_seller_id ?? orgAdminUserId;
 
   const addToCart = (p: Product, qty: number, variation: string) => {
-    if (p.stock <= 0) return toast.error("Produto sem estoque");
     const lineSeller = effectiveLineSellerId(p);
     if (!lineSeller) {
       return toast.error(
@@ -600,7 +598,7 @@ function Portal() {
         "O carrinho só pode ter produtos do mesmo representante. Finalize o pedido ou esvazie o carrinho para continuar.",
       );
     }
-    const normalizedQty = Math.max(1, Math.min(qty, p.stock));
+    const normalizedQty = Math.max(1, qty);
     const normalizedVariation = variation.trim();
     const lineKey = `${p.id}::${normalizedVariation.toLowerCase()}`;
     setCart((c) => {
@@ -608,7 +606,7 @@ function Portal() {
       if (found) {
         return c.map((l) =>
           l.key === lineKey
-            ? { ...l, quantity: Math.min(l.quantity + normalizedQty, l.product.stock) }
+            ? { ...l, quantity: l.quantity + normalizedQty }
             : l,
         );
       }
@@ -629,7 +627,7 @@ function Portal() {
     if (qty <= 0) return setCart((c) => c.filter((l) => l.key !== key));
     setCart((c) =>
       c.map((l) =>
-        l.key === key ? { ...l, quantity: Math.min(Math.max(qty, 1), l.product.stock) } : l,
+        l.key === key ? { ...l, quantity: Math.max(qty, 1) } : l,
       ),
     );
   };

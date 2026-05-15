@@ -86,7 +86,7 @@ function PublicProductCard({ p }: { p: StorefrontProduct }) {
         ) : null}
         <h3 className="mt-1 line-clamp-2 text-base font-semibold leading-snug">{p.name}</h3>
         <div className="mt-1 text-xs text-muted-foreground">
-          EAN13: {p.sku ?? "—"} • Estoque: {p.stock}
+          EAN13: {p.sku ?? "—"}
         </div>
         {p.description?.trim() ? (
           <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">{p.description.trim()}</p>

@@ -108,18 +108,9 @@ interface OrganizationIndustry {
   cnpj: string;
 }
 
-type CatalogSortKey =
-  | "recent"
-  | "name"
-  | "category"
-  | "price_asc"
-  | "price_desc"
-  | "stock_asc"
-  | "stock_desc";
+type CatalogSortKey = "recent" | "name" | "category" | "price_asc" | "price_desc";
 
 type CatalogViewMode = "table" | "grid";
-
-type StockFilterKey = "__all__" | "in_stock" | "out_stock";
 
 function groupProductsByCategory(rows: ProductRow[]): [string, ProductRow[]][] {
   const map = new Map<string, ProductRow[]>();
@@ -189,7 +180,6 @@ function CatalogProductGridCard({
         <div className="mt-auto flex flex-wrap items-end justify-between gap-2 border-t border-border pt-3">
           <div>
             <div className="text-lg font-bold text-primary">{brl(p.price)}</div>
-            <div className="text-xs text-muted-foreground">Estoque {p.stock}</div>
           </div>
           {canManageCatalog ? (
             <div className="flex items-center gap-2">
@@ -360,7 +350,6 @@ function CatalogPage() {
   const [catalogSearch, setCatalogSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("__all__");
   const [supplierFilter, setSupplierFilter] = useState<string>("__all__");
-  const [stockFilter, setStockFilter] = useState<StockFilterKey>("__all__");
   const [activeOnly, setActiveOnly] = useState(true);
   const [sortKey, setSortKey] = useState<CatalogSortKey>("recent");
   const [viewMode, setViewMode] = useState<CatalogViewMode>("table");
@@ -462,8 +451,6 @@ function CatalogPage() {
           (p.description ?? "").toLowerCase().includes(q),
       );
     }
-    if (stockFilter === "in_stock") rows = rows.filter((p) => p.stock > 0);
-    if (stockFilter === "out_stock") rows = rows.filter((p) => p.stock <= 0);
     if (categoryFilter !== "__all__") {
       if (categoryFilter === "__none__") {
         rows = rows.filter((p) => !p.category?.trim());
@@ -482,10 +469,6 @@ function CatalogPage() {
           return a.price - b.price;
         case "price_desc":
           return b.price - a.price;
-        case "stock_asc":
-          return a.stock - b.stock;
-        case "stock_desc":
-          return b.stock - a.stock;
         case "category":
           return (
             (a.category ?? "").localeCompare(b.category ?? "", "pt-BR") ||
@@ -497,7 +480,7 @@ function CatalogPage() {
       }
     });
     return rows;
-  }, [products, activeOnly, catalogSearch, categoryFilter, supplierFilter, stockFilter, sortKey]);
+  }, [products, activeOnly, catalogSearch, categoryFilter, supplierFilter, sortKey]);
 
   const groupedCatalog = useMemo(
     () => groupProductsByCategory(filteredSortedProducts),
@@ -675,16 +658,6 @@ function CatalogPage() {
         toast.error("Preço não pode ser negativo");
         return;
       }
-      const stockRaw = form.stock.trim();
-      const stockNum = stockRaw === "" ? 0 : parseInt(stockRaw, 10);
-      if (stockRaw !== "" && !Number.isFinite(stockNum)) {
-        toast.error("Estoque inválido");
-        return;
-      }
-      if (stockNum < 0) {
-        toast.error("Estoque não pode ser negativo");
-        return;
-      }
       const payload = {
         name: form.name.trim(),
         sku: form.sku.trim() || null,
@@ -695,7 +668,7 @@ function CatalogPage() {
         image_urls: urls,
         image_url: urls[0] ?? null,
         price: priceNum,
-        stock: stockNum,
+        stock: 0,
         active: form.active,
       };
       const { error } = editing
@@ -821,7 +794,6 @@ function CatalogPage() {
       "Industria",
       "ID indústria",
       "Preço",
-      "Estoque",
       "Ativo",
       "Descrição",
       "Imagens",
@@ -841,7 +813,6 @@ function CatalogPage() {
               p.supplier ?? "",
               p.industry_id ?? "",
               p.price,
-              p.stock,
               p.active ? "Sim" : "Não",
               p.description ?? "",
               imgs.join("|"),
@@ -1014,7 +985,7 @@ function CatalogPage() {
           supplier: resolved ? resolved.trade_name.trim() : null,
           industry_id: resolved ? resolved.id : null,
           price: iPrice >= 0 ? num(r[iPrice]) : 0,
-          stock: iStock >= 0 ? Math.floor(num(r[iStock])) : 0,
+          stock: 0,
           active:
             iActive >= 0
               ? !/^(não|nao|no|false|0|inativo)$/i.test((r[iActive] ?? "").trim())
@@ -1542,39 +1513,21 @@ function CatalogPage() {
                           </div>
                         )}
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div className="grid gap-2">
-                          <Label>Preço (R$)</Label>
-                          <Input
-                            type="text"
-                            inputMode="decimal"
-                            autoComplete="off"
-                            placeholder="0"
-                            value={form.price}
-                            onChange={(e) => {
-                              const v = e.target.value.replace(",", ".");
-                              if (v === "" || /^\d*\.?\d*$/.test(v)) {
-                                setForm({ ...form, price: v });
-                              }
-                            }}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label>Estoque</Label>
-                          <Input
-                            type="text"
-                            inputMode="numeric"
-                            autoComplete="off"
-                            placeholder="0"
-                            value={form.stock}
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              if (v === "" || /^\d+$/.test(v)) {
-                                setForm({ ...form, stock: v });
-                              }
-                            }}
-                          />
-                        </div>
+                      <div className="grid gap-2">
+                        <Label>Preço (R$)</Label>
+                        <Input
+                          type="text"
+                          inputMode="decimal"
+                          autoComplete="off"
+                          placeholder="0"
+                          value={form.price}
+                          onChange={(e) => {
+                            const v = e.target.value.replace(",", ".");
+                            if (v === "" || /^\d*\.?\d*$/.test(v)) {
+                              setForm({ ...form, price: v });
+                            }
+                          }}
+                        />
                       </div>
                       <div className="grid gap-2">
                         <Label>Descrição</Label>
@@ -1659,22 +1612,6 @@ function CatalogPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid gap-1.5 min-w-[160px]">
-                <span className="text-xs font-medium text-muted-foreground">Estoque</span>
-                <Select
-                  value={stockFilter}
-                  onValueChange={(v) => setStockFilter(v as StockFilterKey)}
-                >
-                  <SelectTrigger className="h-10 bg-background">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__all__">Todos</SelectItem>
-                    <SelectItem value="in_stock">Com estoque</SelectItem>
-                    <SelectItem value="out_stock">Sem estoque</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
               <div className="grid gap-1.5 min-w-[180px]">
                 <span className="text-xs font-medium text-muted-foreground">Ordenar por</span>
                 <Select value={sortKey} onValueChange={(v) => setSortKey(v as CatalogSortKey)}>
@@ -1687,8 +1624,6 @@ function CatalogPage() {
                     <SelectItem value="category">Categoria + nome</SelectItem>
                     <SelectItem value="price_asc">Preço menor → maior</SelectItem>
                     <SelectItem value="price_desc">Preço maior → menor</SelectItem>
-                    <SelectItem value="stock_asc">Estoque menor → maior</SelectItem>
-                    <SelectItem value="stock_desc">Estoque maior → menor</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1731,7 +1666,6 @@ function CatalogPage() {
                 {(catalogSearch.trim() !== "" ||
                   categoryFilter !== "__all__" ||
                   supplierFilter !== "__all__" ||
-                  stockFilter !== "__all__" ||
                   !activeOnly ||
                   sortKey !== "recent") && (
                   <Button
@@ -1743,7 +1677,6 @@ function CatalogPage() {
                       setCatalogSearch("");
                       setCategoryFilter("__all__");
                       setSupplierFilter("__all__");
-                      setStockFilter("__all__");
                       setActiveOnly(true);
                       setSortKey("recent");
                     }}
@@ -1835,7 +1768,6 @@ function CatalogPage() {
                     <TableHead className="min-w-[9.5rem]">EAN13 (cód. barras)</TableHead>
                     <TableHead className="min-w-[120px]">Indústria</TableHead>
                     <TableHead className="text-right">Preço</TableHead>
-                    <TableHead className="text-right">Estoque</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead></TableHead>
                   </TableRow>
@@ -1890,7 +1822,6 @@ function CatalogPage() {
                               )}
                             </TableCell>
                             <TableCell className="text-right font-medium">{brl(p.price)}</TableCell>
-                            <TableCell className="text-right">{p.stock}</TableCell>
                             <TableCell>
                               {canManageCatalog ? (
                                 <Switch

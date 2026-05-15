@@ -69,6 +69,8 @@ import { useMenuGate } from "@/hooks/use-menu-gate";
 import { userFacingDataError } from "@/lib/supabase-user-error";
 import { downloadCsv } from "@/lib/csv-download";
 import { SavedViewsBar } from "@/components/SavedViewsBar";
+import { fetchOrderTotalsFallback, repLabelForSellerId } from "@/lib/order-display";
+import { moneyNumber } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/clientes")({
   head: () => ({ meta: [{ title: "Clientes — 2AVendas" }] }),
@@ -138,6 +140,10 @@ function CustomersPage() {
   const { organization, role, user } = useAuth();
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [sellers, setSellers] = useState<SellerOpt[]>([]);
+  const [primaryAdminUserId, setPrimaryAdminUserId] = useState<string | null>(null);
+  const [sellerProfiles, setSellerProfiles] = useState<
+    Record<string, { full_name: string | null; email: string | null }>
+  >({});
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Customer | null>(null);
@@ -261,28 +267,60 @@ function CustomersPage() {
       ) ?? null;
     setUniversalClientInvite(universal);
 
-    if (isAdmin && organization?.id) {
-      const { data: rs } = await supabase
-        .from("user_roles")
-        .select("user_id")
-        .eq("organization_id", organization.id)
-        .eq("role", "vendedor");
-      const ids = (rs ?? []).map((r: { user_id: string }) => r.user_id);
-      if (ids.length > 0) {
+    if (organization?.id) {
+      const { data: adminId } = await supabase.rpc("organization_primary_admin_user_id", {
+        p_org_id: organization.id,
+      });
+      setPrimaryAdminUserId((adminId as string | null) ?? null);
+
+      const profileIds = new Set<string>();
+      for (const c of (data as Customer[]) ?? []) {
+        if (c.assigned_seller_id) profileIds.add(c.assigned_seller_id);
+      }
+      if (adminId) profileIds.add(adminId as string);
+
+      if (isAdmin) {
+        const { data: rs } = await supabase
+          .from("user_roles")
+          .select("user_id")
+          .eq("organization_id", organization.id)
+          .eq("role", "vendedor");
+        const ids = (rs ?? []).map((r: { user_id: string }) => r.user_id);
+        for (const id of ids) profileIds.add(id);
+        if (ids.length > 0) {
+          const { data: profs } = await supabase
+            .from("profiles")
+            .select("id, full_name, email")
+            .in("id", ids);
+          const list: SellerOpt[] = (profs ?? []).map(
+            (p: { id: string; full_name: string | null; email: string | null }) => ({
+              user_id: p.id,
+              full_name: p.full_name,
+              email: p.email,
+            }),
+          );
+          setSellers(list);
+        } else {
+          setSellers([]);
+        }
+      } else if (user?.id) {
+        profileIds.add(user.id);
+        setSellers([]);
+      }
+
+      if (profileIds.size > 0) {
         const { data: profs } = await supabase
           .from("profiles")
-          .select("id, full_name, email")
-          .in("id", ids);
-        const list: SellerOpt[] = (profs ?? []).map(
-          (p: { id: string; full_name: string | null; email: string | null }) => ({
-            user_id: p.id,
-            full_name: p.full_name,
-            email: p.email,
-          }),
-        );
-        setSellers(list);
+          .select("id,full_name,email")
+          .in("id", [...profileIds]);
+        const map: Record<string, { full_name: string | null; email: string | null }> = {};
+        for (const p of profs ?? []) {
+          const row = p as { id: string; full_name: string | null; email: string | null };
+          map[row.id] = { full_name: row.full_name, email: row.email };
+        }
+        setSellerProfiles(map);
       } else {
-        setSellers([]);
+        setSellerProfiles({});
       }
     }
     setLoading(false);
@@ -315,7 +353,18 @@ function CustomersPage() {
         toast.error(userFacingDataError(error));
         setHistoryOrders([]);
       } else {
-        setHistoryOrders((data as CustomerOrderRow[]) ?? []);
+        const rows = (data as CustomerOrderRow[]) ?? [];
+        const zeroIds = rows.filter((o) => moneyNumber(o.total) <= 0).map((o) => o.id);
+        const totalsFallback = await fetchOrderTotalsFallback(supabase, zeroIds);
+        setHistoryOrders(
+          rows.map((o) => ({
+            ...o,
+            total:
+              moneyNumber(o.total) > 0
+                ? moneyNumber(o.total)
+                : moneyNumber(totalsFallback[o.id] ?? 0),
+          })),
+        );
       }
     })();
     return () => {
@@ -388,10 +437,8 @@ function CustomersPage() {
     }
   };
 
-  const sellerLabel = (id: string | null) => {
-    const s = sellers.find((x) => x.user_id === id);
-    return s ? (s.full_name ?? s.email ?? "—") : "—";
-  };
+  const sellerLabel = (id: string | null) =>
+    repLabelForSellerId(id, primaryAdminUserId, sellerProfiles, user?.id);
 
   const fetchUniversalClientInviteFromDb = async (): Promise<ClientInvitation | null> => {
     if (!organization?.id) return null;
@@ -838,7 +885,7 @@ function CustomersPage() {
                 <TableHead>Cliente</TableHead>
                 <TableHead>Contato</TableHead>
                 <TableHead>Cidade/UF</TableHead>
-                {isAdmin && <TableHead>Vendedor</TableHead>}
+                <TableHead>Responsável</TableHead>
                 <TableHead className="w-[148px] text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
@@ -864,11 +911,9 @@ function CustomersPage() {
                   <TableCell className="text-muted-foreground">
                     {c.city ? `${c.city}${c.state ? "/" + c.state : ""}` : "—"}
                   </TableCell>
-                  {isAdmin && (
-                    <TableCell className="text-muted-foreground">
-                      {sellerLabel(c.assigned_seller_id)}
-                    </TableCell>
-                  )}
+                  <TableCell className="text-muted-foreground">
+                    {sellerLabel(c.assigned_seller_id)}
+                  </TableCell>
                   <TableCell className="text-right space-x-1">
                     <Button
                       size="sm"

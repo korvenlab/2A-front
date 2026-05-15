@@ -54,7 +54,6 @@ function SignupPage() {
   const [organizationName, setOrganizationName] = useState("");
   const [clientTradeName, setClientTradeName] = useState("");
   const [clientLegalName, setClientLegalName] = useState("");
-  const [staffOrganizationName, setStaffOrganizationName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -193,20 +192,12 @@ function SignupPage() {
       meta.client_trade_name = r.data.clientTradeName.trim();
       meta.client_legal_name = r.data.clientLegalName.trim();
     } else if (invitePurpose === "seller_signup") {
-      const schema = baseFieldsSchema.extend({
-        staffOrganizationName: z.string().trim().max(100),
-      });
-      const r = schema.safeParse({ fullName, email, password, staffOrganizationName });
+      const r = baseFieldsSchema.safeParse({ fullName, email, password });
       if (!r.success) {
         toast.error(r.error.issues[0].message);
         return;
       }
       parsedBase = r.data;
-      const s = r.data.staffOrganizationName.trim();
-      if (s.length >= 2) {
-        meta.staff_organization_name = s;
-        meta.organization_name = s;
-      }
     } else {
       const schema = baseFieldsSchema.extend({
         organizationName: z.string().trim().min(2, "Informe o nome da empresa").max(100),
@@ -281,7 +272,7 @@ function SignupPage() {
       : invitePurpose === "client_catalog"
         ? "Este link é da representação que o enviou. Depois do cadastro você verá o catálogo e fará parte da carteira deles."
         : invitePurpose === "seller_signup"
-          ? "Opcional: como prefere aparecer na carteira; se deixar em branco, usamos o nome indicado no convite."
+          ? "Preencha seus dados para entrar na equipe da representação que enviou o convite."
           : invitePeekLoading
             ? "Validando convite…"
             : "Use o mesmo e-mail combinado com quem enviou o convite e preencha os dados da empresa.";
@@ -385,21 +376,6 @@ function SignupPage() {
                     Já tem conta em outra representação? Não crie outro cadastro com o mesmo e-mail:
                     entre pelo login e use o link «para quem já tem conta» para vincular esta empresa.
                   </p>
-                </div>
-              )}
-
-              {hasInvite && invitePurpose === "seller_signup" && (
-                <div>
-                  <Label htmlFor="staffOrg" className="text-sm font-medium text-[#003366]">
-                    Empresa / equipe comercial (opcional)
-                  </Label>
-                  <Input
-                    id="staffOrg"
-                    value={staffOrganizationName}
-                    onChange={(e) => setStaffOrganizationName(e.target.value)}
-                    className={signupInputClass}
-                    placeholder="Deixe em branco para usar o nome indicado no convite"
-                  />
                 </div>
               )}
 

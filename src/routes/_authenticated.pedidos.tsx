@@ -66,6 +66,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { downloadCsv } from "@/lib/csv-download";
 import { mailtoUrl, recordOutreach, whatsAppShareUrl } from "@/lib/outreach";
 import { SavedViewsBar } from "@/components/SavedViewsBar";
+import { fetchOrderTotalsFallback, repLabelForSellerId } from "@/lib/order-display";
 
 export const Route = createFileRoute("/_authenticated/pedidos")({
   head: () => ({ meta: [{ title: "Pedidos — 2AVendas" }] }),
@@ -178,29 +179,78 @@ function OrdersPage() {
   const [orderDetailLines, setOrderDetailLines] = useState<OrderItemLine[]>([]);
   const [orderDetailLoading, setOrderDetailLoading] = useState(false);
   const [orderDetailSellerLabel, setOrderDetailSellerLabel] = useState<string | null>(null);
+  const [primaryAdminUserId, setPrimaryAdminUserId] = useState<string | null>(null);
+  const [sellerProfiles, setSellerProfiles] = useState<
+    Record<string, { full_name: string | null; email: string | null }>
+  >({});
 
   const load = async () => {
     setLoading(true);
+    const orgId = organization?.id;
+    let primaryAdmin: string | null = null;
+    if (orgId) {
+      const { data: adminId } = await supabase.rpc("organization_primary_admin_user_id", {
+        p_org_id: orgId,
+      });
+      primaryAdmin = (adminId as string | null) ?? null;
+      setPrimaryAdminUserId(primaryAdmin);
+    }
+
     let ordersQuery = supabase
       .from("orders")
       .select(
-        "id,order_number,status,total,notes,created_at,customer_id,seller_id,nfe_key,nfe_issued_at,customers(name,legal_name,industry,email,phone,document,city,state,address)",
+        "id,order_number,status,total,notes,created_at,customer_id,seller_id,nfe_key,nfe_issued_at,customers(name,legal_name,industry,email,phone,document,city,state,address,assigned_seller_id)",
       )
       .order("created_at", { ascending: false });
     if (role === "vendedor" && user?.id) {
-      ordersQuery = ordersQuery.eq("seller_id", user.id);
+      const { data: myClients } = await supabase
+        .from("customers")
+        .select("id")
+        .eq("assigned_seller_id", user.id);
+      const clientIds = (myClients ?? []).map((c: { id: string }) => c.id);
+      if (clientIds.length > 0) {
+        ordersQuery = ordersQuery.or(
+          `seller_id.eq.${user.id},customer_id.in.(${clientIds.join(",")})`,
+        );
+      } else {
+        ordersQuery = ordersQuery.eq("seller_id", user.id);
+      }
     }
     const { data, error } = await ordersQuery;
     if (error) toast.error(userFacingDataError(error));
     const list = (data as unknown as Order[]) ?? [];
-    setOrders(
-      list.map((o) => ({
-        ...o,
-        total: moneyNumber(o.total),
-      })),
-    );
+    const zeroIds = list.filter((o) => moneyNumber(o.total) <= 0).map((o) => o.id);
+    const totalsFallback = await fetchOrderTotalsFallback(supabase, zeroIds);
+    const normalized = list.map((o) => {
+      const fromDb = moneyNumber(o.total);
+      const fixed = fromDb > 0 ? fromDb : moneyNumber(totalsFallback[o.id] ?? 0);
+      return { ...o, total: fixed };
+    });
+    setOrders(normalized);
 
-    const orgId = organization?.id;
+    const sellerIds = [
+      ...new Set(
+        normalized
+          .map((o) => o.seller_id)
+          .filter((id): id is string => typeof id === "string" && id.length > 0),
+      ),
+    ];
+    if (primaryAdmin && !sellerIds.includes(primaryAdmin)) sellerIds.push(primaryAdmin);
+    if (sellerIds.length > 0) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id,full_name,email")
+        .in("id", sellerIds);
+      const map: Record<string, { full_name: string | null; email: string | null }> = {};
+      for (const p of profs ?? []) {
+        const row = p as { id: string; full_name: string | null; email: string | null };
+        map[row.id] = { full_name: row.full_name, email: row.email };
+      }
+      setSellerProfiles(map);
+    } else {
+      setSellerProfiles({});
+    }
+
     const nextPct: Record<string, number> = {};
     if (orgId) {
       if (role === "vendedor" && user?.id) {
@@ -471,9 +521,7 @@ function OrdersPage() {
       const msg = userFacingDataError(error);
       toast.error(msg ?? "Não foi possível alterar o status.");
       if (/estoque|Estoque|stock/i.test(msg ?? "")) {
-        toast.info(
-          "Reduza quantidades no pedido ou repor estoque no catálogo antes de avançar o status.",
-        );
+        toast.info("Ajuste as quantidades do pedido antes de avançar o status.");
       }
     } else load();
   };
@@ -516,11 +564,18 @@ function OrdersPage() {
           normalizeProductImageUrls(row.products?.image_urls, row.products?.image_url)[0] ?? null,
       })),
     );
-    const p = profRes.data as { full_name: string | null; email: string | null } | null;
-    setOrderDetailSellerLabel(
-      o.seller_id ? (p?.full_name?.trim() || p?.email?.trim() || "Vendedor") : "—",
-    );
-  }, []);
+    if (o.seller_id) {
+      const p = profRes.data as { full_name: string | null; email: string | null } | null;
+      const map = {
+        [o.seller_id]: { full_name: p?.full_name ?? null, email: p?.email ?? null },
+      };
+      setOrderDetailSellerLabel(
+        repLabelForSellerId(o.seller_id, primaryAdminUserId, map, user?.id),
+      );
+    } else {
+      setOrderDetailSellerLabel("Administrador");
+    }
+  }, [primaryAdminUserId, user?.id]);
 
   const confirmDeleteOrder = async () => {
     if (!deleteOrderTarget) return;
@@ -849,6 +904,7 @@ function OrdersPage() {
                 <TableHead>Cliente</TableHead>
                 <TableHead>Contato</TableHead>
                 <TableHead>Data</TableHead>
+                <TableHead>Representante</TableHead>
                 <TableHead className="text-right">Total</TableHead>
                 <TableHead className="text-right whitespace-nowrap" title="Percentual configurado em Vendedores">
                   Comissão (est.)
@@ -909,6 +965,9 @@ function OrdersPage() {
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {dt(o.created_at)}
+                  </TableCell>
+                  <TableCell className="text-sm text-muted-foreground max-w-[140px]">
+                    {repLabelForSellerId(o.seller_id, primaryAdminUserId, sellerProfiles, user?.id)}
                   </TableCell>
                   <TableCell className="text-right font-medium">
                     {brl(o.total)}
