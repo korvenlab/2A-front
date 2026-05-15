@@ -435,7 +435,16 @@ function SignupPage() {
               </Button>
             </form>
 
-            <p className="mt-8 text-center text-sm text-[#475569]">
+            <p className="mt-4 text-center text-xs text-[#64748B]">
+              <Link
+                to="/forgot-password"
+                className="text-[#007AFF] underline-offset-2 hover:underline"
+              >
+                Esqueci minha senha
+              </Link>
+            </p>
+
+            <p className="mt-4 text-center text-sm text-[#475569]">
               Já tem conta?{" "}
               <Link
                 to="/login"

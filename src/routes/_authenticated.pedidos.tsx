@@ -30,9 +30,7 @@ import {
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
@@ -282,24 +280,31 @@ function OrdersPage() {
     }
     setCommissionBySeller(nextPct);
 
-    const customersQuery = supabase
+    let customersQuery = supabase
       .from("customers")
       .select("id,name,legal_name")
       .order("name");
-    const productsQuery = supabase
+    let productsQuery = supabase
       .from("products")
       .select("id,name,price,category,supplier,image_url,image_urls")
       .eq("active", true)
-      .order("category")
       .order("name");
-    const [{ data: cs }, { data: ps }] = await Promise.all([
-      role === "vendedor" && user?.id
-        ? customersQuery.eq("assigned_seller_id", user.id)
-        : customersQuery,
-      role === "vendedor" && user?.id
-        ? productsQuery.eq("owner_seller_id", user.id)
-        : productsQuery,
+    if (orgId) {
+      customersQuery = customersQuery.eq("organization_id", orgId);
+      productsQuery = productsQuery.eq("organization_id", orgId);
+    }
+    if (role === "vendedor" && user?.id) {
+      customersQuery = customersQuery.eq("assigned_seller_id", user.id);
+      productsQuery = productsQuery.or(
+        `owner_seller_id.eq.${user.id},owner_seller_id.is.null`,
+      );
+    }
+    const [{ data: cs, error: csErr }, { data: ps, error: psErr }] = await Promise.all([
+      customersQuery,
+      productsQuery,
     ]);
+    if (csErr) toast.error(userFacingDataError(csErr));
+    if (psErr) toast.error(userFacingDataError(psErr));
     setCustomers((cs as CustomerOpt[]) ?? []);
     setProducts(
       ((ps as ProductOpt[]) ?? []).map((p) => ({
@@ -411,21 +416,6 @@ function OrdersPage() {
     if (error) toast.error("WhatsApp aberto, mas o registro no sistema falhou.");
     else toast.success("Envio registrado.");
   };
-
-  const pickProductsGrouped = useMemo(() => {
-    const map = new Map<string, ProductOpt[]>();
-    for (const p of pickProductsFiltered) {
-      const k = p.category?.trim() || "Sem categoria";
-      if (!map.has(k)) map.set(k, []);
-      map.get(k)!.push(p);
-    }
-    const keys = [...map.keys()].sort((a, b) => {
-      if (a === "Sem categoria") return 1;
-      if (b === "Sem categoria") return -1;
-      return a.localeCompare(b, "pt-BR");
-    });
-    return keys.map((k) => [k, map.get(k)!] as const);
-  }, [pickProductsFiltered]);
 
   const total = useMemo(
     () =>
@@ -665,7 +655,7 @@ function OrdersPage() {
                     <SelectTrigger>
                       <SelectValue placeholder="Escolha um cliente na lista" />
                     </SelectTrigger>
-                    <SelectContent className="max-h-[min(320px,55vh)]">
+                    <SelectContent className="z-[200] max-h-[min(320px,55vh)]">
                       {pickCustomersFiltered.length === 0 ? (
                         <div className="px-3 py-6 text-center text-sm text-muted-foreground">
                           Nenhum cliente encontrado para essa busca.
@@ -702,31 +692,28 @@ function OrdersPage() {
                   <div className="flex gap-2">
                     <Select value={selectedProduct} onValueChange={setSelectedProduct}>
                       <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Escolha um produto (por categoria)" />
+                        <SelectValue placeholder="Escolha um produto" />
                       </SelectTrigger>
-                      <SelectContent className="max-h-[min(380px,65vh)]">
+                      <SelectContent className="z-[200] max-h-[min(380px,65vh)]">
                         {pickProductsFiltered.length === 0 ? (
                           <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-                            Nenhum produto encontrado.
+                            {products.length === 0
+                              ? "Nenhum produto ativo no catálogo. Cadastre em Catálogo."
+                              : "Nenhum produto encontrado para essa busca."}
                           </div>
                         ) : (
-                          pickProductsGrouped.map(([cat, list]) => (
-                            <SelectGroup key={cat}>
-                              <SelectLabel className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                                {cat}
-                              </SelectLabel>
-                              {list.map((p) => (
-                                <SelectItem key={p.id} value={p.id} className="py-2.5">
-                                  <span className="flex flex-col gap-0.5 text-left">
-                                    <span className="font-medium leading-tight">{p.name}</span>
-                                    <span className="text-xs font-normal text-muted-foreground">
-                                      {p.supplier?.trim() ? `${p.supplier.trim()} · ` : ""}
-                                      {brl(p.price)}
-                                    </span>
-                                  </span>
-                                </SelectItem>
-                              ))}
-                            </SelectGroup>
+                          pickProductsFiltered.map((p) => (
+                            <SelectItem key={p.id} value={p.id} className="py-2.5">
+                              <span className="flex flex-col gap-0.5 text-left">
+                                <span className="font-medium leading-tight">{p.name}</span>
+                                <span className="text-xs font-normal text-muted-foreground">
+                                  {(p.category?.trim() || "Sem categoria") +
+                                    (p.supplier?.trim() ? ` · ${p.supplier.trim()}` : "")}
+                                  {" · "}
+                                  {brl(p.price)}
+                                </span>
+                              </span>
+                            </SelectItem>
                           ))
                         )}
                       </SelectContent>
