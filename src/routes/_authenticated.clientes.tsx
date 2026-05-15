@@ -954,8 +954,8 @@ function CustomersPage() {
                 <p>
                   O cliente <strong>{deleteConfirm?.name}</strong> será removido permanentemente desta representação,
                   juntamente com{" "}
-                  <strong>pedidos</strong> (o estoque é devolvido automaticamente quando aplicável),{" "}
-                  <strong>orçamentos</strong> e <strong>oportunidades no funil</strong>.
+                  <strong>pedidos</strong>, <strong>orçamentos</strong> e{" "}
+                  <strong>oportunidades no funil</strong>.
                 </p>
                 <p className="text-muted-foreground">
                   Visitas comerciais permanecem no histórico, mas deixam de estar ligadas a este cliente.

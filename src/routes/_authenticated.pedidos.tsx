@@ -508,11 +508,7 @@ function OrdersPage() {
   const changeStatus = async (id: string, status: OrderStatus) => {
     const { error } = await supabase.from("orders").update({ status }).eq("id", id);
     if (error) {
-      const msg = userFacingDataError(error);
-      toast.error(msg ?? "Não foi possível alterar o status.");
-      if (/estoque|Estoque|stock/i.test(msg ?? "")) {
-        toast.info("Ajuste as quantidades do pedido antes de avançar o status.");
-      }
+      toast.error(userFacingDataError(error) ?? "Não foi possível alterar o status.");
     } else load();
   };
 
@@ -1194,7 +1190,7 @@ function OrdersPage() {
                   O pedido{" "}
                   <strong>#{deleteOrderTarget ? String(deleteOrderTarget.order_number).padStart(4, "0") : ""}</strong>{" "}
                   de <strong>{deleteOrderTarget?.customers?.name ?? "cliente"}</strong> será removido com todos os
-                  itens. O estoque é devolvido automaticamente quando a baixa já tiver sido aplicada.
+                  itens.
                 </p>
                 <p className="text-muted-foreground">Esta ação não pode ser desfeita.</p>
               </div>

@@ -1720,7 +1720,6 @@ function CatalogPage() {
                     setCatalogSearch("");
                     setCategoryFilter("__all__");
                     setSupplierFilter("__all__");
-                    setStockFilter("__all__");
                     setActiveOnly(true);
                     setSortKey("recent");
                   }}
