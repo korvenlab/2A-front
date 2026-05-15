@@ -53,9 +53,9 @@ import {
   Search,
   FileText,
   Download,
-  MessageCircle,
   User,
 } from "lucide-react";
+import { WhatsAppGlyph } from "@/components/icons/whatsapp";
 import { useMenuGate } from "@/hooks/use-menu-gate";
 import { userFacingDataError } from "@/lib/supabase-user-error";
 import { normalizeProductImageUrls } from "@/lib/product-images";
@@ -514,7 +514,6 @@ function OrdersPage() {
         seller_id: user.id,
         notes: notes || null,
         status: "rascunho" as OrderStatus,
-        order_number: 0,
       })
       .select("id")
       .single();
@@ -940,10 +939,6 @@ function OrdersPage() {
                 <TableHead className="text-right whitespace-nowrap" title="Percentual configurado em Vendedores">
                   Comissão (est.)
                 </TableHead>
-                <TableHead className="text-center w-[52px]" title="WhatsApp ao cliente">
-                  <MessageCircle className="h-3.5 w-3.5 mx-auto text-muted-foreground" aria-hidden />
-                  <span className="sr-only">WhatsApp</span>
-                </TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right w-[100px]">NF-e</TableHead>
                 <TableHead className="w-[52px] text-center text-muted-foreground" title="Excluir pedido">
@@ -982,6 +977,22 @@ function OrdersPage() {
                         {o.customers.document}
                       </div>
                     )}
+                    {o.customers?.phone?.trim() ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="mt-2 h-8 gap-1.5 border-[#25D366]/40 bg-[#25D366]/[0.07] px-2.5 hover:bg-[#25D366]/14"
+                        title="Abrir WhatsApp com resumo deste pedido para o cliente"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void shareOrderWhatsApp(o);
+                        }}
+                      >
+                        <WhatsAppGlyph className="h-3.5 w-3.5 shrink-0 text-[#25D366]" />
+                        <span className="text-xs font-medium leading-none">WhatsApp</span>
+                      </Button>
+                    ) : null}
                   </TableCell>
                   <TableCell className="align-top">
                     {(orderItemsByOrderId[o.id] ?? []).length === 0 ? (
@@ -1018,15 +1029,11 @@ function OrdersPage() {
                       </div>
                     )}
                   </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {dt(o.created_at)}
-                  </TableCell>
+                  <TableCell className="text-muted-foreground">{dt(o.created_at)}</TableCell>
                   <TableCell className="text-sm text-muted-foreground max-w-[140px]">
                     {repLabelForSellerId(o.seller_id, primaryAdminUserId, sellerProfiles, user?.id)}
                   </TableCell>
-                  <TableCell className="text-right font-medium">
-                    {brl(o.total)}
-                  </TableCell>
+                  <TableCell className="text-right font-medium">{brl(o.total)}</TableCell>
                   <TableCell className="text-right tabular-nums">
                     {(() => {
                       const sid = o.seller_id;
@@ -1046,22 +1053,6 @@ function OrdersPage() {
                         </span>
                       );
                     })()}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex justify-center">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 w-8 p-0"
-                        title="Enviar resumo do pedido por WhatsApp"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void shareOrderWhatsApp(o);
-                        }}
-                      >
-                        <MessageCircle className="h-4 w-4" />
-                      </Button>
-                    </div>
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center gap-2">
@@ -1179,6 +1170,18 @@ function OrdersPage() {
                       </div>
                     ) : null}
                   </div>
+                  {orderDetail.customers?.phone?.trim() ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 w-full gap-2 border-[#25D366]/45 bg-[#25D366]/[0.06] hover:bg-[#25D366]/14"
+                      onClick={() => void shareOrderWhatsApp(orderDetail)}
+                    >
+                      <WhatsAppGlyph className="h-4 w-4 shrink-0 text-[#25D366]" />
+                      Enviar resumo no WhatsApp
+                    </Button>
+                  ) : null}
                   <div className="flex items-start gap-2 pt-1 border-t border-border text-xs text-muted-foreground">
                     <User className="h-3.5 w-3.5 shrink-0 mt-0.5" aria-hidden />
                     <div>

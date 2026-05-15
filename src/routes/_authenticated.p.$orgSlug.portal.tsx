@@ -653,7 +653,6 @@ function Portal() {
         seller_id: orderSellerId,
         status: "enviado",
         notes: notes || null,
-        order_number: 0,
       })
       .select("id")
       .single();
