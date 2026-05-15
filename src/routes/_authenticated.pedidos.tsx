@@ -53,7 +53,6 @@ import {
   Search,
   FileText,
   Download,
-  Mail,
   MessageCircle,
   User,
 } from "lucide-react";
@@ -62,9 +61,10 @@ import { userFacingDataError } from "@/lib/supabase-user-error";
 import { normalizeProductImageUrls } from "@/lib/product-images";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { downloadCsv } from "@/lib/csv-download";
-import { mailtoUrl, recordOutreach, whatsAppShareUrl } from "@/lib/outreach";
+import { recordOutreach, whatsAppShareUrl } from "@/lib/outreach";
 import { SavedViewsBar } from "@/components/SavedViewsBar";
 import {
+  buildOrderWhatsAppMessage,
   fetchOrderItemsByOrderIds,
   fetchOrderTotalsFallback,
   formatOrderCode,
@@ -403,32 +403,41 @@ function OrdersPage() {
     toast.success("CSV gerado.");
   };
 
-  const shareOrderEmail = async (o: Order) => {
-    const to = o.customers?.email?.trim();
-    if (!to) return toast.error("Cliente sem e-mail.");
-    if (!organization?.id) return;
-    const code = formatOrderCode(o.order_number);
-    const subject = `Pedido ${code} — ${organization.name}`;
-    const body = `Olá,\n\nSegue o pedido ${code} no valor de ${brl(o.total)} (${statusLabels[o.status]}).\n\n`;
-    window.location.href = mailtoUrl(to, subject, body);
-    const { error } = await recordOutreach(supabase, {
-      organization_id: organization.id,
-      channel: "email",
-      summary: `Pedido ${code} — e-mail`,
-      body,
-      customer_id: o.customer_id,
-      order_id: o.id,
-    });
-    if (error) toast.error("Abriremos o e-mail, mas o registro no sistema falhou.");
-    else toast.success("Envio registrado.");
-  };
-
   const shareOrderWhatsApp = async (o: Order) => {
     const phone = o.customers?.phone?.trim();
     if (!phone) return toast.error("Cliente sem telefone.");
     if (!organization?.id) return;
     const code = formatOrderCode(o.order_number);
-    const msg = `Olá! Referente ao pedido ${code} (${organization.name}) — total ${brl(o.total)}.`;
+    let lines = orderItemsByOrderId[o.id] ?? [];
+    if (lines.length === 0) {
+      const { data, error: itemsErr } = await supabase
+        .from("order_items")
+        .select("product_name,quantity")
+        .eq("order_id", o.id)
+        .order("created_at", { ascending: true });
+      if (itemsErr) {
+        toast.error(userFacingDataError(itemsErr) ?? "Não foi possível carregar os itens do pedido.");
+        return;
+      }
+      lines = (data ?? []).map((row) => ({
+        product_name: String((row as { product_name?: string }).product_name ?? "").trim() || "Produto",
+        quantity: Math.max(1, Math.trunc(moneyNumber((row as { quantity?: number }).quantity)) || 1),
+      }));
+    }
+
+    const representationName = (organization.name ?? "").trim() || "Representação";
+    const customerName = o.customers?.name?.trim() || "Cliente";
+
+    const msg = buildOrderWhatsAppMessage({
+      representationName,
+      orderCode: code,
+      customerName,
+      customerLegalName: o.customers?.legal_name,
+      items: lines,
+      totalLabel: brl(o.total),
+      statusLabel: statusLabels[o.status] ?? o.status,
+    });
+
     const url = whatsAppShareUrl(phone, msg);
     if (!url) return toast.error("Telefone inválido.");
     window.open(url, "_blank", "noopener,noreferrer");
@@ -928,7 +937,10 @@ function OrdersPage() {
                 <TableHead className="text-right whitespace-nowrap" title="Percentual configurado em Vendedores">
                   Comissão (est.)
                 </TableHead>
-                <TableHead className="text-center w-[88px]">Enviar</TableHead>
+                <TableHead className="text-center w-[52px]" title="WhatsApp ao cliente">
+                  <MessageCircle className="h-3.5 w-3.5 mx-auto text-muted-foreground" aria-hidden />
+                  <span className="sr-only">WhatsApp</span>
+                </TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right w-[100px]">NF-e</TableHead>
                 <TableHead className="w-[52px] text-center text-muted-foreground" title="Excluir pedido">
@@ -1033,24 +1045,12 @@ function OrdersPage() {
                     })()}
                   </TableCell>
                   <TableCell>
-                    <div className="flex justify-center gap-0.5">
+                    <div className="flex justify-center">
                       <Button
                         size="sm"
                         variant="ghost"
                         className="h-8 w-8 p-0"
-                        title="E-mail ao cliente"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          void shareOrderEmail(o);
-                        }}
-                      >
-                        <Mail className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 w-8 p-0"
-                        title="WhatsApp ao cliente"
+                        title="Enviar resumo do pedido por WhatsApp"
                         onClick={(e) => {
                           e.stopPropagation();
                           void shareOrderWhatsApp(o);

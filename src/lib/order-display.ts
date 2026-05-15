@@ -8,6 +8,49 @@ export function formatOrderCode(orderNumber: number | null | undefined): string 
   return n.toString().padStart(6, "0");
 }
 
+/** Texto do WhatsApp com representação, cliente, empresa e cada produto com quantidade (sem markdown). */
+export function buildOrderWhatsAppMessage(input: {
+  representationName: string;
+  orderCode: string;
+  customerName: string;
+  customerLegalName: string | null | undefined;
+  items: Array<{ product_name: string; quantity: number }>;
+  totalLabel: string;
+  statusLabel: string;
+}): string {
+  const rep = input.representationName.trim() || "Representação";
+  const code = input.orderCode.trim() || "—";
+  const cust = input.customerName.trim() || "Cliente";
+  const legalRaw = input.customerLegalName?.trim() || null;
+  const legal =
+    legalRaw && legalRaw.toLowerCase() !== cust.toLowerCase() ? legalRaw : null;
+
+  const lines: string[] = [
+    "Olá!",
+    "",
+    `Representação: ${rep}`,
+    `Pedido nº ${code}`,
+    "",
+    `Cliente: ${cust}`,
+  ];
+  if (legal) {
+    lines.push(`Empresa (razão social): ${legal}`);
+  }
+  lines.push("", "Itens:");
+  const items = input.items.filter((it) => (it.product_name ?? "").trim().length > 0);
+  if (items.length === 0) {
+    lines.push("— (sem itens no cadastro — confira no 2AVendas)");
+  } else {
+    for (let i = 0; i < items.length; i++) {
+      const name = items[i].product_name.trim();
+      const q = Math.max(1, Math.trunc(moneyNumber(items[i].quantity)) || 1);
+      lines.push(`${i + 1}. ${name} — Quantidade: ${q}`);
+    }
+  }
+  lines.push("", `Total: ${input.totalLabel}`, `Situação: ${input.statusLabel}`);
+  return lines.join("\n");
+}
+
 export interface OrderItemLineSummary {
   product_name: string;
   quantity: number;
