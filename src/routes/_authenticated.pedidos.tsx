@@ -64,7 +64,13 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { downloadCsv } from "@/lib/csv-download";
 import { mailtoUrl, recordOutreach, whatsAppShareUrl } from "@/lib/outreach";
 import { SavedViewsBar } from "@/components/SavedViewsBar";
-import { fetchOrderTotalsFallback, repLabelForSellerId } from "@/lib/order-display";
+import {
+  fetchOrderItemsByOrderIds,
+  fetchOrderTotalsFallback,
+  formatOrderItemsPreview,
+  repLabelForSellerId,
+  type OrderItemLineSummary,
+} from "@/lib/order-display";
 
 export const Route = createFileRoute("/_authenticated/pedidos")({
   head: () => ({ meta: [{ title: "Pedidos — 2AVendas" }] }),
@@ -181,6 +187,9 @@ function OrdersPage() {
   const [sellerProfiles, setSellerProfiles] = useState<
     Record<string, { full_name: string | null; email: string | null }>
   >({});
+  const [orderItemsByOrderId, setOrderItemsByOrderId] = useState<
+    Record<string, OrderItemLineSummary[]>
+  >({});
 
   const load = async () => {
     setLoading(true);
@@ -225,6 +234,11 @@ function OrdersPage() {
       return { ...o, total: fixed };
     });
     setOrders(normalized);
+    const itemsByOrder = await fetchOrderItemsByOrderIds(
+      supabase,
+      normalized.map((o) => o.id),
+    );
+    setOrderItemsByOrderId(itemsByOrder);
 
     const sellerIds = [
       ...new Set(
@@ -353,6 +367,7 @@ function OrdersPage() {
         "Pedido",
         "Status",
         "Cliente",
+        "Produtos",
         "Data",
         "Total",
         "Comissão_estimada",
@@ -367,6 +382,7 @@ function OrdersPage() {
           String(o.order_number),
           statusLabels[o.status] ?? o.status,
           o.customers?.name ?? "",
+          formatOrderItemsPreview(orderItemsByOrderId[o.id]) || "—",
           o.created_at.slice(0, 19).replace("T", " "),
           o.total,
           est ?? "",
@@ -885,7 +901,8 @@ function OrdersPage() {
               <TableRow>
                 <TableHead>#</TableHead>
                 <TableHead>Cliente</TableHead>
-                <TableHead>Contato</TableHead>
+                <TableHead className="min-w-[200px] max-w-[280px]">Produtos</TableHead>
+                <TableHead className="hidden xl:table-cell">Contato</TableHead>
                 <TableHead>Data</TableHead>
                 <TableHead>Representante</TableHead>
                 <TableHead className="text-right">Total</TableHead>
@@ -932,7 +949,28 @@ function OrdersPage() {
                       </div>
                     )}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="align-top">
+                    {(orderItemsByOrderId[o.id] ?? []).length === 0 ? (
+                      <span className="text-sm text-muted-foreground">—</span>
+                    ) : (
+                      <ul className="space-y-1 text-sm max-w-[280px]">
+                        {(orderItemsByOrderId[o.id] ?? []).slice(0, 5).map((it, idx) => (
+                          <li key={`${o.id}-${idx}`} className="leading-snug">
+                            <span className="font-medium text-foreground">{it.product_name}</span>
+                            {it.quantity > 1 ? (
+                              <span className="text-muted-foreground"> · {it.quantity} un.</span>
+                            ) : null}
+                          </li>
+                        ))}
+                        {(orderItemsByOrderId[o.id]?.length ?? 0) > 5 ? (
+                          <li className="text-xs text-muted-foreground">
+                            +{(orderItemsByOrderId[o.id]!.length - 5)} itens — clique para ver todos
+                          </li>
+                        ) : null}
+                      </ul>
+                    )}
+                  </TableCell>
+                  <TableCell className="hidden xl:table-cell">
                     <div className="text-sm">{o.customers?.email ?? "—"}</div>
                     <div className="text-xs text-muted-foreground">{o.customers?.phone ?? "—"}</div>
                     <div className="text-xs text-muted-foreground">

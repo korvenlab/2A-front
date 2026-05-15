@@ -1,6 +1,50 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { moneyNumber } from "@/lib/format";
 
+export interface OrderItemLineSummary {
+  product_name: string;
+  quantity: number;
+}
+
+/** Itens por pedido (nome + quantidade), para listas e histórico do cliente. */
+export async function fetchOrderItemsByOrderIds(
+  supabase: SupabaseClient,
+  orderIds: string[],
+): Promise<Record<string, OrderItemLineSummary[]>> {
+  if (orderIds.length === 0) return {};
+  const { data, error } = await supabase
+    .from("order_items")
+    .select("order_id,product_name,quantity")
+    .in("order_id", orderIds)
+    .order("created_at", { ascending: true });
+  if (error || !data) return {};
+  const out: Record<string, OrderItemLineSummary[]> = {};
+  for (const row of data) {
+    const orderId = row.order_id as string;
+    if (!out[orderId]) out[orderId] = [];
+    out[orderId].push({
+      product_name: String(row.product_name ?? "").trim() || "Produto",
+      quantity: Math.max(1, Math.trunc(moneyNumber(row.quantity)) || 1),
+    });
+  }
+  return out;
+}
+
+/** Uma linha compacta para CSV ou tooltip. */
+export function formatOrderItemsPreview(
+  items: OrderItemLineSummary[] | undefined,
+  maxNames = 4,
+): string {
+  const list = items ?? [];
+  if (list.length === 0) return "";
+  const parts = list.slice(0, maxNames).map((i) =>
+    i.quantity > 1 ? `${i.product_name} (${i.quantity})` : i.product_name,
+  );
+  const extra = list.length - maxNames;
+  if (extra > 0) parts.push(`+${extra} ${extra === 1 ? "item" : "itens"}`);
+  return parts.join(" · ");
+}
+
 /** Soma subtotais dos itens quando `orders.total` ainda está zerado (ex.: antes do trigger/RLS). */
 export async function fetchOrderTotalsFallback(
   supabase: SupabaseClient,

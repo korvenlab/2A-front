@@ -69,7 +69,12 @@ import { useMenuGate } from "@/hooks/use-menu-gate";
 import { userFacingDataError } from "@/lib/supabase-user-error";
 import { downloadCsv } from "@/lib/csv-download";
 import { SavedViewsBar } from "@/components/SavedViewsBar";
-import { fetchOrderTotalsFallback, repLabelForSellerId } from "@/lib/order-display";
+import {
+  fetchOrderItemsByOrderIds,
+  fetchOrderTotalsFallback,
+  repLabelForSellerId,
+  type OrderItemLineSummary,
+} from "@/lib/order-display";
 import { moneyNumber } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/clientes")({
@@ -102,6 +107,7 @@ interface CustomerOrderRow {
   status: string;
   total: number;
   created_at: string;
+  items: OrderItemLineSummary[];
 }
 
 interface ClientInvitation {
@@ -353,9 +359,15 @@ function CustomersPage() {
         toast.error(userFacingDataError(error));
         setHistoryOrders([]);
       } else {
-        const rows = (data as CustomerOrderRow[]) ?? [];
+        const rows = (data as Omit<CustomerOrderRow, "items">[]) ?? [];
         const zeroIds = rows.filter((o) => moneyNumber(o.total) <= 0).map((o) => o.id);
-        const totalsFallback = await fetchOrderTotalsFallback(supabase, zeroIds);
+        const [totalsFallback, itemsByOrder] = await Promise.all([
+          fetchOrderTotalsFallback(supabase, zeroIds),
+          fetchOrderItemsByOrderIds(
+            supabase,
+            rows.map((o) => o.id),
+          ),
+        ]);
         setHistoryOrders(
           rows.map((o) => ({
             ...o,
@@ -363,6 +375,7 @@ function CustomersPage() {
               moneyNumber(o.total) > 0
                 ? moneyNumber(o.total)
                 : moneyNumber(totalsFallback[o.id] ?? 0),
+            items: itemsByOrder[o.id] ?? [],
           })),
         );
       }
@@ -998,10 +1011,10 @@ function CustomersPage() {
                 {historyOrders.map((o) => (
                   <li
                     key={o.id}
-                    className="rounded-xl border border-border bg-muted/30 px-4 py-3 text-sm"
+                    className="rounded-xl border border-border bg-card px-4 py-3 text-sm shadow-sm"
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-mono font-medium">
+                      <span className="font-mono font-semibold text-foreground">
                         #{String(o.order_number).padStart(4, "0")}
                       </span>
                       <span className="text-xs text-muted-foreground">{dt(o.created_at)}</span>
@@ -1010,8 +1023,27 @@ function CustomersPage() {
                       <span className="text-muted-foreground">
                         {orderStatusPt[o.status] ?? o.status}
                       </span>
-                      <span className="font-semibold">{brl(o.total)}</span>
+                      <span className="font-semibold text-primary">{brl(o.total)}</span>
                     </div>
+                    {o.items.length > 0 ? (
+                      <ul className="mt-3 space-y-1.5 border-t border-border pt-3">
+                        {o.items.map((it, idx) => (
+                          <li
+                            key={`${o.id}-${idx}`}
+                            className="flex items-start justify-between gap-3 text-xs"
+                          >
+                            <span className="font-medium text-foreground leading-snug">
+                              {it.product_name}
+                            </span>
+                            <span className="shrink-0 tabular-nums text-muted-foreground">
+                              {it.quantity} un.
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-2 text-xs text-muted-foreground">Sem itens registrados.</p>
+                    )}
                   </li>
                 ))}
               </ul>
