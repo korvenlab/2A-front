@@ -34,6 +34,7 @@ import type { CnpjLookupResult } from "@/lib/cnpj-lookup";
 import { joinStreetAndDistrict } from "@/lib/address-format";
 import { CnpjLookupInput } from "@/components/forms/CnpjLookupInput";
 import { AddressCepFields, type AddressCepValues } from "@/components/forms/AddressCepFields";
+import { SearchCombobox } from "@/components/ui/search-combobox";
 
 export const Route = createFileRoute("/_authenticated/industrias")({
   head: () => ({ meta: [{ title: "Indústrias — 2AVendas" }] }),
@@ -74,6 +75,35 @@ const emptyForm: IndustryForm = {
 
 const MAX_PRODUCT_PREVIEW = 3;
 
+interface SellerPick {
+  user_id: string;
+  full_name: string | null;
+  email: string | null;
+}
+
+function sellerDisplayLabel(s: SellerPick): string {
+  return s.full_name?.trim() || s.email?.trim() || "Vendedor";
+}
+
+function resolveResponsibleSellerId(
+  responsibleName: string,
+  sellers: SellerPick[],
+  selfUserId: string | undefined,
+  selfFullName: string | null | undefined,
+  selfEmail: string | null | undefined,
+): string {
+  const t = responsibleName.trim();
+  if (!t) return "";
+  const selfLabels = [selfFullName?.trim(), selfEmail?.trim(), "Eu (administrador)", "Eu"].filter(
+    Boolean,
+  ) as string[];
+  if (selfUserId && selfLabels.includes(t)) return selfUserId;
+  for (const s of sellers) {
+    if (sellerDisplayLabel(s) === t) return s.user_id;
+  }
+  return "";
+}
+
 function validateIndustryForm(f: IndustryForm): string | null {
   const t = (s: string) => s.trim();
   const checks: [string, string][] = [
@@ -81,8 +111,6 @@ function validateIndustryForm(f: IndustryForm): string | null {
     ["Responsável", t(f.responsible_name)],
     ["Cidade", t(f.city)],
     ["Estado", t(f.state)],
-    ["Telefone", t(f.phone)],
-    ["E-mail", t(f.email)],
     ["Endereço", t(f.address_line)],
     ["CEP", t(f.postal_code)],
     ["CNPJ", t(f.cnpj)],
@@ -90,7 +118,8 @@ function validateIndustryForm(f: IndustryForm): string | null {
   for (const [label, v] of checks) {
     if (!v || v.length < 2) return `${label}: informe pelo menos 2 caracteres.`;
   }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t(f.email))) return "E-mail inválido.";
+  const email = t(f.email);
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "E-mail inválido.";
   const pct = Number(f.commission_pct);
   if (Number.isNaN(pct) || pct < 0 || pct > 100) return "Comissão da indústria: use um valor entre 0 e 100.";
   return null;
@@ -98,8 +127,10 @@ function validateIndustryForm(f: IndustryForm): string | null {
 
 function IndustriesPage() {
   useMenuGate("industrias");
-  const { organization } = useAuth();
+  const { organization, user, role, profile } = useAuth();
+  const isAdmin = role === "admin";
   const [rows, setRows] = useState<OrganizationIndustry[]>([]);
+  const [sellers, setSellers] = useState<SellerPick[]>([]);
   const [productNamesByIndustry, setProductNamesByIndustry] = useState<Record<string, string[]>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -109,12 +140,19 @@ function IndustriesPage() {
   const [commissionDraft, setCommissionDraft] = useState("0");
   const [saving, setSaving] = useState(false);
   const [addressDistrict, setAddressDistrict] = useState("");
+  const [responsibleSellerId, setResponsibleSellerId] = useState("");
+
+  const defaultResponsibleName = useCallback(() => {
+    const name = profile?.full_name?.trim() || profile?.email?.trim();
+    if (isAdmin) return name || "Eu (administrador)";
+    return name || "";
+  }, [profile?.email, profile?.full_name, isAdmin]);
 
   const load = useCallback(async () => {
     if (!organization?.id) return;
     setLoading(true);
     const orgId = organization.id;
-    const [indRes, prodRes] = await Promise.all([
+    const [indRes, prodRes, rolesRes, orgRes] = await Promise.all([
       supabase
         .from("organization_industries")
         .select(
@@ -127,9 +165,39 @@ function IndustriesPage() {
         .select("industry_id,name")
         .eq("organization_id", orgId)
         .not("industry_id", "is", null),
+      supabase
+        .from("user_roles")
+        .select("user_id")
+        .eq("organization_id", orgId)
+        .eq("role", "vendedor"),
+      supabase.from("organizations").select("owner_user_id").eq("id", orgId).maybeSingle(),
     ]);
     if (indRes.error) toast.error(userFacingDataError(indRes.error));
     if (prodRes.error) toast.error(userFacingDataError(prodRes.error));
+
+    const vendedorIds = (rolesRes.data ?? []).map((r: { user_id: string }) => r.user_id);
+    const ownerId =
+      (orgRes.data as { owner_user_id: string | null } | null)?.owner_user_id ?? null;
+    const sellerIds = [
+      ...new Set(
+        [...vendedorIds, ownerId, user?.id].filter((id): id is string => Boolean(id)),
+      ),
+    ];
+    if (sellerIds.length > 0) {
+      const { data: profs } = await supabase
+        .from("profiles")
+        .select("id, full_name, email")
+        .in("id", sellerIds);
+      setSellers(
+        (profs ?? []).map((p: { id: string; full_name: string | null; email: string | null }) => ({
+          user_id: p.id,
+          full_name: p.full_name,
+          email: p.email,
+        })),
+      );
+    } else {
+      setSellers([]);
+    }
 
     setRows((indRes.data as OrganizationIndustry[]) ?? []);
 
@@ -146,7 +214,7 @@ function IndustriesPage() {
     }
     setProductNamesByIndustry(byIndustry);
     setLoading(false);
-  }, [organization?.id]);
+  }, [organization?.id, user?.id]);
 
   useEffect(() => {
     void load();
@@ -159,9 +227,16 @@ function IndustriesPage() {
     );
   }, [rows, search, productNamesByIndustry]);
 
+  const comboboxSellers = useMemo(() => {
+    if (!user?.id) return sellers;
+    if (isAdmin) return sellers.filter((s) => s.user_id !== user.id);
+    return sellers.filter((s) => s.user_id === user.id);
+  }, [sellers, user?.id, isAdmin]);
+
   const openNew = () => {
     setEditing(null);
-    setForm(emptyForm);
+    setForm({ ...emptyForm, responsible_name: defaultResponsibleName() });
+    setResponsibleSellerId(user?.id ?? "");
     setAddressDistrict("");
     setCommissionDraft("0");
     setOpen(true);
@@ -170,6 +245,15 @@ function IndustriesPage() {
   const openEdit = (row: OrganizationIndustry) => {
     setEditing(row);
     setAddressDistrict("");
+    setResponsibleSellerId(
+      resolveResponsibleSellerId(
+        row.responsible_name,
+        sellers,
+        user?.id,
+        profile?.full_name,
+        profile?.email,
+      ),
+    );
     setForm({
       trade_name: row.trade_name,
       legal_name: row.legal_name ?? "",
@@ -255,7 +339,22 @@ function IndustriesPage() {
       setEditing(null);
       setForm(emptyForm);
       setAddressDistrict("");
+      setResponsibleSellerId("");
       setCommissionDraft("0");
+    }
+  };
+
+  const handleResponsibleChange = (sellerId: string, seller: SellerPick | undefined) => {
+    setResponsibleSellerId(sellerId);
+    if (sellerId && user?.id && sellerId === user.id && isAdmin) {
+      setForm((x) => ({
+        ...x,
+        responsible_name: profile?.full_name?.trim() || profile?.email?.trim() || "Eu (administrador)",
+      }));
+      return;
+    }
+    if (seller) {
+      setForm((x) => ({ ...x, responsible_name: sellerDisplayLabel(seller) }));
     }
   };
 
@@ -343,14 +442,29 @@ function IndustriesPage() {
                   />
                 </div>
                 <div className="grid gap-2 sm:col-span-2">
-                  <Label>Responsável *</Label>
-                  <Input
-                    value={form.responsible_name}
-                    onChange={(e) => setForm((x) => ({ ...x, responsible_name: e.target.value }))}
+                  <Label>Responsável (vendedor) *</Label>
+                  <SearchCombobox
+                    items={comboboxSellers}
+                    value={responsibleSellerId}
+                    onValueChange={(id, item) => handleResponsibleChange(id, item)}
+                    getItemId={(s) => s.user_id}
+                    getItemLabel={sellerDisplayLabel}
+                    getSearchFields={(s) => [s.full_name, s.email]}
+                    placeholder="Buscar vendedor…"
+                    emptyMessage="Nenhum vendedor encontrado."
+                    leadingOption={
+                      isAdmin && user?.id
+                        ? { value: user.id, label: "Eu" }
+                        : undefined
+                    }
                   />
+                  <p className="text-xs text-muted-foreground">
+                    Vincule a indústria ao representante que acompanha o relacionamento. Administradores
+                    podem escolher «Eu».
+                  </p>
                 </div>
                 <div className="grid gap-2">
-                  <Label>Telefone *</Label>
+                  <Label>Telefone</Label>
                   <Input
                     value={form.phone}
                     onChange={(e) => setForm((x) => ({ ...x, phone: e.target.value }))}
@@ -358,7 +472,7 @@ function IndustriesPage() {
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label>E-mail *</Label>
+                  <Label>E-mail</Label>
                   <Input
                     type="email"
                     value={form.email}

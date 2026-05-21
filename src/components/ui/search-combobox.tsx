@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
+import { useId, useMemo, useState, type ReactNode } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
@@ -25,6 +25,18 @@ export type SearchComboboxProps<T> = {
   leadingOption?: { value: string; label: string };
 };
 
+function displayLabelForValue<T>(
+  value: string,
+  selected: T | undefined,
+  leadingOption: { value: string; label: string } | undefined,
+  getItemLabel: (item: T) => string,
+): string {
+  if (!value) return "";
+  if (leadingOption && value === leadingOption.value) return leadingOption.label;
+  if (selected) return getItemLabel(selected);
+  return "";
+}
+
 export function SearchCombobox<T>({
   items,
   value,
@@ -33,7 +45,7 @@ export function SearchCombobox<T>({
   getItemLabel,
   getSearchFields,
   renderItem,
-  placeholder = "Digite para buscar…",
+  placeholder = "Clique para ver opções ou digite para filtrar…",
   emptyMessage = "Nenhum resultado para essa busca.",
   disabled = false,
   className,
@@ -44,38 +56,45 @@ export function SearchCombobox<T>({
 }: SearchComboboxProps<T>) {
   const listId = useId();
   const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState("");
+  /** Texto digitado enquanto o popover está aberto. */
+  const [draftText, setDraftText] = useState("");
+  /** Filtro da lista — vazio ao abrir para listar todas as opções. */
+  const [listFilter, setListFilter] = useState("");
 
   const selected = useMemo(
     () => items.find((item) => getItemId(item) === value),
     [items, value, getItemId],
   );
 
-  useEffect(() => {
-    if (leadingOption && value === leadingOption.value) {
-      if (!open) setQuery(leadingOption.label);
-      return;
-    }
-    if (!value) {
-      setQuery("");
-      return;
-    }
-    if (selected && !open) {
-      setQuery(getItemLabel(selected));
-    }
-  }, [value, selected, open, getItemLabel, leadingOption]);
+  const closedLabel = useMemo(
+    () => displayLabelForValue(value, selected, leadingOption, getItemLabel),
+    [value, selected, leadingOption, getItemLabel],
+  );
+
+  const inputValue = open ? draftText : closedLabel;
 
   const filtered = useMemo(() => {
-    if (!query.trim()) return items;
-    return items.filter((item) => matchesFieldsSearch(getSearchFields(item), query));
-  }, [items, query, getSearchFields]);
+    if (!listFilter.trim()) return items;
+    return items.filter((item) => matchesFieldsSearch(getSearchFields(item), listFilter));
+  }, [items, listFilter, getSearchFields]);
+
+  const handleOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (next) {
+      setDraftText(closedLabel);
+      setListFilter("");
+    } else {
+      setDraftText("");
+      setListFilter("");
+    }
+  };
 
   const handleInputChange = (next: string) => {
-    setQuery(next);
-    setOpen(true);
+    setDraftText(next);
+    setListFilter(next);
+    if (!open) setOpen(true);
     if (value) {
-      const label = selected ? getItemLabel(selected) : "";
-      if (next.trim() !== label.trim()) {
+      if (next.trim() !== closedLabel.trim()) {
         onValueChange("", undefined);
       }
     }
@@ -84,12 +103,21 @@ export function SearchCombobox<T>({
   const handleSelect = (item: T) => {
     const id = getItemId(item);
     onValueChange(id, item);
-    setQuery(getItemLabel(item));
+    setDraftText("");
+    setListFilter("");
+    setOpen(false);
+  };
+
+  const handleLeadingSelect = () => {
+    if (!leadingOption) return;
+    onValueChange(leadingOption.value, undefined);
+    setDraftText("");
+    setListFilter("");
     setOpen(false);
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverAnchor asChild>
         <div className={cn("relative w-full", className)}>
           <Search
@@ -102,9 +130,11 @@ export function SearchCombobox<T>({
             aria-controls={listId}
             aria-autocomplete="list"
             disabled={disabled}
-            value={query}
+            value={inputValue}
             onChange={(e) => handleInputChange(e.target.value)}
-            onFocus={() => setOpen(true)}
+            onFocus={() => {
+              if (!open) handleOpenChange(true);
+            }}
             placeholder={placeholder}
             className={cn("h-10 pl-9", inputClassName)}
             autoComplete="off"
@@ -134,11 +164,7 @@ export function SearchCombobox<T>({
                   value === leadingOption.value && "bg-accent",
                 )}
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => {
-                  onValueChange(leadingOption.value, undefined);
-                  setQuery(leadingOption.label);
-                  setOpen(false);
-                }}
+                onClick={handleLeadingSelect}
               >
                 <span className="text-muted-foreground">{leadingOption.label}</span>
               </button>
@@ -146,7 +172,9 @@ export function SearchCombobox<T>({
           ) : null}
           {filtered.length === 0 && !leadingOption ? (
             <li className="px-3 py-6 text-center text-sm text-muted-foreground">{emptyMessage}</li>
-          ) : filtered.length === 0 && leadingOption ? null : (
+          ) : filtered.length === 0 && leadingOption ? (
+            <li className="px-3 py-4 text-center text-xs text-muted-foreground">{emptyMessage}</li>
+          ) : (
             filtered.map((item) => {
               const id = getItemId(item);
               const active = value === id;
@@ -161,7 +189,9 @@ export function SearchCombobox<T>({
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => handleSelect(item)}
                   >
-                    {renderItem ? renderItem(item) : (
+                    {renderItem ? (
+                      renderItem(item)
+                    ) : (
                       <span className="font-medium leading-tight">{getItemLabel(item)}</span>
                     )}
                   </button>
@@ -169,9 +199,6 @@ export function SearchCombobox<T>({
               );
             })
           )}
-          {filtered.length === 0 && leadingOption ? (
-            <li className="px-3 py-4 text-center text-xs text-muted-foreground">{emptyMessage}</li>
-          ) : null}
         </ul>
       </PopoverContent>
     </Popover>
