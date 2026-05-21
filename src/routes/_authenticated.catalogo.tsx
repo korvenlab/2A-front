@@ -15,6 +15,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogFooter,
   DialogHeader,
@@ -1062,12 +1063,12 @@ function CatalogPage() {
                       <Plus className="h-4 w-4" /> Novo produto
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent size="form">
                     <DialogHeader>
                       <DialogTitle>{editing ? "Editar produto" : "Novo produto"}</DialogTitle>
                     </DialogHeader>
-                    <div className="grid gap-4 py-2">
-                      <div className="grid gap-2">
+                    <DialogBody className="grid gap-4 py-2 sm:grid-cols-2">
+                      <div className="grid gap-2 sm:col-span-2">
                         <Label>Nome *</Label>
                         <Input
                           value={form.name}
@@ -1094,7 +1095,7 @@ function CatalogPage() {
                           />
                         </div>
                       </div>
-                      <div className="grid gap-2">
+                      <div className="grid gap-2 sm:col-span-2">
                         <Label>Indústria *</Label>
                         <p className="text-xs text-muted-foreground">
                           Escolha um cadastro existente (busca por nome ou CNPJ). Para cadastrar ou
@@ -1146,7 +1147,7 @@ function CatalogPage() {
                           </p>
                         ) : null}
                       </div>
-                      <div className="grid gap-2">
+                      <div className="grid gap-2 sm:col-span-2">
                         <Label>
                           Fotos do produto ({form.image_urls.length}/{MAX_PRODUCT_IMAGES}) *
                         </Label>
@@ -1237,21 +1238,21 @@ function CatalogPage() {
                           }}
                         />
                       </div>
-                      <div className="grid gap-2">
+                      <div className="grid gap-2 sm:col-span-2">
                         <Label>Descrição</Label>
                         <Textarea
                           value={form.description ?? ""}
                           onChange={(e) => setForm({ ...form, description: e.target.value })}
                         />
                       </div>
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 sm:col-span-2">
                         <Switch
                           checked={form.active}
                           onCheckedChange={(v) => setForm({ ...form, active: v })}
                         />
                         <Label>Produto ativo</Label>
                       </div>
-                    </div>
+                    </DialogBody>
                     <DialogFooter>
                       <Button variant="outline" onClick={() => setOpen(false)}>
                         Cancelar

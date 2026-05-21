@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogFooter,
   DialogHeader,
@@ -236,12 +237,12 @@ function VisitsPage() {
                 <Plus className="h-4 w-4" /> Nova visita
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-lg">
+            <DialogContent size="form">
               <DialogHeader>
                 <DialogTitle>Agendar visita</DialogTitle>
               </DialogHeader>
-              <div className="grid gap-4 py-2">
-                <div className="grid gap-2">
+              <DialogBody className="grid gap-4 py-2 sm:grid-cols-2">
+                <div className="grid gap-2 sm:col-span-2">
                   <Label>Cliente (opcional)</Label>
                   <SearchCombobox
                     items={customers}
@@ -256,7 +257,7 @@ function VisitsPage() {
                   />
                 </div>
                 {isAdmin && (
-                  <div className="grid gap-2">
+                  <div className="grid gap-2 sm:col-span-2">
                     <Label>Vendedor responsável</Label>
                     <Select value={formSeller || "__none__"} onValueChange={(v) => setFormSeller(v === "__none__" ? "" : v)}>
                       <SelectTrigger>
@@ -293,15 +294,15 @@ function VisitsPage() {
                     onChange={(e) => setFormDur(parseInt(e.target.value, 10) || 60)}
                   />
                 </div>
-                <div className="grid gap-2">
+                <div className="grid gap-2 sm:col-span-2">
                   <Label>Endereço / local</Label>
                   <Input value={formAddr} onChange={(e) => setFormAddr(e.target.value)} placeholder="Ex.: Av. …, sala 12" />
                 </div>
-                <div className="grid gap-2">
+                <div className="grid gap-2 sm:col-span-2">
                   <Label>Observações</Label>
                   <Textarea value={formNotes} onChange={(e) => setFormNotes(e.target.value)} rows={3} />
                 </div>
-              </div>
+              </DialogBody>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setOpen(false)}>
                   Cancelar

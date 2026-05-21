@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogFooter,
   DialogHeader,
@@ -383,11 +384,11 @@ function BudgetsPage() {
                 <Plus className="h-4 w-4" /> Novo orçamento
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-3xl">
+            <DialogContent size="wide">
               <DialogHeader>
                 <DialogTitle>Novo orçamento</DialogTitle>
               </DialogHeader>
-              <div className="grid gap-4 py-2 space-y-4">
+              <DialogBody className="grid gap-4 py-2">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label>Cliente *</Label>
@@ -540,7 +541,7 @@ function BudgetsPage() {
                     </span>
                   </div>
                 </div>
-              </div>
+              </DialogBody>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setOpen(false)}>
                   Cancelar

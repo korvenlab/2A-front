@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogFooter,
   DialogHeader,
@@ -657,11 +658,11 @@ function CustomersPage() {
                 <Plus className="h-4 w-4" /> Novo cliente
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-xl">
+            <DialogContent size="form">
               <DialogHeader>
                 <DialogTitle>{editing ? "Editar cliente" : "Novo cliente"}</DialogTitle>
               </DialogHeader>
-              <div className="grid gap-4 py-2">
+              <DialogBody className="grid gap-4 py-2">
                 <Tabs defaultValue="identificacao" className="w-full">
                   <TabsList className="grid w-full grid-cols-2">
                     <TabsTrigger value="identificacao">Identificação</TabsTrigger>
@@ -792,7 +793,7 @@ function CustomersPage() {
                     </div>
                   </TabsContent>
                 </Tabs>
-              </div>
+              </DialogBody>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setOpen(false)}>
                   Cancelar

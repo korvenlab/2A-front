@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogFooter,
   DialogHeader,
@@ -401,11 +402,11 @@ function IndustriesPage() {
       />
 
       <Dialog open={open} onOpenChange={onDialogOpenChange}>
-        <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
+        <DialogContent size="form">
           <DialogHeader>
             <DialogTitle>{editing ? "Editar indústria" : "Nova indústria"}</DialogTitle>
           </DialogHeader>
-          <div className="grid gap-3 py-2 sm:grid-cols-2">
+          <DialogBody className="grid gap-3 py-2 sm:grid-cols-2">
                 <div className="sm:col-span-2">
                   <CnpjLookupInput
                     label="CNPJ *"
@@ -498,7 +499,7 @@ function IndustriesPage() {
                     sobre essa comissão; o restante fica com a representação.
                   </p>
                 </div>
-              </div>
+          </DialogBody>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button type="button" variant="outline" onClick={() => onDialogOpenChange(false)}>
               Cancelar

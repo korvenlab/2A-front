@@ -20,6 +20,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
+  DialogBody,
   DialogContent,
   DialogFooter,
   DialogHeader,
@@ -703,11 +704,11 @@ function OrdersPage() {
                 <Plus className="h-4 w-4" /> Novo pedido
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl sm:max-w-2xl">
+            <DialogContent size="wide">
               <DialogHeader>
                 <DialogTitle>Novo pedido</DialogTitle>
               </DialogHeader>
-              <div className="grid gap-4 py-2 min-w-0">
+              <DialogBody className="grid gap-4 py-2 min-w-0">
                 <div className="grid gap-2">
                   <Label>Cliente *</Label>
                   <SearchCombobox
@@ -891,7 +892,7 @@ function OrdersPage() {
                     onChange={(e) => setNotes(e.target.value)}
                   />
                 </div>
-              </div>
+              </DialogBody>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setOpen(false)}>
                   Cancelar
@@ -1329,7 +1330,7 @@ function OrdersPage() {
       </AlertDialog>
 
       <Dialog open={nfeTarget !== null} onOpenChange={(o) => !o && setNfeTarget(null)}>
-        <DialogContent className="max-w-md">
+        <DialogContent size="sm">
           <DialogHeader>
             <DialogTitle>NF-e (registro manual)</DialogTitle>
           </DialogHeader>
