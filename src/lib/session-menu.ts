@@ -17,6 +17,8 @@ export interface MenuFlags {
   dashboard: boolean;
   /** Com API: só quem tem `products:manage` (admin/vendedor). Sem isso não aparece link `/catalogo` nem gate. */
   catalogo: boolean;
+  /** Cadastro de indústrias — mesmo público do catálogo. */
+  industrias: boolean;
   clientes: boolean;
   pedidos: boolean;
   /** Orçamentos comerciais — espelha `orders:view` no backend. */
@@ -80,6 +82,7 @@ export function emptyMenu(): MenuFlags {
   return {
     dashboard: false,
     catalogo: false,
+    industrias: false,
     clientes: false,
     pedidos: false,
     orcamentos: false,
@@ -95,6 +98,7 @@ export function fallbackMenuFromRole(role: FallbackRole | null): MenuFlags {
     return {
       dashboard: false,
       catalogo: false,
+      industrias: false,
       clientes: false,
       pedidos: false,
       orcamentos: false,
@@ -108,6 +112,7 @@ export function fallbackMenuFromRole(role: FallbackRole | null): MenuFlags {
     return {
       dashboard: true,
       catalogo: true,
+      industrias: true,
       clientes: true,
       pedidos: true,
       orcamentos: true,
@@ -120,6 +125,7 @@ export function fallbackMenuFromRole(role: FallbackRole | null): MenuFlags {
   return {
     dashboard: true,
     catalogo: true,
+    industrias: true,
     clientes: true,
     pedidos: true,
     orcamentos: true,
@@ -235,6 +241,7 @@ async function fetchSessionMenuOnce(accessToken: string): Promise<SessionMenuPay
     const menu = {
       dashboard: !!m.dashboard,
       catalogo: !!m.catalogo,
+      industrias: !!(m.industrias ?? m.catalogo),
       clientes: !!m.clientes,
       pedidos: !!m.pedidos,
       orcamentos: !!m.orcamentos,
@@ -275,6 +282,7 @@ export function firstAccessiblePath(menu: MenuFlags): string | null {
     { key: "visitas", path: "/visitas" },
     { key: "clientes", path: "/clientes" },
     { key: "catalogo", path: "/catalogo" },
+    { key: "industrias", path: "/industrias" },
     { key: "vendedores", path: "/vendedores" },
     { key: "portal", path: "/portal" },
   ];

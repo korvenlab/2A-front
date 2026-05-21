@@ -314,7 +314,7 @@ function SellersPage() {
                   </p>
                 </div>
                 <div className="grid gap-2">
-                  <Label>Comissão inicial (% sobre o pedido)</Label>
+                  <Label>Comissão inicial (% sobre comissão da indústria)</Label>
                   <Input
                     type="text"
                     inputMode="decimal"
@@ -323,7 +323,7 @@ function SellersPage() {
                     onChange={(e) => setInviteCommissionPct(e.target.value)}
                   />
                   <p className="text-xs text-muted-foreground">
-                    Aplicada automaticamente quando o convite for aceito. Você pode alterar depois na tabela da equipe.
+                    Percentual sobre a comissão da indústria em cada linha do pedido (definida em Indústrias).
                   </p>
                 </div>
               </div>
@@ -352,8 +352,9 @@ function SellersPage() {
             <DialogTitle>Comissão do vendedor</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            {editSeller?.full_name ?? editSeller?.email ?? "Vendedor"} — percentual sobre o{" "}
-            <strong className="text-foreground">total</strong> de cada pedido (valor líquido registrado no pedido).
+            {editSeller?.full_name ?? editSeller?.email ?? "Vendedor"} — percentual sobre a{" "}
+            <strong className="text-foreground">comissão da indústria</strong> em cada linha (o % da indústria está
+            em Indústrias; o restante fica com a representação).
           </p>
           <div className="grid gap-2 py-2">
             <Label>Comissão (%)</Label>

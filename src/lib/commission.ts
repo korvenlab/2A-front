@@ -1,4 +1,8 @@
-/** Comissão = percentual sobre o total do pedido (0–100). */
+/**
+ * Comissão = percentual sobre uma base (0–100).
+ * Pedidos: base da indústria = subtotal × commission_pct da indústria;
+ * vendedor recebe % sobre essa base (organization_seller_commissions).
+ */
 
 export function commissionFromTotal(total: number, pct: number): number {
   const t = Number(total) || 0;

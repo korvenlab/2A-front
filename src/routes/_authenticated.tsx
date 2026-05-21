@@ -29,6 +29,7 @@ import {
   LogOut,
   Loader2,
   Package,
+  Factory,
   UserCog,
   FileSpreadsheet,
   Columns3,
@@ -380,6 +381,7 @@ function AuthLayout() {
       }
     }
     if (menu.catalogo) items.push({ to: "/catalogo", label: "Catálogo", icon: Package });
+    if (menu.industrias) items.push({ to: "/industrias", label: "Indústrias", icon: Factory });
     if (menu.portal && role === "cliente") {
       const slug = clientOrgs.find((o) => o.id === validClientOrgSelectValue)?.slug?.trim();
       if (slug) {

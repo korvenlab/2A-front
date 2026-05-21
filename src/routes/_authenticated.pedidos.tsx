@@ -3,7 +3,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { brl, dt, moneyNumber } from "@/lib/format";
-import { commissionFromTotal, formatPct } from "@/lib/commission";
+import { formatPct } from "@/lib/commission";
+import {
+  fetchOrderCommissionLinesByOrderIds,
+  viewerCommissionForOrder,
+  type OrderCommissionLine,
+} from "@/lib/order-commission";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -191,6 +196,9 @@ function OrdersPage() {
   const [orderItemsByOrderId, setOrderItemsByOrderId] = useState<
     Record<string, OrderItemLineSummary[]>
   >({});
+  const [commissionLinesByOrderId, setCommissionLinesByOrderId] = useState<
+    Record<string, OrderCommissionLine[]>
+  >({});
 
   const load = async () => {
     setLoading(true);
@@ -240,6 +248,11 @@ function OrdersPage() {
       normalized.map((o) => o.id),
     );
     setOrderItemsByOrderId(itemsByOrder);
+    const commissionLines = await fetchOrderCommissionLinesByOrderIds(
+      supabase,
+      normalized.map((o) => o.id),
+    );
+    setCommissionLinesByOrderId(commissionLines);
 
     const sellerIds = [
       ...new Set(
@@ -386,7 +399,15 @@ function OrdersPage() {
       ordersFiltered.map((o) => {
         const sid = o.seller_id;
         const pct = sid && commissionBySeller[sid] != null ? commissionBySeller[sid] : 0;
-        const est = sid ? commissionFromTotal(o.total, pct) : null;
+        const est =
+          sid && user?.id
+            ? viewerCommissionForOrder(commissionLinesByOrderId[o.id] ?? [], pct, {
+                sellerId: sid,
+                adminUserId: user.id,
+                viewerRole: role,
+                viewerUserId: user.id,
+              })
+            : null;
         return [
           formatOrderCode(o.order_number),
           statusLabels[o.status] ?? o.status,
@@ -1092,13 +1113,23 @@ function OrdersPage() {
                       const sid = o.seller_id;
                       const pct =
                         sid && commissionBySeller[sid] != null ? commissionBySeller[sid] : 0;
-                      const est = commissionFromTotal(o.total, pct);
+                      const est =
+                        sid && user?.id
+                          ? viewerCommissionForOrder(commissionLinesByOrderId[o.id] ?? [], pct, {
+                              sellerId: sid,
+                              adminUserId: user.id,
+                              viewerRole: role,
+                              viewerUserId: user.id,
+                            })
+                          : 0;
                       return (
                         <span
                           className="text-muted-foreground"
                           title={
                             sid
-                              ? `${formatPct(pct)} sobre o total do pedido`
+                              ? role === "admin"
+                                ? `Sua fatia (rep.) — vendedor ${formatPct(pct)} sobre comissão da indústria`
+                                : `${formatPct(pct)} sobre a comissão da indústria por linha`
                               : "Sem vendedor no pedido — comissão não aplicável"
                           }
                         >

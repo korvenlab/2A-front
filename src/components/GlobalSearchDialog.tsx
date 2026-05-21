@@ -18,6 +18,7 @@ import {
   ShoppingBag,
   Users,
   Package,
+  Factory,
   Columns3,
   FileSpreadsheet,
   CalendarDays,
@@ -45,6 +46,7 @@ function navShortcuts(menu: MenuFlags, role: string | null): { label: string; to
   if (menu.vendedores && role === "admin")
     items.push({ label: "Vendedores", to: "/vendedores", icon: UserCog });
   if (menu.catalogo) items.push({ label: "Catálogo", to: "/catalogo", icon: Package });
+  if (menu.industrias) items.push({ label: "Indústrias", to: "/industrias", icon: Factory });
   if (menu.portal) items.push({ label: "Portal de compras", to: "/portal", icon: Store });
   return items;
 }

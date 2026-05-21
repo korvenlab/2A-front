@@ -55,7 +55,6 @@ import {
   LayoutGrid,
   Table as TableIcon,
   Layers,
-  Factory,
   ChevronsUpDown,
   Check,
 } from "lucide-react";
@@ -233,18 +232,6 @@ const emptyForm: ProductForm = {
   active: true,
 };
 
-const emptyIndustryForm = {
-  trade_name: "",
-  responsible_name: "",
-  city: "",
-  state: "",
-  phone: "",
-  email: "",
-  address_line: "",
-  postal_code: "",
-  cnpj: "",
-};
-
 type IndustryCsvMatch = { id: string; trade_name: string; cnpj: string };
 
 /** Liga cada linha do CSV a um cadastro de indústria (UUID, nome fantasia exato ou CNPJ completo). */
@@ -357,9 +344,6 @@ function CatalogPage() {
   const [industryPickerOpen, setIndustryPickerOpen] = useState(false);
   const [industrySearch, setIndustrySearch] = useState("");
   const industrySearchInputRef = useRef<HTMLInputElement | null>(null);
-  const [industryCreateOpen, setIndustryCreateOpen] = useState(false);
-  const [industryForm, setIndustryForm] = useState(emptyIndustryForm);
-  const [industrySaving, setIndustrySaving] = useState(false);
 
   const loadIndustries = useCallback(async () => {
     if (!organization?.id) {
@@ -534,72 +518,6 @@ function CatalogPage() {
       return false;
     });
   }, [industries, industrySearch]);
-
-  const saveIndustry = async () => {
-    if (!organization?.id) {
-      toast.error("Não foi possível carregar os dados da empresa.");
-      return;
-    }
-    const t = (s: string) => s.trim();
-    const f = {
-      trade_name: t(industryForm.trade_name),
-      responsible_name: t(industryForm.responsible_name),
-      city: t(industryForm.city),
-      state: t(industryForm.state),
-      phone: t(industryForm.phone),
-      email: t(industryForm.email),
-      address_line: t(industryForm.address_line),
-      postal_code: t(industryForm.postal_code),
-      cnpj: t(industryForm.cnpj),
-    };
-    const checks: [string, string][] = [
-      ["Nome fantasia", f.trade_name],
-      ["Responsável", f.responsible_name],
-      ["Cidade", f.city],
-      ["Estado", f.state],
-      ["Telefone", f.phone],
-      ["E-mail", f.email],
-      ["Endereço", f.address_line],
-      ["CEP", f.postal_code],
-      ["CNPJ", f.cnpj],
-    ];
-    for (const [label, v] of checks) {
-      if (!v || v.length < 2) {
-        toast.error(`${label}: informe pelo menos 2 caracteres.`);
-        return;
-      }
-    }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.email)) {
-      toast.error("E-mail inválido.");
-      return;
-    }
-    setIndustrySaving(true);
-    try {
-      const { data, error } = await supabase
-        .from("organization_industries")
-        .insert({ organization_id: organization.id, ...f })
-        .select("id,trade_name")
-        .single();
-      if (error) {
-        toast.error(userFacingDataError(error));
-        return;
-      }
-      const row = data as { id: string; trade_name: string };
-      toast.success("Indústria cadastrada.");
-      await loadIndustries();
-      if (open) {
-        setForm((prev) => ({
-          ...prev,
-          industry_id: row.id,
-          supplier: row.trade_name,
-        }));
-      }
-      setIndustryCreateOpen(false);
-      setIndustryForm(emptyIndustryForm);
-    } finally {
-      setIndustrySaving(false);
-    }
-  };
 
   const storagePathFromPublicUrl = (url: string | null | undefined) => {
     if (!url) return null;
@@ -1111,106 +1029,6 @@ function CatalogPage() {
 
   return (
     <>
-      <Dialog open={industryCreateOpen} onOpenChange={setIndustryCreateOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Nova indústria</DialogTitle>
-          </DialogHeader>
-          <div className="grid gap-3 py-2 sm:grid-cols-2">
-            <div className="grid gap-2 sm:col-span-2">
-              <Label>Nome fantasia *</Label>
-              <Input
-                value={industryForm.trade_name}
-                onChange={(e) => setIndustryForm((x) => ({ ...x, trade_name: e.target.value }))}
-                placeholder="Nome comercial da indústria"
-              />
-            </div>
-            <div className="grid gap-2 sm:col-span-2">
-              <Label>Responsável *</Label>
-              <Input
-                value={industryForm.responsible_name}
-                onChange={(e) =>
-                  setIndustryForm((x) => ({ ...x, responsible_name: e.target.value }))
-                }
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Cidade *</Label>
-              <Input
-                value={industryForm.city}
-                onChange={(e) => setIndustryForm((x) => ({ ...x, city: e.target.value }))}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Estado (UF) *</Label>
-              <Input
-                value={industryForm.state}
-                maxLength={2}
-                className="uppercase"
-                onChange={(e) =>
-                  setIndustryForm((x) => ({ ...x, state: e.target.value.toUpperCase() }))
-                }
-                placeholder="SP"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Telefone *</Label>
-              <Input
-                value={industryForm.phone}
-                onChange={(e) => setIndustryForm((x) => ({ ...x, phone: e.target.value }))}
-                inputMode="tel"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>E-mail *</Label>
-              <Input
-                type="email"
-                value={industryForm.email}
-                onChange={(e) => setIndustryForm((x) => ({ ...x, email: e.target.value }))}
-              />
-            </div>
-            <div className="grid gap-2 sm:col-span-2">
-              <Label>Endereço *</Label>
-              <Input
-                value={industryForm.address_line}
-                onChange={(e) => setIndustryForm((x) => ({ ...x, address_line: e.target.value }))}
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>CEP *</Label>
-              <Input
-                value={industryForm.postal_code}
-                onChange={(e) => setIndustryForm((x) => ({ ...x, postal_code: e.target.value }))}
-                inputMode="numeric"
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>CNPJ *</Label>
-              <Input
-                value={industryForm.cnpj}
-                onChange={(e) => setIndustryForm((x) => ({ ...x, cnpj: e.target.value }))}
-              />
-            </div>
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setIndustryCreateOpen(false);
-                setIndustryForm(emptyIndustryForm);
-              }}
-            >
-              Cancelar
-            </Button>
-            <Button type="button" disabled={industrySaving} onClick={() => void saveIndustry()}>
-              {industrySaving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              Salvar indústria
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       <div className="p-6 lg:p-10 space-y-6">
         {organization?.slug?.trim() ? (
           <div className="flex flex-col gap-3 rounded-xl border border-primary/20 bg-primary/[0.04] p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1282,18 +1100,6 @@ function CatalogPage() {
                 <Download className="h-4 w-4" /> Exportar CSV
               </Button>
               {canManageCatalog && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setIndustryForm(emptyIndustryForm);
-                    setIndustryCreateOpen(true);
-                  }}
-                >
-                  <Factory className="h-4 w-4" /> Nova indústria
-                </Button>
-              )}
-              {canManageCatalog && (
                 <Dialog open={open} onOpenChange={setOpen}>
                   <DialogTrigger asChild>
                     <Button onClick={openNew}>
@@ -1335,8 +1141,12 @@ function CatalogPage() {
                       <div className="grid gap-2">
                         <Label>Indústria *</Label>
                         <p className="text-xs text-muted-foreground">
-                          Escolha um cadastro na lista (busca por nome ou CNPJ). Para incluir outra
-                          indústria, use o primeiro item da lista ou o botão «Nova indústria» acima.
+                          Escolha um cadastro existente (busca por nome ou CNPJ). Para cadastrar ou
+                          alterar indústrias, use a aba{" "}
+                          <a href="/industrias" className="text-primary underline-offset-2 hover:underline">
+                            Indústrias
+                          </a>
+                          .
                         </p>
                         <Popover open={industryPickerOpen} onOpenChange={setIndustryPickerOpen}>
                           <PopoverTrigger asChild>
@@ -1375,26 +1185,19 @@ function CatalogPage() {
                               <CommandList>
                                 {industries.length === 0 ? (
                                   <div className="px-2 py-6 text-center text-sm text-muted-foreground">
-                                    Nenhuma indústria cadastrada. Escolha «Cadastrar nova indústria»
-                                    abaixo ou «Nova indústria» no topo.
+                                    Nenhuma indústria cadastrada. Abra{" "}
+                                    <a href="/industrias" className="text-primary underline-offset-2 hover:underline">
+                                      Indústrias
+                                    </a>{" "}
+                                    no menu para cadastrar.
                                   </div>
                                 ) : industrySearch.trim() && filteredIndustries.length === 0 ? (
                                   <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-                                    Nenhum resultado para «{industrySearch.trim()}». Ajuste a busca
-                                    ou cadastre uma nova indústria.
+                                    Nenhum resultado para «{industrySearch.trim()}». Ajuste a busca ou
+                                    cadastre em Indústrias.
                                   </div>
                                 ) : null}
                                 <CommandGroup>
-                                  <CommandItem
-                                    value="__new_industry__"
-                                    onSelect={() => {
-                                      setIndustryPickerOpen(false);
-                                      setIndustryCreateOpen(true);
-                                    }}
-                                  >
-                                    <Plus className="mr-2 h-4 w-4 shrink-0" />
-                                    Cadastrar nova indústria…
-                                  </CommandItem>
                                   {filteredIndustries.map((ind) => (
                                     <CommandItem
                                       key={ind.id}

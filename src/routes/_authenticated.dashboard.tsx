@@ -4,8 +4,10 @@ import { useAuth } from "@/lib/auth-context";
 import { useMenuGate } from "@/hooks/use-menu-gate";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, dt } from "@/lib/format";
-import { commissionFromTotal, parseCommissionPctInput } from "@/lib/commission";
-import { userFacingDataError } from "@/lib/supabase-user-error";
+import {
+  fetchOrderCommissionLinesByOrderIds,
+  viewerCommissionForOrder,
+} from "@/lib/order-commission";
 import {
   TrendingUp,
   ShoppingBag,
@@ -16,13 +18,9 @@ import {
   Circle,
   X,
   BarChart3,
-  Loader2,
 } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -65,7 +63,7 @@ type RecentOrder = {
 
 function Dashboard() {
   useMenuGate("dashboard");
-  const { profile, role, user, organization, refresh, menu } = useAuth();
+  const { profile, role, user, organization, menu } = useAuth();
   const [stats, setStats] = useState<DashboardStat[]>([
     { label: "Vendas do mês", value: "—", change: "carregando...", icon: DollarSign },
     { label: "Pedidos", value: "—", change: "carregando...", icon: ShoppingBag },
@@ -86,40 +84,6 @@ function Dashboard() {
   const [sellerRank, setSellerRank] = useState<{ id: string; label: string; total: number }[]>([]);
   const [productMix, setProductMix] = useState<{ name: string; subtotal: number }[]>([]);
   const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
-  const [adminShareDraft, setAdminShareDraft] = useState("");
-  const [savingAdminShare, setSavingAdminShare] = useState(false);
-
-  useEffect(() => {
-    if (role === "admin" && organization?.admin_commission_share_pct != null) {
-      const n = Number(organization.admin_commission_share_pct);
-      setAdminShareDraft(Number.isInteger(n) ? String(n) : String(n));
-    }
-  }, [role, organization?.id, organization?.admin_commission_share_pct]);
-
-  const saveAdminCommissionShare = async () => {
-    if (!organization?.id) return;
-    const pct = parseCommissionPctInput(adminShareDraft);
-    if (pct === null) {
-      toast.error("Informe um percentual válido (0 a 100).");
-      return;
-    }
-    setSavingAdminShare(true);
-    try {
-      const { error } = await supabase
-        .from("organizations")
-        .update({ admin_commission_share_pct: pct })
-        .eq("id", organization.id);
-      if (error) {
-        toast.error(userFacingDataError(error));
-        return;
-      }
-      toast.success("Participação sobre comissão da equipe atualizada.");
-      await refresh();
-    } finally {
-      setSavingAdminShare(false);
-    }
-  };
-
   useEffect(() => {
     const load = async () => {
       if (!organization?.id || !user?.id) return;
@@ -266,37 +230,26 @@ function Dashboard() {
         }
       }
 
-      const sharePct = Number(organization.admin_commission_share_pct) || 0;
-      const ownerUserId = organization.owner_user_id;
       const adminUserId = user.id;
+      const commissionLinesByOrder = await fetchOrderCommissionLinesByOrderIds(
+        supabase,
+        rows.map((r) => r.id),
+      );
 
       let commissionMonth = 0;
-      if (role === "vendedor" && user?.id) {
-        for (const row of rows) {
-          const sid = row.seller_id;
-          if (!sid) continue;
-          const pct = commissionBySeller[sid] ?? 0;
-          commissionMonth += commissionFromTotal(Number(row.total ?? 0), pct);
-        }
-      } else if (role === "admin") {
-        for (const row of rows) {
-          const total = Number(row.total ?? 0);
-          const sid = row.seller_id;
-          if (!sid) {
-            const eff = ownerUserId ?? adminUserId;
-            const pct = commissionBySeller[eff] ?? 0;
-            commissionMonth += commissionFromTotal(total, pct);
-          } else if (sid === adminUserId) {
-            const pct = commissionBySeller[adminUserId] ?? 0;
-            commissionMonth += commissionFromTotal(total, pct);
-          } else {
-            const vPct = commissionBySeller[sid] ?? 0;
-            const vComm = commissionFromTotal(total, vPct);
-            commissionMonth += vComm * (sharePct / 100);
-          }
-        }
-        commissionMonth = Math.round(commissionMonth * 100) / 100;
+      for (const row of rows) {
+        const sid = row.seller_id;
+        if (!sid && role === "vendedor") continue;
+        const sellerPct = sid ? (commissionBySeller[sid] ?? 0) : 0;
+        const lines = commissionLinesByOrder[row.id] ?? [];
+        commissionMonth += viewerCommissionForOrder(lines, sellerPct, {
+          sellerId: sid,
+          adminUserId,
+          viewerRole: role,
+          viewerUserId: user.id,
+        });
       }
+      commissionMonth = Math.round(commissionMonth * 100) / 100;
 
       setStats([
         {
@@ -318,9 +271,9 @@ function Dashboard() {
           value: brl(commissionMonth),
           change:
             role === "admin"
-              ? "direta + % sobre comissão dos vendedores"
+              ? "fatia da representação (por indústria)"
               : role === "vendedor"
-                ? "% configurado em Vendedores"
+                ? "% sobre comissão da indústria"
                 : "—",
           icon: Percent,
         },
@@ -376,7 +329,7 @@ function Dashboard() {
       }
     };
     void load();
-  }, [organization?.id, organization?.owner_user_id, organization?.admin_commission_share_pct, role, user?.id]);
+  }, [organization?.id, role, user?.id]);
 
   const dismissOnboarding = () => {
     if (!user?.id || !organization?.id) return;
@@ -404,7 +357,7 @@ function Dashboard() {
         <h1 className="text-3xl font-bold tracking-tight">Olá, {profile?.full_name?.split(" ")[0] ?? "vendedor"} 👋</h1>
         <p className="mt-1 text-muted-foreground">
           {role === "admin"
-            ? "Vendas e pedidos do mês consideram toda a equipe (exceto cancelados). A comissão estimada soma sua comissão direta nas vendas em que você é o representante e nos pedidos sem vendedor, mais o percentual que você define sobre a comissão calculada para cada vendedor."
+            ? "Vendas e pedidos do mês consideram toda a equipe (exceto cancelados). A comissão estimada usa o % de cada indústria sobre as linhas do pedido; nas vendas dos vendedores, você recebe o que sobra após a fatia deles."
             : role === "vendedor"
               ? "Resumo personalizado da sua carteira e suas vendas."
               : "Visão da sua operação."}
@@ -518,9 +471,12 @@ function Dashboard() {
           <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
             <h2 className="text-lg font-semibold">Pedidos do mês — métricas da equipe</h2>
             <p className="text-sm text-muted-foreground">
-              Ticket médio e volume por representante no mês (pedidos não cancelados). O percentual abaixo
-              define quanto da <strong className="text-foreground">comissão de cada vendedor</strong> (a
-              calculada pelo % dele em Vendedores) entra na sua comissão estimada no card do topo.
+              Ticket médio e volume por representante (pedidos não cancelados). Comissões usam o % de cada
+              indústria em{" "}
+              <Link to="/industrias" className="text-primary underline-offset-2 hover:underline">
+                Indústrias
+              </Link>
+              ; a fatia do vendedor é configurada em Vendedores.
             </p>
             <dl className="grid gap-3 text-sm">
               <div className="flex justify-between gap-4">
@@ -528,36 +484,6 @@ function Dashboard() {
                 <dd className="font-semibold tabular-nums">{ticketMedio != null ? brl(ticketMedio) : "—"}</dd>
               </div>
             </dl>
-            <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
-              <div className="grid gap-2">
-                <Label htmlFor="admin-commission-share">Sua participação sobre a comissão dos vendedores (%)</Label>
-                <div className="flex flex-wrap gap-2 items-end">
-                  <Input
-                    id="admin-commission-share"
-                    type="text"
-                    inputMode="decimal"
-                    className="max-w-[120px]"
-                    value={adminShareDraft}
-                    onChange={(e) => setAdminShareDraft(e.target.value)}
-                    placeholder="0 a 100"
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => void saveAdminCommissionShare()}
-                    disabled={savingAdminShare}
-                    className="inline-flex items-center gap-2"
-                  >
-                    {savingAdminShare && <Loader2 className="h-4 w-4 animate-spin" />}
-                    Salvar
-                  </Button>
-                </div>
-                <p className="text-xs text-muted-foreground">
-                  Ex.: 20% = você soma 20% do valor da comissão de cada pedido fechado por um vendedor (não se
-                  aplica às vendas em que você é o representante nem ao cálculo direto em pedidos sem vendedor).
-                </p>
-              </div>
-            </div>
             {sellerRank.length > 0 && (
               <div className="pt-2 border-t border-border">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">

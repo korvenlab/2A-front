@@ -22,6 +22,7 @@ import { Route as AuthenticatedVendedoresRouteImport } from './routes/_authentic
 import { Route as AuthenticatedPortalRouteImport } from './routes/_authenticated.portal'
 import { Route as AuthenticatedPedidosRouteImport } from './routes/_authenticated.pedidos'
 import { Route as AuthenticatedOrcamentosRouteImport } from './routes/_authenticated.orcamentos'
+import { Route as AuthenticatedIndustriasRouteImport } from './routes/_authenticated.industrias'
 import { Route as AuthenticatedFunilRouteImport } from './routes/_authenticated.funil'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated.dashboard'
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated.clientes'
@@ -94,6 +95,11 @@ const AuthenticatedOrcamentosRoute = AuthenticatedOrcamentosRouteImport.update({
   path: '/orcamentos',
   getParentRoute: () => AuthenticatedRoute,
 } as any)
+const AuthenticatedIndustriasRoute = AuthenticatedIndustriasRouteImport.update({
+  id: '/industrias',
+  path: '/industrias',
+  getParentRoute: () => AuthenticatedRoute,
+} as any)
 const AuthenticatedFunilRoute = AuthenticatedFunilRouteImport.update({
   id: '/funil',
   path: '/funil',
@@ -143,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/clientes': typeof AuthenticatedClientesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/funil': typeof AuthenticatedFunilRoute
+  '/industrias': typeof AuthenticatedIndustriasRoute
   '/orcamentos': typeof AuthenticatedOrcamentosRoute
   '/pedidos': typeof AuthenticatedPedidosRoute
   '/portal': typeof AuthenticatedPortalRoute
@@ -164,6 +171,7 @@ export interface FileRoutesByTo {
   '/clientes': typeof AuthenticatedClientesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/funil': typeof AuthenticatedFunilRoute
+  '/industrias': typeof AuthenticatedIndustriasRoute
   '/orcamentos': typeof AuthenticatedOrcamentosRoute
   '/pedidos': typeof AuthenticatedPedidosRoute
   '/portal': typeof AuthenticatedPortalRoute
@@ -187,6 +195,7 @@ export interface FileRoutesById {
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/funil': typeof AuthenticatedFunilRoute
+  '/_authenticated/industrias': typeof AuthenticatedIndustriasRoute
   '/_authenticated/orcamentos': typeof AuthenticatedOrcamentosRoute
   '/_authenticated/pedidos': typeof AuthenticatedPedidosRoute
   '/_authenticated/portal': typeof AuthenticatedPortalRoute
@@ -210,6 +219,7 @@ export interface FileRouteTypes {
     | '/clientes'
     | '/dashboard'
     | '/funil'
+    | '/industrias'
     | '/orcamentos'
     | '/pedidos'
     | '/portal'
@@ -231,6 +241,7 @@ export interface FileRouteTypes {
     | '/clientes'
     | '/dashboard'
     | '/funil'
+    | '/industrias'
     | '/orcamentos'
     | '/pedidos'
     | '/portal'
@@ -253,6 +264,7 @@ export interface FileRouteTypes {
     | '/_authenticated/clientes'
     | '/_authenticated/dashboard'
     | '/_authenticated/funil'
+    | '/_authenticated/industrias'
     | '/_authenticated/orcamentos'
     | '/_authenticated/pedidos'
     | '/_authenticated/portal'
@@ -368,6 +380,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedOrcamentosRouteImport
       parentRoute: typeof AuthenticatedRoute
     }
+    '/_authenticated/industrias': {
+      id: '/_authenticated/industrias'
+      path: '/industrias'
+      fullPath: '/industrias'
+      preLoaderRoute: typeof AuthenticatedIndustriasRouteImport
+      parentRoute: typeof AuthenticatedRoute
+    }
     '/_authenticated/funil': {
       id: '/_authenticated/funil'
       path: '/funil'
@@ -426,6 +445,7 @@ interface AuthenticatedRouteChildren {
   AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedFunilRoute: typeof AuthenticatedFunilRoute
+  AuthenticatedIndustriasRoute: typeof AuthenticatedIndustriasRoute
   AuthenticatedOrcamentosRoute: typeof AuthenticatedOrcamentosRoute
   AuthenticatedPedidosRoute: typeof AuthenticatedPedidosRoute
   AuthenticatedPortalRoute: typeof AuthenticatedPortalRoute
@@ -440,6 +460,7 @@ const AuthenticatedRouteChildren: AuthenticatedRouteChildren = {
   AuthenticatedClientesRoute: AuthenticatedClientesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedFunilRoute: AuthenticatedFunilRoute,
+  AuthenticatedIndustriasRoute: AuthenticatedIndustriasRoute,
   AuthenticatedOrcamentosRoute: AuthenticatedOrcamentosRoute,
   AuthenticatedPedidosRoute: AuthenticatedPedidosRoute,
   AuthenticatedPortalRoute: AuthenticatedPortalRoute,

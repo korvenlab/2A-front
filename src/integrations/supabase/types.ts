@@ -772,6 +772,7 @@ export type Database = {
           address_line: string
           city: string
           cnpj: string
+          commission_pct: number
           created_at: string
           email: string
           id: string
@@ -787,6 +788,7 @@ export type Database = {
           address_line: string
           city: string
           cnpj: string
+          commission_pct?: number
           created_at?: string
           email: string
           id?: string
@@ -802,6 +804,7 @@ export type Database = {
           address_line?: string
           city?: string
           cnpj?: string
+          commission_pct?: number
           created_at?: string
           email?: string
           id?: string
