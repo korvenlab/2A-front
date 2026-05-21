@@ -56,10 +56,10 @@ export function SearchCombobox<T>({
 }: SearchComboboxProps<T>) {
   const listId = useId();
   const [open, setOpen] = useState(false);
-  /** Texto digitado enquanto o popover está aberto. */
   const [draftText, setDraftText] = useState("");
-  /** Filtro da lista — vazio ao abrir para listar todas as opções. */
   const [listFilter, setListFilter] = useState("");
+  /** Só filtra a lista depois que o usuário digita (não ao abrir/clicar no campo). */
+  const [filterActive, setFilterActive] = useState(false);
 
   const selected = useMemo(
     () => items.find((item) => getItemId(item) === value),
@@ -74,24 +74,40 @@ export function SearchCombobox<T>({
   const inputValue = open ? draftText : closedLabel;
 
   const filtered = useMemo(() => {
-    if (!listFilter.trim()) return items;
+    if (!filterActive || !listFilter.trim()) return items;
     return items.filter((item) => matchesFieldsSearch(getSearchFields(item), listFilter));
-  }, [items, listFilter, getSearchFields]);
+  }, [items, listFilter, filterActive, getSearchFields]);
+
+  const resetListToAll = () => {
+    setListFilter("");
+    setFilterActive(false);
+  };
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
     if (next) {
-      setDraftText(closedLabel);
-      setListFilter("");
+      setDraftText("");
+      resetListToAll();
     } else {
       setDraftText("");
-      setListFilter("");
+      resetListToAll();
     }
+  };
+
+  const prepareForTyping = () => {
+    if (!open) {
+      setDraftText("");
+      resetListToAll();
+      setOpen(true);
+      return;
+    }
+    resetListToAll();
   };
 
   const handleInputChange = (next: string) => {
     setDraftText(next);
     setListFilter(next);
+    setFilterActive(true);
     if (!open) setOpen(true);
     if (value) {
       if (next.trim() !== closedLabel.trim()) {
@@ -104,7 +120,7 @@ export function SearchCombobox<T>({
     const id = getItemId(item);
     onValueChange(id, item);
     setDraftText("");
-    setListFilter("");
+    resetListToAll();
     setOpen(false);
   };
 
@@ -112,7 +128,7 @@ export function SearchCombobox<T>({
     if (!leadingOption) return;
     onValueChange(leadingOption.value, undefined);
     setDraftText("");
-    setListFilter("");
+    resetListToAll();
     setOpen(false);
   };
 
@@ -132,9 +148,12 @@ export function SearchCombobox<T>({
             disabled={disabled}
             value={inputValue}
             onChange={(e) => handleInputChange(e.target.value)}
-            onFocus={() => {
-              if (!open) handleOpenChange(true);
+            onFocus={prepareForTyping}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              prepareForTyping();
             }}
+            onClick={prepareForTyping}
             placeholder={placeholder}
             className={cn("h-10 pl-9", inputClassName)}
             autoComplete="off"
@@ -149,6 +168,10 @@ export function SearchCombobox<T>({
           contentClassName,
         )}
         onOpenAutoFocus={(e) => e.preventDefault()}
+        onInteractOutside={(e) => {
+          const target = e.target as HTMLElement;
+          if (target.closest("[role=combobox]")) e.preventDefault();
+        }}
       >
         <ul
           id={listId}

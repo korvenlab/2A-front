@@ -403,7 +403,7 @@ function CustomersPage() {
 
   const openNew = () => {
     setEditing(null);
-    setForm({ ...empty, assigned_seller_id: isAdmin ? null : (user?.id ?? null) });
+    setForm({ ...empty, assigned_seller_id: user?.id ?? null });
     resetAddressAux();
     setOpen(true);
   };
@@ -744,11 +744,11 @@ function CustomersPage() {
                       <div className="grid gap-2">
                         <Label>Vendedor responsável</Label>
                         <Select
-                          value={form.assigned_seller_id ?? "none"}
+                          value={form.assigned_seller_id ?? user?.id ?? ""}
                           onValueChange={(v) =>
                             setForm({
                               ...form,
-                              assigned_seller_id: v === "none" ? null : v,
+                              assigned_seller_id: v || null,
                             })
                           }
                         >
@@ -756,12 +756,16 @@ function CustomersPage() {
                             <SelectValue placeholder="Selecionar" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="none">Sem vendedor</SelectItem>
-                            {sellers.map((s) => (
-                              <SelectItem key={s.user_id} value={s.user_id}>
-                                {s.full_name ?? s.email}
-                              </SelectItem>
-                            ))}
+                            {user?.id ? (
+                              <SelectItem value={user.id}>Eu</SelectItem>
+                            ) : null}
+                            {sellers
+                              .filter((s) => s.user_id !== user?.id)
+                              .map((s) => (
+                                <SelectItem key={s.user_id} value={s.user_id}>
+                                  {s.full_name ?? s.email}
+                                </SelectItem>
+                              ))}
                           </SelectContent>
                         </Select>
                       </div>
