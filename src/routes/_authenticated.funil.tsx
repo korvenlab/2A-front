@@ -6,6 +6,7 @@ import { brl, dt } from "@/lib/format";
 import { AppPage } from "@/components/layout/AppPage";
 import { PageHeader } from "@/components/PageHeader";
 import { SearchCombobox } from "@/components/ui/search-combobox";
+import { AdaptiveScroll } from "@/components/ui/adaptive-scroll";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -578,7 +579,15 @@ function FunilPage() {
                   </Badge>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2 pt-0 max-h-[min(70dvh,32rem)] overflow-y-auto">
+              <CardContent className="space-y-2 pt-0">
+                <AdaptiveScroll
+                  maxHeight={
+                    (oppsByStage.get(st.id) ?? []).length > 2
+                      ? "min(70dvh, 32rem)"
+                      : undefined
+                  }
+                  className="space-y-2"
+                >
                 {(oppsByStage.get(st.id) ?? []).map((o) => (
                   <div
                     key={o.id}
@@ -643,6 +652,7 @@ function FunilPage() {
                     </div>
                   </div>
                 ))}
+                </AdaptiveScroll>
               </CardContent>
             </Card>
           ))}
@@ -820,7 +830,6 @@ function FunilPage() {
                   getSearchFields={(p) => [p.name, p.sku]}
                   placeholder="Buscar produto por nome ou EAN…"
                   emptyMessage="Nenhum produto encontrado."
-                  listClassName="max-h-72"
                   renderItem={(p) => (
                     <span className="flex flex-col text-left">
                       <span className="font-medium">{p.name}</span>

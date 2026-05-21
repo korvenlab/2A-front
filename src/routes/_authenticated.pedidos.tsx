@@ -12,6 +12,7 @@ import {
 import { AppPage, AppTableCard, AppToolbar } from "@/components/layout/AppPage";
 import { PageHeader } from "@/components/PageHeader";
 import { SearchCombobox } from "@/components/ui/search-combobox";
+import { AdaptiveScroll } from "@/components/ui/adaptive-scroll";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -702,11 +703,11 @@ function OrdersPage() {
                 <Plus className="h-4 w-4" /> Novo pedido
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-2xl">
+            <DialogContent className="max-w-2xl sm:max-w-2xl">
               <DialogHeader>
                 <DialogTitle>Novo pedido</DialogTitle>
               </DialogHeader>
-              <div className="grid gap-4 py-2 max-h-[70vh] overflow-y-auto">
+              <div className="grid gap-4 py-2 min-w-0">
                 <div className="grid gap-2">
                   <Label>Cliente *</Label>
                   <SearchCombobox
@@ -748,7 +749,6 @@ function OrdersPage() {
                           ? "Nenhum produto ativo no catálogo. Cadastre em Catálogo."
                           : "Nenhum produto encontrado para essa busca."
                       }
-                      listClassName="max-h-[min(380px,65vh)]"
                       renderItem={(p) => (
                         <span className="flex flex-col gap-0.5 text-left">
                           <span className="font-medium leading-tight">{p.name}</span>
@@ -778,19 +778,24 @@ function OrdersPage() {
                         no total
                       </p>
                     </div>
-                    <div className="rounded-lg border border-border overflow-hidden">
-                      <div className="max-h-[min(380px,48vh)] overflow-auto">
-                        <Table>
+                    <div className="rounded-lg border border-border min-w-0">
+                      <AdaptiveScroll
+                        maxHeight={
+                          items.length > 4 ? "min(48dvh, 22rem)" : undefined
+                        }
+                        className="rounded-t-lg"
+                      >
+                        <Table layout="fluid">
                           <TableHeader className="sticky top-0 z-10 border-b border-border bg-card">
                             <TableRow className="border-0 hover:bg-transparent">
-                              <TableHead className="w-11 text-center text-muted-foreground font-normal">
+                              <TableHead className="w-10 text-center text-muted-foreground font-normal">
                                 Nº
                               </TableHead>
-                              <TableHead className="min-w-[200px]">Produto</TableHead>
-                              <TableHead className="w-[6.5rem] min-w-[6.5rem]">Qtd</TableHead>
-                              <TableHead className="w-[7.5rem] min-w-[7.5rem]">Preço</TableHead>
-                              <TableHead className="w-28 min-w-[7rem] text-right">Subtotal</TableHead>
-                              <TableHead className="w-12 p-2" />
+                              <TableHead className="min-w-0">Produto</TableHead>
+                              <TableHead className="w-[5.5rem]">Qtd</TableHead>
+                              <TableHead className="w-[6.25rem]">Preço</TableHead>
+                              <TableHead className="w-[5.5rem] text-right">Subtotal</TableHead>
+                              <TableHead className="w-10 p-1" />
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -830,7 +835,7 @@ function OrdersPage() {
                                   <Input
                                     type="number"
                                     min={1}
-                                    className="tabular-nums text-right min-w-[5.25rem] w-full h-9 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                    className="tabular-nums text-right w-full h-9 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                     value={it.quantity}
                                     onChange={(e) =>
                                       updateItem(idx, {
@@ -843,7 +848,7 @@ function OrdersPage() {
                                   <Input
                                     type="number"
                                     step="0.01"
-                                    className="tabular-nums text-right min-w-[6.25rem] w-full h-9 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                                    className="tabular-nums text-right w-full h-9 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                                     value={moneyNumber(it.unit_price)}
                                     onChange={(e) =>
                                       updateItem(idx, {
@@ -870,8 +875,8 @@ function OrdersPage() {
                             ))}
                           </TableBody>
                         </Table>
-                      </div>
-                      <div className="flex justify-end items-center gap-3 px-4 py-3 bg-secondary/30 border-t border-border">
+                      </AdaptiveScroll>
+                      <div className="flex justify-end items-center gap-3 px-4 py-3 bg-secondary/30 border-t border-border rounded-b-lg">
                         <span className="text-sm text-muted-foreground">Total</span>
                         <span className="text-lg font-bold tabular-nums">{brl(total)}</span>
                       </div>

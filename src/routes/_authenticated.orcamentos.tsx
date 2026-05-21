@@ -7,6 +7,7 @@ import { normalizeProductImageUrls } from "@/lib/product-images";
 import { AppPage, AppTableCard, AppToolbar } from "@/components/layout/AppPage";
 import { PageHeader } from "@/components/PageHeader";
 import { SearchCombobox } from "@/components/ui/search-combobox";
+import { AdaptiveScroll } from "@/components/ui/adaptive-scroll";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -426,8 +427,12 @@ function BudgetsPage() {
                       <Plus className="h-4 w-4" /> Linha
                     </Button>
                   </div>
-                  <div className="rounded-lg border border-border overflow-x-auto">
-                    <Table>
+                  <AdaptiveScroll
+                    className="rounded-lg border border-border"
+                    maxHeight={lines.length > 4 ? "min(50dvh, 20rem)" : undefined}
+                    axis={lines.length > 4 ? "both" : "y"}
+                  >
+                    <Table layout="fluid">
                       <TableHeader>
                         <TableRow>
                           <TableHead className="min-w-[160px]">Produto</TableHead>
@@ -523,7 +528,7 @@ function BudgetsPage() {
                         ))}
                       </TableBody>
                     </Table>
-                  </div>
+                  </AdaptiveScroll>
                   <div className="flex flex-wrap justify-end gap-6 text-sm pt-1">
                     <span className="text-muted-foreground">
                       Total venda:{" "}

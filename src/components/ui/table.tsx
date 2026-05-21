@@ -2,12 +2,29 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement>>(
-  ({ className, ...props }, ref) => (
-    <div className="relative w-full min-w-0 overflow-x-auto">
+type TableProps = React.HTMLAttributes<HTMLTableElement> & {
+  /**
+   * scroll — rolagem horizontal quando a tabela é mais larga que o container (listagens).
+   * fluid — encaixa no container sem forçar min-width (modais, painéis estreitos).
+   */
+  layout?: "scroll" | "fluid";
+};
+
+const Table = React.forwardRef<HTMLTableElement, TableProps>(
+  ({ className, layout = "scroll", ...props }, ref) => (
+    <div
+      className={cn(
+        "relative w-full min-w-0",
+        layout === "scroll" && "overflow-x-auto overscroll-x-contain",
+      )}
+    >
       <table
         ref={ref}
-        className={cn("w-full min-w-max caption-bottom text-sm", className)}
+        className={cn(
+          "w-full caption-bottom text-sm",
+          layout === "scroll" ? "min-w-max" : "table-fixed",
+          className,
+        )}
         {...props}
       />
     </div>

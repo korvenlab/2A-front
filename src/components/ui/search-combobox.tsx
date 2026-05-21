@@ -237,7 +237,7 @@ export function SearchCombobox<T>({
             id={listId}
             role="listbox"
             className={cn(
-              "max-h-[min(320px,55vh)] overflow-y-auto overscroll-contain p-1",
+              "max-h-[min(320px,55vh)] overflow-y-auto overscroll-contain p-1 w-full",
               listClassName,
             )}
           >
