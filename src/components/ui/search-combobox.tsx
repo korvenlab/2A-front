@@ -1,4 +1,4 @@
-import { useId, useMemo, useState, type ReactNode } from "react";
+import { useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Popover, PopoverAnchor, PopoverContent } from "@/components/ui/popover";
@@ -45,7 +45,7 @@ export function SearchCombobox<T>({
   getItemLabel,
   getSearchFields,
   renderItem,
-  placeholder = "Clique para ver opções ou digite para filtrar…",
+  placeholder = "Clique ou digite para buscar…",
   emptyMessage = "Nenhum resultado para essa busca.",
   disabled = false,
   className,
@@ -55,6 +55,7 @@ export function SearchCombobox<T>({
   leadingOption,
 }: SearchComboboxProps<T>) {
   const listId = useId();
+  const inputRef = useRef<HTMLInputElement>(null);
   const [open, setOpen] = useState(false);
   const [draftText, setDraftText] = useState("");
   const [listFilter, setListFilter] = useState("");
@@ -94,25 +95,80 @@ export function SearchCombobox<T>({
     }
   };
 
-  const prepareForTyping = () => {
+  const ensureOpen = (text: string, filterNow: boolean) => {
+    if (disabled) return;
     if (!open) {
-      setDraftText("");
-      resetListToAll();
+      setDraftText(text);
+      setListFilter(text);
+      setFilterActive(filterNow);
       setOpen(true);
+      return;
+    }
+    if (!filterNow) resetListToAll();
+  };
+
+  /** Clique: abre com lista completa; não abre só com Tab/foco. */
+  const openOnSearchClick = () => {
+    if (disabled) return;
+    if (!open) {
+      ensureOpen("", false);
+      queueMicrotask(() => inputRef.current?.focus());
       return;
     }
     resetListToAll();
   };
 
+  const clearSelectionIfSearching = (next: string) => {
+    if (value && next.trim() !== closedLabel.trim()) {
+      onValueChange("", undefined);
+    }
+  };
+
   const handleInputChange = (next: string) => {
+    if (disabled) return;
+    if (!open) {
+      ensureOpen(next, true);
+      clearSelectionIfSearching(next);
+      return;
+    }
     setDraftText(next);
     setListFilter(next);
     setFilterActive(true);
-    if (!open) setOpen(true);
-    if (value) {
-      if (next.trim() !== closedLabel.trim()) {
-        onValueChange("", undefined);
-      }
+    clearSelectionIfSearching(next);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (disabled || open) return;
+    const ignored = new Set([
+      "Tab",
+      "Escape",
+      "Enter",
+      "Shift",
+      "Control",
+      "Alt",
+      "Meta",
+      "ArrowUp",
+      "ArrowDown",
+      "ArrowLeft",
+      "ArrowRight",
+      "Home",
+      "End",
+      "PageUp",
+      "PageDown",
+    ]);
+    if (ignored.has(e.key)) return;
+
+    if (e.key.length === 1) {
+      e.preventDefault();
+      ensureOpen(e.key, true);
+      clearSelectionIfSearching(e.key);
+      return;
+    }
+
+    if (e.key === "Backspace" || e.key === "Delete") {
+      e.preventDefault();
+      ensureOpen("", false);
+      clearSelectionIfSearching("");
     }
   };
 
@@ -135,95 +191,103 @@ export function SearchCombobox<T>({
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverAnchor asChild>
-        <div className={cn("relative w-full", className)}>
+        <div
+          className={cn("relative w-full", className)}
+          onPointerDown={(e) => {
+            if (disabled) return;
+            e.stopPropagation();
+            openOnSearchClick();
+          }}
+        >
           <Search
             className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
             aria-hidden
           />
           <Input
+            ref={inputRef}
             role="combobox"
             aria-expanded={open}
-            aria-controls={listId}
+            aria-controls={open ? listId : undefined}
             aria-autocomplete="list"
             disabled={disabled}
             value={inputValue}
             onChange={(e) => handleInputChange(e.target.value)}
-            onFocus={prepareForTyping}
-            onPointerDown={(e) => {
-              e.stopPropagation();
-              prepareForTyping();
-            }}
-            onClick={prepareForTyping}
+            onKeyDown={handleKeyDown}
             placeholder={placeholder}
-            className={cn("h-10 pl-9", inputClassName)}
+            className={cn("h-10 pl-9", !open && "cursor-pointer", inputClassName)}
             autoComplete="off"
           />
         </div>
       </PopoverAnchor>
-      <PopoverContent
-        align="start"
-        sideOffset={4}
-        className={cn(
-          "z-[200] w-[var(--radix-popover-anchor-width)] p-0",
-          contentClassName,
-        )}
-        onOpenAutoFocus={(e) => e.preventDefault()}
-        onInteractOutside={(e) => {
-          const target = e.target as HTMLElement;
-          if (target.closest("[role=combobox]")) e.preventDefault();
-        }}
-      >
-        <ul
-          id={listId}
-          role="listbox"
-          className={cn("max-h-[min(320px,55vh)] overflow-y-auto overscroll-contain p-1", listClassName)}
-        >
-          {leadingOption ? (
-            <li role="option" aria-selected={value === leadingOption.value}>
-              <button
-                type="button"
-                className={cn(
-                  "w-full rounded-md px-3 py-2.5 text-left text-sm transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  value === leadingOption.value && "bg-accent",
-                )}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={handleLeadingSelect}
-              >
-                <span className="text-muted-foreground">{leadingOption.label}</span>
-              </button>
-            </li>
-          ) : null}
-          {filtered.length === 0 && !leadingOption ? (
-            <li className="px-3 py-6 text-center text-sm text-muted-foreground">{emptyMessage}</li>
-          ) : filtered.length === 0 && leadingOption ? (
-            <li className="px-3 py-4 text-center text-xs text-muted-foreground">{emptyMessage}</li>
-          ) : (
-            filtered.map((item) => {
-              const id = getItemId(item);
-              const active = value === id;
-              return (
-                <li key={id} role="option" aria-selected={active}>
-                  <button
-                    type="button"
-                    className={cn(
-                      "w-full rounded-md px-3 py-2.5 text-left text-sm transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      active && "bg-accent",
-                    )}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => handleSelect(item)}
-                  >
-                    {renderItem ? (
-                      renderItem(item)
-                    ) : (
-                      <span className="font-medium leading-tight">{getItemLabel(item)}</span>
-                    )}
-                  </button>
-                </li>
-              );
-            })
+      {open ? (
+        <PopoverContent
+          align="start"
+          sideOffset={4}
+          className={cn(
+            "z-[200] w-[var(--radix-popover-anchor-width)] p-0",
+            contentClassName,
           )}
-        </ul>
-      </PopoverContent>
+          onOpenAutoFocus={(e) => e.preventDefault()}
+          onInteractOutside={(e) => {
+            const target = e.target as HTMLElement;
+            if (target.closest("[role=combobox]")) e.preventDefault();
+          }}
+        >
+          <ul
+            id={listId}
+            role="listbox"
+            className={cn(
+              "max-h-[min(320px,55vh)] overflow-y-auto overscroll-contain p-1",
+              listClassName,
+            )}
+          >
+            {leadingOption ? (
+              <li role="option" aria-selected={value === leadingOption.value}>
+                <button
+                  type="button"
+                  className={cn(
+                    "w-full rounded-md px-3 py-2.5 text-left text-sm transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    value === leadingOption.value && "bg-accent",
+                  )}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={handleLeadingSelect}
+                >
+                  <span className="text-muted-foreground">{leadingOption.label}</span>
+                </button>
+              </li>
+            ) : null}
+            {filtered.length === 0 && !leadingOption ? (
+              <li className="px-3 py-6 text-center text-sm text-muted-foreground">{emptyMessage}</li>
+            ) : filtered.length === 0 && leadingOption ? (
+              <li className="px-3 py-4 text-center text-xs text-muted-foreground">{emptyMessage}</li>
+            ) : (
+              filtered.map((item) => {
+                const id = getItemId(item);
+                const active = value === id;
+                return (
+                  <li key={id} role="option" aria-selected={active}>
+                    <button
+                      type="button"
+                      className={cn(
+                        "w-full rounded-md px-3 py-2.5 text-left text-sm transition-colors hover:bg-accent focus-visible:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                        active && "bg-accent",
+                      )}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => handleSelect(item)}
+                    >
+                      {renderItem ? (
+                        renderItem(item)
+                      ) : (
+                        <span className="font-medium leading-tight">{getItemLabel(item)}</span>
+                      )}
+                    </button>
+                  </li>
+                );
+              })
+            )}
+          </ul>
+        </PopoverContent>
+      ) : null}
     </Popover>
   );
 }

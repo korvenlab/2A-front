@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { AppPage, AppTableCard } from "@/components/layout/AppPage";
+import { ListPageSearch } from "@/components/ListPageSearch";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -52,7 +53,6 @@ import {
   Plus,
   Pencil,
   Loader2,
-  Search,
   ShoppingBag,
   UsersRound,
   Copy,
@@ -814,20 +814,28 @@ function CustomersPage() {
         }
       />
 
-      {!loading ? (
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-4 lg:p-5">
-          <div className="flex flex-col gap-4 xl:flex-row xl:flex-wrap xl:items-end">
-            <div className="relative min-w-[min(100%,280px)] flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={clientSearch}
-                onChange={(e) => setClientSearch(e.target.value)}
-                placeholder="Buscar nome, razão social, e-mail, telefone, documento, cidade…"
-                className="h-10 pl-9"
-                autoComplete="off"
-                aria-label="Buscar clientes"
-              />
-            </div>
+      <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-4 lg:p-5">
+        <ListPageSearch
+          value={clientSearch}
+          onValueChange={setClientSearch}
+          placeholder="Buscar por nome, razão social, contato, documento ou cidade…"
+          ariaLabel="Buscar clientes"
+          hint={
+            <>
+              A busca considera nome fantasia, razão social, e-mail, telefone, documento (CNPJ/CPF),
+              cidade, UF, indústria e observações. Use os filtros abaixo para refinar por UF,
+              indústria ou vendedor.
+            </>
+          }
+          resultText={
+            loading
+              ? "Carregando…"
+              : `${filteredCustomers.length} de ${customers.length} ${
+                  customers.length === 1 ? "cliente" : "clientes"
+                }`
+          }
+        />
+        <div className="flex flex-col gap-4 border-t border-border pt-4 xl:flex-row xl:flex-wrap xl:items-end">
             <div className="grid gap-1.5 min-w-[140px]">
               <span className="text-xs font-medium text-muted-foreground">UF</span>
               <Select value={ufFilter} onValueChange={setUfFilter}>
@@ -928,19 +936,8 @@ function CustomersPage() {
                 </Button>
               )}
             </div>
-            <p className="text-xs text-muted-foreground">
-              Mostrando{" "}
-              <strong className="text-foreground">{filteredCustomers.length}</strong>
-              {customers.length > 0 ? (
-                <>
-                  {" "}
-                  de {customers.length} cliente{customers.length !== 1 ? "s" : ""}
-                </>
-              ) : null}
-            </p>
           </div>
-        </div>
-      ) : null}
+      </div>
 
       <AppTableCard>
         {loading ? (

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { brl, moneyNumber } from "@/lib/format";
 import { AppPage, AppTableCard } from "@/components/layout/AppPage";
+import { ListPageSearch } from "@/components/ListPageSearch";
 import { SearchCombobox } from "@/components/ui/search-combobox";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
@@ -45,7 +46,6 @@ import {
   Upload,
   Building2,
   Link2,
-  Search,
   LayoutGrid,
   Table as TableIcon,
   Layers,
@@ -1273,20 +1273,27 @@ function CatalogPage() {
           }
         />
 
-        {!loading ? (
-          <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-4 lg:p-5">
-            <div className="flex flex-col gap-4 xl:flex-row xl:flex-wrap xl:items-end">
-              <div className="relative min-w-[min(100%,280px)] flex-1">
-                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  value={catalogSearch}
-                  onChange={(e) => setCatalogSearch(e.target.value)}
-                  placeholder="Buscar nome, EAN13, descrição, categoria ou indústria…"
-                  className="h-10 pl-9"
-                  autoComplete="off"
-                  aria-label="Buscar produtos no catálogo"
-                />
-              </div>
+        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-4 lg:p-5">
+          <ListPageSearch
+            value={catalogSearch}
+            onValueChange={setCatalogSearch}
+            placeholder="Buscar por nome, EAN13, descrição, categoria ou indústria…"
+            ariaLabel="Buscar produtos no catálogo"
+            hint={
+              <>
+                A busca considera nome do produto, EAN13, descrição, categoria e indústria vinculada.
+                Use os filtros abaixo para categoria, indústria e ordenação.
+              </>
+            }
+            resultText={
+              loading
+                ? "Carregando…"
+                : `${filteredSortedProducts.length} de ${products.length} ${
+                    products.length === 1 ? "produto" : "produtos"
+                  }`
+            }
+          />
+          <div className="flex flex-col gap-4 border-t border-border pt-4 xl:flex-row xl:flex-wrap xl:items-end">
               <div className="grid gap-1.5 min-w-[160px]">
                 <span className="text-xs font-medium text-muted-foreground">Categoria</span>
                 <Select value={categoryFilter} onValueChange={setCategoryFilter}>
@@ -1395,18 +1402,8 @@ function CatalogPage() {
                   </Button>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Mostrando{" "}
-                <strong className="text-foreground">{filteredSortedProducts.length}</strong>
-                {products.length > 0 ? (
-                  <> de {products.length} produtos · agrupados por categoria</>
-                ) : (
-                  <> produtos</>
-                )}
-              </p>
             </div>
-          </div>
-        ) : null}
+        </div>
 
         <AppTableCard>
           {loading ? (
