@@ -3,6 +3,7 @@ import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "rea
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { brl, moneyNumber } from "@/lib/format";
+import { AppPage, AppTableCard } from "@/components/layout/AppPage";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1029,7 +1030,7 @@ function CatalogPage() {
 
   return (
     <>
-      <div className="p-6 lg:p-10 space-y-6">
+      <AppPage>
         {organization?.slug?.trim() ? (
           <div className="flex flex-col gap-3 rounded-xl border border-primary/20 bg-primary/[0.04] p-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-w-0 space-y-1">
@@ -1501,7 +1502,7 @@ function CatalogPage() {
           </div>
         ) : null}
 
-        <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+        <AppTableCard>
           {loading ? (
             <div className="p-12 flex justify-center">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -1561,7 +1562,6 @@ function CatalogPage() {
               ))}
             </div>
           ) : (
-            <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -1650,10 +1650,9 @@ function CatalogPage() {
                   ))}
                 </TableBody>
               </Table>
-            </div>
           )}
-        </div>
-      </div>
+        </AppTableCard>
+      </AppPage>
     </>
   );
 }

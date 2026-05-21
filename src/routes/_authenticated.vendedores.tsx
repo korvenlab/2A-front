@@ -7,6 +7,7 @@ import { inviteExpiryLabel, inviteExpiresAtStillValid } from "@/lib/invite-expir
 import { inviteSignupUrl } from "@/lib/invite-links";
 import { copyTextToClipboard } from "@/lib/clipboard";
 import { formatPct, parseCommissionPctInput } from "@/lib/commission";
+import { AppPage, AppTableCard } from "@/components/layout/AppPage";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -266,7 +267,7 @@ function SellersPage() {
 
   if (role !== "admin") {
     return (
-      <div className="p-6 lg:p-10 space-y-6">
+      <AppPage>
         <PageHeader
           title="Vendedores"
           description="Somente administradores gerenciam a equipe de vendedores nesta página. Convites para clientes ficam na área de clientes."
@@ -280,12 +281,12 @@ function SellersPage() {
             <Link to="/clientes">Ir para Clientes</Link>
           </Button>
         </div>
-      </div>
+      </AppPage>
     );
   }
 
   return (
-    <div className="p-6 lg:p-10 space-y-8">
+    <AppPage className="space-y-8">
       <PageHeader
         title="Vendedores"
         description="Administradores aparecem na lista com a etiqueta (Eu). Demais representantes entram por convite. Só administradores alteram a equipe aqui."
@@ -387,7 +388,7 @@ function SellersPage() {
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Equipe ativa
         </h2>
-        <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+        <AppTableCard>
           {loading ? (
             <div className="p-12 flex justify-center">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -441,14 +442,14 @@ function SellersPage() {
               </TableBody>
             </Table>
           )}
-        </div>
+        </AppTableCard>
       </section>
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
           Convites para vendedores
         </h2>
-        <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+        <AppTableCard>
           {invites.length === 0 ? (
             <div className="p-8 text-center text-sm text-muted-foreground">
               Nenhum convite de vendedor pendente.
@@ -517,8 +518,8 @@ function SellersPage() {
               </TableBody>
             </Table>
           )}
-        </div>
+        </AppTableCard>
       </section>
-    </div>
+    </AppPage>
   );
 }

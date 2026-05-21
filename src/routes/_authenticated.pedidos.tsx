@@ -9,6 +9,7 @@ import {
   viewerCommissionForOrder,
   type OrderCommissionLine,
 } from "@/lib/order-commission";
+import { AppPage, AppTableCard, AppToolbar } from "@/components/layout/AppPage";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -707,7 +708,7 @@ function OrdersPage() {
   };
 
   return (
-    <div className="p-6 lg:p-10 space-y-6 pb-28 lg:pb-10">
+    <AppPage className="pb-28 lg:pb-10">
       <PageHeader
         title="Pedidos"
         description="Acompanhe e crie pedidos da representação."
@@ -950,7 +951,7 @@ function OrdersPage() {
         }
       />
 
-      <div className="flex flex-wrap items-center gap-3">
+      <AppToolbar className="gap-3">
         <div className="flex items-center gap-2">
           <span className="text-xs text-muted-foreground whitespace-nowrap">Filtrar status</span>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -983,9 +984,9 @@ function OrdersPage() {
           <Download className="h-4 w-4" />
           Exportar CSV
         </Button>
-      </div>
+      </AppToolbar>
 
-      <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+      <AppTableCard>
         {loading ? (
           <div className="p-12 flex justify-center">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -1203,7 +1204,7 @@ function OrdersPage() {
             </TableBody>
           </Table>
         )}
-      </div>
+      </AppTableCard>
 
       <Sheet
         open={orderDetail !== null}
@@ -1406,6 +1407,6 @@ function OrdersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </AppPage>
   );
 }

@@ -4,6 +4,7 @@ import { useAuth } from "@/lib/auth-context";
 import { useMenuGate } from "@/hooks/use-menu-gate";
 import { supabase } from "@/integrations/supabase/client";
 import { brl, dt } from "@/lib/format";
+import { AppPage, AppTableCard } from "@/components/layout/AppPage";
 import {
   fetchOrderCommissionLinesByOrderIds,
   viewerCommissionForOrder,
@@ -352,7 +353,7 @@ function Dashboard() {
   };
 
   return (
-    <div className="p-6 lg:p-10 space-y-8 pb-28 lg:pb-10">
+    <AppPage className="space-y-8 pb-28 lg:pb-10">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Olá, {profile?.full_name?.split(" ")[0] ?? "vendedor"} 👋</h1>
         <p className="mt-1 text-muted-foreground">
@@ -423,7 +424,7 @@ function Dashboard() {
         </div>
       )}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <div className="app-stats-grid">
         {stats.map((s) => (
           <div key={s.label} className="rounded-2xl border border-border bg-card p-5 shadow-sm">
             <div className="flex items-center justify-between">
@@ -521,7 +522,7 @@ function Dashboard() {
         )}
       </div>
 
-      <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+      <AppTableCard>
         <div className="p-6 border-b border-border">
           <h2 className="text-lg font-semibold">Pedidos recentes</h2>
           <p className="mt-1 text-sm text-muted-foreground">Últimos registros com cliente e status.</p>
@@ -563,7 +564,7 @@ function Dashboard() {
             )}
           </Button>
         </div>
-      </div>
-    </div>
+      </AppTableCard>
+    </AppPage>
   );
 }

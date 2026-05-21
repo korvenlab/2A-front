@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
+import { AppPage, AppTableCard } from "@/components/layout/AppPage";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -554,7 +555,7 @@ function CustomersPage() {
   };
 
   return (
-    <div className="p-6 lg:p-10 space-y-6">
+    <AppPage>
       <PageHeader
         title="Clientes"
         description={
@@ -862,7 +863,7 @@ function CustomersPage() {
         </div>
       ) : null}
 
-      <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+      <AppTableCard>
         {loading ? (
           <div className="p-12 flex justify-center">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -956,7 +957,7 @@ function CustomersPage() {
             </TableBody>
           </Table>
         )}
-      </div>
+      </AppTableCard>
 
       <AlertDialog open={deleteConfirm !== null} onOpenChange={(open) => !open && !deletingCustomer && setDeleteConfirm(null)}>
         <AlertDialogContent>
@@ -1051,6 +1052,6 @@ function CustomersPage() {
           </div>
         </SheetContent>
       </Sheet>
-    </div>
+    </AppPage>
   );
 }

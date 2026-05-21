@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
+import { AppPage, AppTableCard } from "@/components/layout/AppPage";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +14,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   Table,
@@ -24,7 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Factory, Loader2, Pencil, Plus, Search, Package } from "lucide-react";
+import { Loader2, Pencil, Plus, Search, Package } from "lucide-react";
 import { useMenuGate } from "@/hooks/use-menu-gate";
 import { userFacingDataError } from "@/lib/supabase-user-error";
 import { parseCommissionPctInput, formatPct } from "@/lib/commission";
@@ -255,24 +255,33 @@ function IndustriesPage() {
     }
   };
 
+  const onDialogOpenChange = (next: boolean) => {
+    setOpen(next);
+    if (!next) {
+      setEditing(null);
+      setForm(emptyForm);
+      setCommissionDraft("0");
+    }
+  };
+
   return (
-    <div className="p-6 lg:p-10 space-y-6">
+    <AppPage>
       <PageHeader
         title="Indústrias"
         description="Cadastro central de fabricantes: inclua, edite e defina a comissão da representação. No catálogo, os produtos apenas escolhem uma indústria desta lista."
-        icon={Factory}
-        actions={
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button onClick={openNew}>
-                <Plus className="h-4 w-4" /> Nova indústria
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-              <DialogHeader>
-                <DialogTitle>{editing ? "Editar indústria" : "Nova indústria"}</DialogTitle>
-              </DialogHeader>
-              <div className="grid gap-3 py-2 sm:grid-cols-2">
+        action={
+          <Button type="button" onClick={openNew}>
+            <Plus className="h-4 w-4" /> Nova indústria
+          </Button>
+        }
+      />
+
+      <Dialog open={open} onOpenChange={onDialogOpenChange}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>{editing ? "Editar indústria" : "Nova indústria"}</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3 py-2 sm:grid-cols-2">
                 <div className="grid gap-2 sm:col-span-2">
                   <Label>Nome fantasia *</Label>
                   <Input
@@ -362,19 +371,17 @@ function IndustriesPage() {
                   </p>
                 </div>
               </div>
-              <DialogFooter className="gap-2 sm:gap-0">
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button type="button" disabled={saving} onClick={() => void save()}>
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  Salvar
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        }
-      />
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button type="button" variant="outline" onClick={() => onDialogOpenChange(false)}>
+              Cancelar
+            </Button>
+            <Button type="button" disabled={saving} onClick={() => void save()}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div className="rounded-2xl border border-border bg-card p-4 shadow-sm space-y-3">
         <div className="relative w-full max-w-xl">
@@ -399,7 +406,7 @@ function IndustriesPage() {
         </p>
       </div>
 
-      <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+      <AppTableCard>
         {loading ? (
           <div className="flex justify-center py-16">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -493,7 +500,7 @@ function IndustriesPage() {
             </TableBody>
           </Table>
         )}
-      </div>
-    </div>
+      </AppTableCard>
+    </AppPage>
   );
 }

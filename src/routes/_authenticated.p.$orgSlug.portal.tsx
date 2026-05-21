@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { brl, dt, moneyNumber } from "@/lib/format";
 import { inviteExpiresAtStillValid } from "@/lib/invite-expiry";
+import { AppPage } from "@/components/layout/AppPage";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -708,7 +709,7 @@ function Portal() {
   };
 
   return (
-    <div className="p-6 lg:p-10 space-y-6">
+    <AppPage>
       <PageHeader
         title={`Olá, ${profile?.full_name?.split(" ")[0] ?? "cliente"}`}
         description={
@@ -957,6 +958,6 @@ function Portal() {
           )}
         </TabsContent>
       </Tabs>
-    </div>
+    </AppPage>
   );
 }

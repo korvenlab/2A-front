@@ -414,9 +414,9 @@ function AuthLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col lg:flex-row">
+    <div className="min-h-dvh bg-background flex flex-col lg:flex-row w-full min-w-0">
       {staffSearch && <GlobalSearchDialog open={searchOpen} onOpenChange={setSearchOpen} />}
-      <aside className="hidden lg:sticky lg:top-0 lg:flex lg:h-screen lg:max-h-screen lg:w-64 lg:shrink-0 lg:flex-col lg:min-h-0 border-r border-border bg-card">
+      <aside className="hidden lg:sticky lg:top-0 lg:flex lg:min-h-dvh lg:max-h-dvh lg:w-64 lg:shrink-0 lg:flex-col lg:min-h-0 border-r border-border bg-card">
         <div className="shrink-0 p-6 border-b border-border">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
@@ -477,7 +477,7 @@ function AuthLayout() {
             </Button>
           )}
         </div>
-        <nav ref={sidebarNavRef} className="min-h-0 flex-1 space-y-1 overflow-y-auto overflow-x-hidden p-3">
+        <nav ref={sidebarNavRef} className="min-h-0 flex-1 space-y-1 overflow-y-auto p-3">
           {navItems.length === 0 && (
             <p className="px-3 py-2 text-xs text-muted-foreground">
               Nenhuma área liberada para sua conta. Solicite acesso ao administrador.
@@ -493,7 +493,7 @@ function AuthLayout() {
                 data-dashboard-nav-active={active ? "true" : undefined}
                 className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
                   active
-                    ? "sticky top-0 z-10 bg-primary text-primary-foreground shadow-sm"
+                    ? "bg-primary text-primary-foreground shadow-sm"
                     : it.highlight
                       ? "bg-amber-100 text-amber-900 hover:bg-amber-200 dark:bg-amber-500/20 dark:text-amber-100 dark:hover:bg-amber-500/30"
                       : "text-muted-foreground hover:bg-secondary hover:text-foreground"
@@ -515,7 +515,7 @@ function AuthLayout() {
         </div>
       </aside>
 
-      <main className="flex-1 flex flex-col min-h-0 overflow-auto">
+      <main className="flex-1 flex flex-col min-h-0 min-w-0 overflow-auto">
         <header className="lg:hidden shrink-0 border-b border-border bg-card">
           <div className="flex items-center justify-between px-4 py-3 gap-3">
             <div className="flex min-w-0 flex-1 items-center gap-1">
@@ -543,7 +543,7 @@ function AuthLayout() {
             </div>
           </div>
           {navItems.length > 0 ? (
-            <nav ref={mobileNavRef} className="flex gap-2 overflow-x-auto px-4 pb-3 scroll-smooth">
+            <nav ref={mobileNavRef} className="flex flex-wrap gap-2 px-4 pb-3">
               {navItems.map((it) => {
                 const active = navLinkActive(it);
                 return (
@@ -569,7 +569,7 @@ function AuthLayout() {
             <p className="px-4 pb-3 text-xs text-muted-foreground">Sem áreas liberadas para sua conta.</p>
           )}
         </header>
-        <div className="flex-1 min-h-0">
+        <div className="flex-1 min-h-0 min-w-0 w-full">
           <Outlet />
         </div>
       </main>

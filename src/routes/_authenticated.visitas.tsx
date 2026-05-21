@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { dt } from "@/lib/format";
+import { AppPage, AppTableCard } from "@/components/layout/AppPage";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -217,7 +218,7 @@ function VisitsPage() {
   };
 
   return (
-    <div className="relative p-6 lg:p-10 space-y-6 pb-28 lg:pb-10">
+    <AppPage className="relative pb-28 lg:pb-10">
       <PageHeader
         title="Visitas comerciais"
         description="Agende compromissos com clientes e acompanhe o status (agendada, realizada, cancelada)."
@@ -316,7 +317,7 @@ function VisitsPage() {
         }
       />
 
-      <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+      <AppTableCard>
         {loading ? (
           <div className="p-12 flex justify-center">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -374,7 +375,7 @@ function VisitsPage() {
             </TableBody>
           </Table>
         )}
-      </div>
+      </AppTableCard>
 
       <Button
         type="button"
@@ -385,6 +386,6 @@ function VisitsPage() {
       >
         <Plus className="h-6 w-6" />
       </Button>
-    </div>
+    </AppPage>
   );
 }

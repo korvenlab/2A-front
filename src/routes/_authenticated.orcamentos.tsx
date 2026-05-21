@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { brl, dt, moneyNumber } from "@/lib/format";
 import { normalizeProductImageUrls } from "@/lib/product-images";
+import { AppPage, AppTableCard, AppToolbar } from "@/components/layout/AppPage";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -363,7 +364,7 @@ function BudgetsPage() {
   };
 
   return (
-    <div className="p-6 lg:p-10 space-y-6 pb-28 lg:pb-10">
+    <AppPage className="pb-28 lg:pb-10">
       <PageHeader
         title="Orçamentos"
         description="Propostas comerciais, descontos por linha e comissão estimada por item."
@@ -380,7 +381,7 @@ function BudgetsPage() {
                 <Plus className="h-4 w-4" /> Novo orçamento
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="sm:max-w-3xl">
               <DialogHeader>
                 <DialogTitle>Novo orçamento</DialogTitle>
               </DialogHeader>
@@ -543,14 +544,14 @@ function BudgetsPage() {
         }
       />
 
-      <div className="flex justify-end">
+      <AppToolbar className="justify-end">
         <Button type="button" variant="outline" size="sm" className="gap-1" onClick={exportOrcamentosCsv}>
           <Download className="h-4 w-4" />
           Exportar CSV
         </Button>
-      </div>
+      </AppToolbar>
 
-      <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
+      <AppTableCard>
         {loading ? (
           <div className="p-12 flex justify-center">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -642,7 +643,7 @@ function BudgetsPage() {
             </TableBody>
           </Table>
         )}
-      </div>
+      </AppTableCard>
 
       <p className="text-xs text-muted-foreground max-w-2xl">
         A comissão é calculada por linha: (preço final × quantidade) × (% comissão ÷ 100). Integração fiscal (NF-e)
@@ -777,6 +778,6 @@ function BudgetsPage() {
           ) : null}
         </SheetContent>
       </Sheet>
-    </div>
+    </AppPage>
   );
 }

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { brl, dt } from "@/lib/format";
+import { AppPage } from "@/components/layout/AppPage";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -508,7 +509,7 @@ function FunilPage() {
   }
 
   return (
-    <div className="p-6 lg:p-10 space-y-6">
+    <AppPage>
       <PageHeader
         title="Funil de vendas"
         description="Oportunidades vinculadas a clientes e produtos, com estágios e histórico de mudanças."
@@ -561,11 +562,11 @@ function FunilPage() {
           </CardContent>
         </Card>
       ) : view === "kanban" ? (
-        <div className="flex gap-4 overflow-x-auto pb-2 snap-x snap-mandatory">
+        <div className="flex flex-wrap gap-4 pb-2 lg:flex-nowrap lg:overflow-x-auto lg:snap-x lg:snap-mandatory">
           {stages.map((st) => (
             <Card
               key={st.id}
-              className="min-w-[280px] max-w-[320px] shrink-0 snap-start border-border/80 shadow-sm"
+              className="w-full min-w-[min(100%,280px)] max-w-full shrink-0 snap-start border-border/80 shadow-sm lg:min-w-[280px] lg:max-w-[320px]"
               style={cnChip(st.color)}
             >
               <CardHeader className="py-3 pb-2 space-y-0">
@@ -576,7 +577,7 @@ function FunilPage() {
                   </Badge>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-2 pt-0 max-h-[calc(100vh-240px)] overflow-y-auto">
+              <CardContent className="space-y-2 pt-0 max-h-[min(70dvh,32rem)] overflow-y-auto">
                 {(oppsByStage.get(st.id) ?? []).map((o) => (
                   <div
                     key={o.id}
@@ -904,6 +905,6 @@ function FunilPage() {
           </div>
         </SheetContent>
       </Sheet>
-    </div>
+    </AppPage>
   );
 }
