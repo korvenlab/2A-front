@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { dt } from "@/lib/format";
 import { AppPage, AppTableCard } from "@/components/layout/AppPage";
 import { PageHeader } from "@/components/PageHeader";
+import { SearchCombobox } from "@/components/ui/search-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -242,19 +243,17 @@ function VisitsPage() {
               <div className="grid gap-4 py-2">
                 <div className="grid gap-2">
                   <Label>Cliente (opcional)</Label>
-                  <Select value={formCust} onValueChange={setFormCust}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Cliente" />
-                    </SelectTrigger>
-                    <SelectContent className="max-h-[260px]">
-                      <SelectItem value="__none__">Sem cliente vinculado</SelectItem>
-                      {customers.map((c) => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <SearchCombobox
+                    items={customers}
+                    value={formCust === "__none__" ? "__none__" : formCust}
+                    onValueChange={(id) => setFormCust(id || "__none__")}
+                    getItemId={(c) => c.id}
+                    getItemLabel={(c) => c.name}
+                    getSearchFields={(c) => [c.name]}
+                    placeholder="Buscar cliente…"
+                    emptyMessage="Nenhum cliente encontrado."
+                    leadingOption={{ value: "__none__", label: "Sem cliente vinculado" }}
+                  />
                 </div>
                 {isAdmin && (
                   <div className="grid gap-2">

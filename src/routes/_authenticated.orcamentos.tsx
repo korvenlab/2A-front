@@ -6,6 +6,7 @@ import { brl, dt, moneyNumber } from "@/lib/format";
 import { normalizeProductImageUrls } from "@/lib/product-images";
 import { AppPage, AppTableCard, AppToolbar } from "@/components/layout/AppPage";
 import { PageHeader } from "@/components/PageHeader";
+import { SearchCombobox } from "@/components/ui/search-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -389,19 +390,24 @@ function BudgetsPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="grid gap-2">
                     <Label>Cliente *</Label>
-                    <Select value={custId} onValueChange={setCustId}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Selecione" />
-                      </SelectTrigger>
-                      <SelectContent className="max-h-[280px]">
-                        {customers.map((c) => (
-                          <SelectItem key={c.id} value={c.id}>
-                            {c.name}
-                            {c.legal_name?.trim() ? ` · ${c.legal_name.trim()}` : ""}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <SearchCombobox
+                      items={customers}
+                      value={custId}
+                      onValueChange={(id) => setCustId(id)}
+                      getItemId={(c) => c.id}
+                      getItemLabel={(c) => c.name}
+                      getSearchFields={(c) => [c.name, c.legal_name]}
+                      placeholder="Buscar cliente por nome ou razão social…"
+                      emptyMessage="Nenhum cliente encontrado."
+                      renderItem={(c) => (
+                        <span className="flex flex-col gap-0.5 text-left">
+                          <span className="font-medium leading-tight">{c.name}</span>
+                          {c.legal_name?.trim() ? (
+                            <span className="text-xs text-muted-foreground">{c.legal_name.trim()}</span>
+                          ) : null}
+                        </span>
+                      )}
+                    />
                   </div>
                   <div className="grid gap-2">
                     <Label>Data da cotação</Label>

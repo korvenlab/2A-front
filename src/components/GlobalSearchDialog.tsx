@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import {
   CommandDialog,
-  CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
@@ -13,6 +12,12 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import type { MenuFlags } from "@/lib/session-menu";
+import {
+  matchesFieldsSearch,
+  matchesProductSearch,
+  normalizeSearchText,
+  sanitizeIlikeTerm,
+} from "@/lib/text-search";
 import {
   LayoutDashboard,
   ShoppingBag,
@@ -31,8 +36,21 @@ type Props = {
   onOpenChange: (open: boolean) => void;
 };
 
-type CustHit = { id: string; name: string; legal_name: string | null };
-type ProdHit = { id: string; name: string };
+type CustHit = {
+  id: string;
+  name: string;
+  legal_name: string | null;
+  email: string | null;
+  phone: string | null;
+  document: string | null;
+};
+type ProdHit = {
+  id: string;
+  name: string;
+  sku: string | null;
+  category: string | null;
+  supplier: string | null;
+};
 type OrdHit = { id: string; order_number: number };
 
 function navShortcuts(menu: MenuFlags, role: string | null): { label: string; to: string; icon: typeof LayoutDashboard }[] {
@@ -62,6 +80,11 @@ export function GlobalSearchDialog({ open, onOpenChange }: Props) {
 
   const shortcuts = useMemo(() => navShortcuts(menu, role), [menu, role]);
 
+  const shortcutsFiltered = useMemo(() => {
+    if (!q.trim()) return shortcuts;
+    return shortcuts.filter((s) => matchesFieldsSearch([s.label], q));
+  }, [shortcuts, q]);
+
   useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
@@ -90,28 +113,35 @@ export function GlobalSearchDialog({ open, onOpenChange }: Props) {
       return;
     }
 
-    const safe = term.replace(/%/g, "").slice(0, 64);
+    const tokens = normalizeSearchText(term).split(/\s+/).filter(Boolean);
+    const firstToken = sanitizeIlikeTerm(tokens[0] ?? term);
     let cancelled = false;
     const t = window.setTimeout(async () => {
       setLoading(true);
       try {
         let cq = supabase
           .from("customers")
-          .select("id,name,legal_name")
+          .select("id,name,legal_name,email,phone,document")
           .eq("organization_id", organization.id)
-          .or(`name.ilike.%${safe}%,legal_name.ilike.%${safe}%`)
-          .limit(8);
+          .or(
+            `name.ilike.%${firstToken}%,legal_name.ilike.%${firstToken}%,email.ilike.%${firstToken}%,document.ilike.%${firstToken}%`,
+          )
+          .limit(40);
         if (role === "vendedor" && user?.id) cq = cq.eq("assigned_seller_id", user.id);
 
         const pq = supabase
           .from("products")
-          .select("id,name")
+          .select("id,name,sku,category,supplier")
           .eq("organization_id", organization.id)
           .eq("active", true)
-          .ilike("name", `%${safe}%`)
-          .limit(8);
+          .or(
+            `name.ilike.%${firstToken}%,sku.ilike.%${firstToken}%,category.ilike.%${firstToken}%,supplier.ilike.%${firstToken}%`,
+          )
+          .limit(40);
 
-        const num = /^\d+$/.test(term) ? parseInt(term, 10) : NaN;
+        const num = /^\d+$/.test(term.replace(/\D/g, ""))
+          ? parseInt(term.replace(/\D/g, ""), 10)
+          : NaN;
         let ordersPromise = Promise.resolve({ data: [] as OrdHit[] });
         if (menu.pedidos && !Number.isNaN(num)) {
           let oq = supabase
@@ -127,8 +157,16 @@ export function GlobalSearchDialog({ open, onOpenChange }: Props) {
         const [cr, pr, or] = await Promise.all([cq, pq, ordersPromise]);
 
         if (cancelled) return;
-        setCustomers((cr.data as CustHit[]) ?? []);
-        setProducts((pr.data as ProdHit[]) ?? []);
+        const custRaw = (cr.data as CustHit[]) ?? [];
+        const prodRaw = (pr.data as ProdHit[]) ?? [];
+        setCustomers(
+          custRaw
+            .filter((c) =>
+              matchesFieldsSearch([c.name, c.legal_name, c.email, c.phone, c.document], term),
+            )
+            .slice(0, 8),
+        );
+        setProducts(prodRaw.filter((p) => matchesProductSearch(p, term)).slice(0, 8));
         setOrders(or.data ?? []);
       } finally {
         if (!cancelled) setLoading(false);
@@ -146,6 +184,9 @@ export function GlobalSearchDialog({ open, onOpenChange }: Props) {
     navigate({ to });
   };
 
+  const hasResults =
+    shortcutsFiltered.length > 0 || customers.length > 0 || products.length > 0 || orders.length > 0;
+
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange}>
       <p className="sr-only">Busca global na organização</p>
@@ -155,11 +196,17 @@ export function GlobalSearchDialog({ open, onOpenChange }: Props) {
         onValueChange={setQ}
       />
       <CommandList>
-        <CommandEmpty>{loading ? "Buscando…" : q.trim().length < 2 ? "Digite pelo menos 2 caracteres." : "Nada encontrado."}</CommandEmpty>
+        {loading ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">Buscando…</p>
+        ) : q.trim().length < 2 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">Digite pelo menos 2 caracteres.</p>
+        ) : !hasResults ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">Nada encontrado.</p>
+        ) : null}
 
-        {shortcuts.length > 0 && (
+        {shortcutsFiltered.length > 0 && (
           <CommandGroup heading="Ir para">
-            {shortcuts.map((s) => (
+            {shortcutsFiltered.map((s) => (
               <CommandItem key={s.to} value={`nav-${s.label}`} onSelect={() => go(s.to)}>
                 <s.icon className="h-4 w-4 text-muted-foreground" />
                 {s.label}
@@ -194,7 +241,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: Props) {
             <CommandSeparator />
             <CommandGroup heading="Produtos">
               {products.map((p) => (
-                <CommandItem key={p.id} value={`prod-${p.name}`} onSelect={() => go("/catalogo")}>
+                <CommandItem key={p.id} value={`prod-${p.name}-${p.id}`} onSelect={() => go("/catalogo")}>
                   <Package className="h-4 w-4 text-muted-foreground" />
                   {p.name}
                 </CommandItem>

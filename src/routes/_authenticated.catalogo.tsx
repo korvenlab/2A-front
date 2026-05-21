@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { brl, moneyNumber } from "@/lib/format";
 import { AppPage, AppTableCard } from "@/components/layout/AppPage";
+import { SearchCombobox } from "@/components/ui/search-combobox";
 import { PageHeader } from "@/components/PageHeader";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,14 +35,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Command,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
 import { toast } from "sonner";
 import {
   Plus,
@@ -56,8 +49,6 @@ import {
   LayoutGrid,
   Table as TableIcon,
   Layers,
-  ChevronsUpDown,
-  Check,
 } from "lucide-react";
 import { useMenuGate } from "@/hooks/use-menu-gate";
 import { userFacingDataError } from "@/lib/supabase-user-error";
@@ -69,6 +60,7 @@ import {
   isLikelyHttpUrl,
 } from "@/lib/product-images";
 import { cn } from "@/lib/utils";
+import { matchesProductSearch } from "@/lib/text-search";
 import { publicStorefrontCatalogUrl } from "@/lib/invite-links";
 import { copyTextToClipboard } from "@/lib/clipboard";
 
@@ -342,9 +334,6 @@ function CatalogPage() {
   const [sortKey, setSortKey] = useState<CatalogSortKey>("recent");
   const [viewMode, setViewMode] = useState<CatalogViewMode>("table");
   const [industries, setIndustries] = useState<OrganizationIndustry[]>([]);
-  const [industryPickerOpen, setIndustryPickerOpen] = useState(false);
-  const [industrySearch, setIndustrySearch] = useState("");
-  const industrySearchInputRef = useRef<HTMLInputElement | null>(null);
 
   const loadIndustries = useCallback(async () => {
     if (!organization?.id) {
@@ -393,17 +382,6 @@ function CatalogPage() {
     void loadIndustries();
   }, [loadIndustries]);
 
-  useEffect(() => {
-    if (!industryPickerOpen) {
-      setIndustrySearch("");
-      return;
-    }
-    const id = requestAnimationFrame(() => {
-      industrySearchInputRef.current?.focus();
-    });
-    return () => cancelAnimationFrame(id);
-  }, [industryPickerOpen]);
-
   const categoryOptions = useMemo(() => {
     const s = new Set<string>();
     for (const p of products) {
@@ -425,16 +403,8 @@ function CatalogPage() {
   const filteredSortedProducts = useMemo(() => {
     let rows = [...products];
     if (activeOnly) rows = rows.filter((p) => p.active);
-    const q = catalogSearch.trim().toLowerCase();
-    if (q) {
-      rows = rows.filter(
-        (p) =>
-          p.name.toLowerCase().includes(q) ||
-          (p.sku ?? "").toLowerCase().includes(q) ||
-          (p.category ?? "").toLowerCase().includes(q) ||
-          (p.supplier ?? "").toLowerCase().includes(q) ||
-          (p.description ?? "").toLowerCase().includes(q),
-      );
+    if (catalogSearch.trim()) {
+      rows = rows.filter((p) => matchesProductSearch(p, catalogSearch));
     }
     if (categoryFilter !== "__all__") {
       if (categoryFilter === "__none__") {
@@ -504,21 +474,6 @@ function CatalogPage() {
     () => industries.find((i) => i.id === form.industry_id) ?? null,
     [industries, form.industry_id],
   );
-
-  const filteredIndustries = useMemo(() => {
-    const raw = industrySearch.trim();
-    if (!raw) return industries;
-    const lower = raw.toLowerCase();
-    const qDigits = raw.replace(/\D/g, "");
-    return industries.filter((ind) => {
-      if (ind.trade_name.toLowerCase().includes(lower)) return true;
-      const cnpj = ind.cnpj?.trim() ?? "";
-      if (cnpj && cnpj.toLowerCase().includes(lower)) return true;
-      const cnpjDigits = cnpj.replace(/\D/g, "");
-      if (qDigits.length > 0 && cnpjDigits.includes(qDigits)) return true;
-      return false;
-    });
-  }, [industries, industrySearch]);
 
   const storagePathFromPublicUrl = (url: string | null | undefined) => {
     if (!url) return null;
@@ -1149,88 +1104,37 @@ function CatalogPage() {
                           </a>
                           .
                         </p>
-                        <Popover open={industryPickerOpen} onOpenChange={setIndustryPickerOpen}>
-                          <PopoverTrigger asChild>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              role="combobox"
-                              aria-expanded={industryPickerOpen}
-                              className="w-full justify-between font-normal"
-                            >
-                              <span className="truncate text-left">
-                                {selectedIndustry ? (
-                                  <>
-                                    {selectedIndustry.trade_name.trim()} · {selectedIndustry.cnpj}
-                                  </>
-                                ) : editing && form.supplier.trim() ? (
-                                  <>Selecione na lista — texto atual: {form.supplier.trim()}</>
-                                ) : (
-                                  "Selecione uma indústria (obrigatório)"
-                                )}
-                              </span>
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent
-                            className="w-[var(--radix-popover-trigger-width)] p-0"
-                            align="start"
-                          >
-                            <Command shouldFilter={false}>
-                              <CommandInput
-                                ref={industrySearchInputRef}
-                                placeholder="Digite para buscar por nome ou CNPJ…"
-                                value={industrySearch}
-                                onValueChange={setIndustrySearch}
-                              />
-                              <CommandList>
-                                {industries.length === 0 ? (
-                                  <div className="px-2 py-6 text-center text-sm text-muted-foreground">
-                                    Nenhuma indústria cadastrada. Abra{" "}
-                                    <a href="/industrias" className="text-primary underline-offset-2 hover:underline">
-                                      Indústrias
-                                    </a>{" "}
-                                    no menu para cadastrar.
-                                  </div>
-                                ) : industrySearch.trim() && filteredIndustries.length === 0 ? (
-                                  <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-                                    Nenhum resultado para «{industrySearch.trim()}». Ajuste a busca ou
-                                    cadastre em Indústrias.
-                                  </div>
-                                ) : null}
-                                <CommandGroup>
-                                  {filteredIndustries.map((ind) => (
-                                    <CommandItem
-                                      key={ind.id}
-                                      value={ind.id}
-                                      onSelect={() => {
-                                        setForm((prev) => ({
-                                          ...prev,
-                                          industry_id: ind.id,
-                                          supplier: ind.trade_name.trim(),
-                                        }));
-                                        setIndustryPickerOpen(false);
-                                      }}
-                                    >
-                                      <Check
-                                        className={cn(
-                                          "mr-2 h-4 w-4 shrink-0",
-                                          form.industry_id === ind.id ? "opacity-100" : "opacity-0",
-                                        )}
-                                      />
-                                      <span className="min-w-0 flex-1 truncate">
-                                        {ind.trade_name}
-                                      </span>
-                                      <span className="ml-2 shrink-0 text-xs text-muted-foreground">
-                                        {ind.cnpj}
-                                      </span>
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
+                        <SearchCombobox
+                          items={industries}
+                          value={form.industry_id}
+                          onValueChange={(id, ind) => {
+                            setForm((prev) => ({
+                              ...prev,
+                              industry_id: id,
+                              supplier: ind ? ind.trade_name.trim() : prev.supplier,
+                            }));
+                          }}
+                          getItemId={(ind) => ind.id}
+                          getItemLabel={(ind) => ind.trade_name.trim()}
+                          getSearchFields={(ind) => [
+                            ind.trade_name,
+                            ind.responsible_name,
+                            ind.cnpj,
+                          ]}
+                          placeholder="Buscar indústria por nome fantasia ou CNPJ…"
+                          emptyMessage={
+                            industries.length === 0
+                              ? "Nenhuma indústria cadastrada. Cadastre em Indústrias no menu."
+                              : "Nenhuma indústria encontrada para essa busca."
+                          }
+                          disabled={industries.length === 0}
+                          renderItem={(ind) => (
+                            <span className="flex w-full items-center justify-between gap-2">
+                              <span className="min-w-0 truncate font-medium">{ind.trade_name}</span>
+                              <span className="shrink-0 text-xs text-muted-foreground">{ind.cnpj}</span>
+                            </span>
+                          )}
+                        />
                         {selectedIndustry ? (
                           <p className="text-xs text-muted-foreground">
                             No catálogo, a indústria aparece com o nome fantasia deste cadastro.
@@ -1379,6 +1283,8 @@ function CatalogPage() {
                   onChange={(e) => setCatalogSearch(e.target.value)}
                   placeholder="Buscar nome, EAN13, descrição, categoria ou indústria…"
                   className="h-10 pl-9"
+                  autoComplete="off"
+                  aria-label="Buscar produtos no catálogo"
                 />
               </div>
               <div className="grid gap-1.5 min-w-[160px]">

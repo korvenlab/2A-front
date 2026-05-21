@@ -776,6 +776,7 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          legal_name: string | null
           organization_id: string
           phone: string
           postal_code: string
@@ -792,6 +793,7 @@ export type Database = {
           created_at?: string
           email: string
           id?: string
+          legal_name?: string | null
           organization_id: string
           phone: string
           postal_code: string
@@ -808,6 +810,7 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          legal_name?: string | null
           organization_id?: string
           phone?: string
           postal_code?: string

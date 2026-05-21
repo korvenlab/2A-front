@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { brl, dt, moneyNumber } from "@/lib/format";
+import { matchesProductSearch } from "@/lib/text-search";
 import { inviteExpiresAtStillValid } from "@/lib/invite-expiry";
 import { AppPage } from "@/components/layout/AppPage";
 import { PageHeader } from "@/components/PageHeader";
@@ -566,14 +567,7 @@ function Portal() {
 
   const filtered = useMemo(() => {
     if (!search.trim()) return products;
-    const q = search.toLowerCase();
-    return products.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        (p.sku ?? "").toLowerCase().includes(q) ||
-        (p.category ?? "").toLowerCase().includes(q) ||
-        (p.supplier ?? "").toLowerCase().includes(q),
-    );
+    return products.filter((p) => matchesProductSearch(p, search));
   }, [products, search]);
 
   const cartTotal = useMemo(
@@ -891,6 +885,8 @@ function Portal() {
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar produto, EAN13, categoria ou indústria..."
               className="pl-9 h-11"
+              autoComplete="off"
+              aria-label="Buscar produtos"
             />
           </div>
 

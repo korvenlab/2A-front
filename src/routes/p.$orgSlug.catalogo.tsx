@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth-context";
 import { brl, moneyNumber } from "@/lib/format";
+import { matchesProductSearch } from "@/lib/text-search";
 import { normalizeProductImageUrls } from "@/lib/product-images";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
@@ -151,15 +152,8 @@ function PublicStorefrontCatalog() {
 
   const filtered = useMemo(() => {
     const list = payload?.products ?? [];
-    const q = search.trim().toLowerCase();
-    if (!q) return list;
-    return list.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        (p.sku ?? "").toLowerCase().includes(q) ||
-        (p.category ?? "").toLowerCase().includes(q) ||
-        (p.supplier ?? "").toLowerCase().includes(q),
-    );
+    if (!search.trim()) return list;
+    return list.filter((p) => matchesProductSearch(p, search));
   }, [payload?.products, search]);
 
   const portalHref = inviteToken
@@ -350,6 +344,8 @@ function PublicStorefrontCatalog() {
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Buscar por nome, categoria, indústria ou EAN13…"
                 className="h-11 pl-10"
+                autoComplete="off"
+                aria-label="Buscar produtos"
               />
             </div>
 

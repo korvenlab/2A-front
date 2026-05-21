@@ -28,6 +28,12 @@ import { Loader2, Pencil, Plus, Search, Package } from "lucide-react";
 import { useMenuGate } from "@/hooks/use-menu-gate";
 import { userFacingDataError } from "@/lib/supabase-user-error";
 import { parseCommissionPctInput, formatPct } from "@/lib/commission";
+import { matchesFieldsSearch, matchesIndustrySearch } from "@/lib/text-search";
+import { formatCep, formatCnpj } from "@/lib/document-masks";
+import type { CnpjLookupResult } from "@/lib/cnpj-lookup";
+import { joinStreetAndDistrict } from "@/lib/address-format";
+import { CnpjLookupInput } from "@/components/forms/CnpjLookupInput";
+import { AddressCepFields, type AddressCepValues } from "@/components/forms/AddressCepFields";
 
 export const Route = createFileRoute("/_authenticated/industrias")({
   head: () => ({ meta: [{ title: "Indústrias — 2AVendas" }] }),
@@ -37,6 +43,7 @@ export const Route = createFileRoute("/_authenticated/industrias")({
 interface OrganizationIndustry {
   id: string;
   trade_name: string;
+  legal_name: string | null;
   responsible_name: string;
   city: string;
   state: string;
@@ -53,6 +60,7 @@ type IndustryForm = Omit<OrganizationIndustry, "id" | "created_at">;
 
 const emptyForm: IndustryForm = {
   trade_name: "",
+  legal_name: "",
   responsible_name: "",
   city: "",
   state: "",
@@ -88,23 +96,6 @@ function validateIndustryForm(f: IndustryForm): string | null {
   return null;
 }
 
-function industryMatchesQuery(
-  ind: OrganizationIndustry,
-  q: string,
-  qDigits: string,
-  productNames: string[],
-): boolean {
-  const trade = ind.trade_name.toLowerCase();
-  if (trade.includes(q)) return true;
-  const resp = ind.responsible_name.toLowerCase();
-  if (resp.includes(q)) return true;
-  const cnpj = ind.cnpj?.trim() ?? "";
-  if (cnpj.toLowerCase().includes(q)) return true;
-  const cnpjDigits = cnpj.replace(/\D/g, "");
-  if (qDigits.length > 0 && cnpjDigits.includes(qDigits)) return true;
-  return productNames.some((name) => name.toLowerCase().includes(q));
-}
-
 function IndustriesPage() {
   useMenuGate("industrias");
   const { organization } = useAuth();
@@ -117,6 +108,7 @@ function IndustriesPage() {
   const [form, setForm] = useState<IndustryForm>(emptyForm);
   const [commissionDraft, setCommissionDraft] = useState("0");
   const [saving, setSaving] = useState(false);
+  const [addressDistrict, setAddressDistrict] = useState("");
 
   const load = useCallback(async () => {
     if (!organization?.id) return;
@@ -126,7 +118,7 @@ function IndustriesPage() {
       supabase
         .from("organization_industries")
         .select(
-          "id,trade_name,responsible_name,city,state,phone,email,address_line,postal_code,cnpj,commission_pct,created_at",
+          "id,trade_name,legal_name,responsible_name,city,state,phone,email,address_line,postal_code,cnpj,commission_pct,created_at",
         )
         .eq("organization_id", orgId)
         .order("trade_name"),
@@ -161,25 +153,26 @@ function IndustriesPage() {
   }, [load]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    const qDigits = q.replace(/\D/g, "");
-    if (!q) return rows;
+    if (!search.trim()) return rows;
     return rows.filter((ind) =>
-      industryMatchesQuery(ind, q, qDigits, productNamesByIndustry[ind.id] ?? []),
+      matchesIndustrySearch(ind, search, productNamesByIndustry[ind.id] ?? []),
     );
   }, [rows, search, productNamesByIndustry]);
 
   const openNew = () => {
     setEditing(null);
     setForm(emptyForm);
+    setAddressDistrict("");
     setCommissionDraft("0");
     setOpen(true);
   };
 
   const openEdit = (row: OrganizationIndustry) => {
     setEditing(row);
+    setAddressDistrict("");
     setForm({
       trade_name: row.trade_name,
+      legal_name: row.legal_name ?? "",
       responsible_name: row.responsible_name,
       city: row.city,
       state: row.state,
@@ -207,14 +200,15 @@ function IndustriesPage() {
     }
     const payload: IndustryForm = {
       trade_name: form.trade_name.trim(),
+      legal_name: form.legal_name?.trim() || null,
       responsible_name: form.responsible_name.trim(),
       city: form.city.trim(),
       state: form.state.trim().toUpperCase().slice(0, 2),
       phone: form.phone.trim(),
       email: form.email.trim(),
-      address_line: form.address_line.trim(),
-      postal_code: form.postal_code.trim(),
-      cnpj: form.cnpj.trim(),
+      address_line: joinStreetAndDistrict(form.address_line, addressDistrict),
+      postal_code: formatCep(form.postal_code),
+      cnpj: formatCnpj(form.cnpj),
       commission_pct: pct,
     };
     const errMsg = validateIndustryForm(payload);
@@ -260,8 +254,38 @@ function IndustriesPage() {
     if (!next) {
       setEditing(null);
       setForm(emptyForm);
+      setAddressDistrict("");
       setCommissionDraft("0");
     }
+  };
+
+  const handleCnpjLookup = (data: CnpjLookupResult) => {
+    const streetCore = [data.logradouro, data.numero].filter((p) => p.trim()).join(", ");
+    const street = data.complemento.trim()
+      ? streetCore
+        ? `${streetCore} - ${data.complemento.trim()}`
+        : data.complemento.trim()
+      : streetCore;
+    setForm((x) => ({
+      ...x,
+      legal_name: data.razaoSocial || x.legal_name,
+      trade_name: data.nomeFantasia || data.razaoSocial || x.trade_name,
+      postal_code: data.cep ? formatCep(data.cep) : x.postal_code,
+      address_line: street || x.address_line,
+      city: data.cidade || x.city,
+      state: data.uf || x.state,
+      phone: data.telefone || x.phone,
+      email: data.email || x.email,
+    }));
+    if (data.bairro.trim()) setAddressDistrict(data.bairro.trim());
+  };
+
+  const patchAddress = (patch: Partial<AddressCepValues>) => {
+    if (patch.cep !== undefined) setForm((x) => ({ ...x, postal_code: patch.cep! }));
+    if (patch.street !== undefined) setForm((x) => ({ ...x, address_line: patch.street! }));
+    if (patch.district !== undefined) setAddressDistrict(patch.district);
+    if (patch.city !== undefined) setForm((x) => ({ ...x, city: patch.city! }));
+    if (patch.state !== undefined) setForm((x) => ({ ...x, state: patch.state! }));
   };
 
   return (
@@ -277,11 +301,28 @@ function IndustriesPage() {
       />
 
       <Dialog open={open} onOpenChange={onDialogOpenChange}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editing ? "Editar indústria" : "Nova indústria"}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-3 py-2 sm:grid-cols-2">
+                <div className="sm:col-span-2">
+                  <CnpjLookupInput
+                    label="CNPJ *"
+                    value={form.cnpj}
+                    onValueChange={(v) => setForm((x) => ({ ...x, cnpj: v }))}
+                    onLookup={handleCnpjLookup}
+                    hint="Ao sair do campo com CNPJ completo, razão social, fantasia e endereço são preenchidos pela Receita Federal."
+                  />
+                </div>
+                <div className="grid gap-2 sm:col-span-2">
+                  <Label>Razão social</Label>
+                  <Input
+                    value={form.legal_name ?? ""}
+                    onChange={(e) => setForm((x) => ({ ...x, legal_name: e.target.value }))}
+                    placeholder="Preenchido automaticamente pelo CNPJ"
+                  />
+                </div>
                 <div className="grid gap-2 sm:col-span-2">
                   <Label>Nome fantasia *</Label>
                   <Input
@@ -289,29 +330,23 @@ function IndustriesPage() {
                     onChange={(e) => setForm((x) => ({ ...x, trade_name: e.target.value }))}
                   />
                 </div>
+                <div className="sm:col-span-2">
+                  <AddressCepFields
+                    values={{
+                      cep: form.postal_code,
+                      street: form.address_line,
+                      district: addressDistrict,
+                      city: form.city,
+                      state: form.state,
+                    }}
+                    onChange={patchAddress}
+                  />
+                </div>
                 <div className="grid gap-2 sm:col-span-2">
                   <Label>Responsável *</Label>
                   <Input
                     value={form.responsible_name}
                     onChange={(e) => setForm((x) => ({ ...x, responsible_name: e.target.value }))}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Cidade *</Label>
-                  <Input
-                    value={form.city}
-                    onChange={(e) => setForm((x) => ({ ...x, city: e.target.value }))}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label>Estado (UF) *</Label>
-                  <Input
-                    value={form.state}
-                    maxLength={2}
-                    className="uppercase"
-                    onChange={(e) =>
-                      setForm((x) => ({ ...x, state: e.target.value.toUpperCase() }))
-                    }
                   />
                 </div>
                 <div className="grid gap-2">
@@ -328,28 +363,6 @@ function IndustriesPage() {
                     type="email"
                     value={form.email}
                     onChange={(e) => setForm((x) => ({ ...x, email: e.target.value }))}
-                  />
-                </div>
-                <div className="grid gap-2 sm:col-span-2">
-                  <Label>Endereço *</Label>
-                  <Input
-                    value={form.address_line}
-                    onChange={(e) => setForm((x) => ({ ...x, address_line: e.target.value }))}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label>CEP *</Label>
-                  <Input
-                    value={form.postal_code}
-                    onChange={(e) => setForm((x) => ({ ...x, postal_code: e.target.value }))}
-                    inputMode="numeric"
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label>CNPJ *</Label>
-                  <Input
-                    value={form.cnpj}
-                    onChange={(e) => setForm((x) => ({ ...x, cnpj: e.target.value }))}
                   />
                 </div>
                 <div className="grid gap-2 sm:col-span-2">
@@ -391,6 +404,7 @@ function IndustriesPage() {
             placeholder="Buscar por nome da indústria ou por produto do catálogo…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            autoComplete="off"
             aria-label="Buscar indústrias"
           />
         </div>
@@ -432,10 +446,9 @@ function IndustriesPage() {
             <TableBody>
               {filtered.map((ind) => {
                 const products = productNamesByIndustry[ind.id] ?? [];
-                const q = search.trim().toLowerCase();
                 const matchedProducts =
-                  q.length > 0
-                    ? products.filter((name) => name.toLowerCase().includes(q))
+                  search.trim().length > 0
+                    ? products.filter((name) => matchesFieldsSearch([name], search))
                     : [];
                 const preview = products.slice(0, MAX_PRODUCT_PREVIEW);
                 const extra = products.length - preview.length;

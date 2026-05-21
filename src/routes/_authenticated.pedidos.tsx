@@ -11,6 +11,7 @@ import {
 } from "@/lib/order-commission";
 import { AppPage, AppTableCard, AppToolbar } from "@/components/layout/AppPage";
 import { PageHeader } from "@/components/PageHeader";
+import { SearchCombobox } from "@/components/ui/search-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,7 +57,6 @@ import {
   Trash2,
   Building2,
   Package,
-  Search,
   FileText,
   Download,
   User,
@@ -118,6 +118,7 @@ interface ProductOpt {
   id: string;
   name: string;
   price: number;
+  sku: string | null;
   category: string | null;
   supplier: string | null;
   image_url: string | null;
@@ -176,8 +177,6 @@ function OrdersPage() {
   const [notes, setNotes] = useState<string>("");
   const [items, setItems] = useState<DraftItem[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<string>("");
-  const [productPickSearch, setProductPickSearch] = useState("");
-  const [customerPickSearch, setCustomerPickSearch] = useState("");
   const [nfeTarget, setNfeTarget] = useState<Order | null>(null);
   const [nfeKeyDraft, setNfeKeyDraft] = useState("");
   const [nfeDateDraft, setNfeDateDraft] = useState("");
@@ -315,7 +314,7 @@ function OrdersPage() {
       .order("name");
     let productsQuery = supabase
       .from("products")
-      .select("id,name,price,category,supplier,image_url,image_urls")
+      .select("id,name,price,sku,category,supplier,image_url,image_urls")
       .eq("active", true)
       .order("name");
     if (orgId) {
@@ -348,27 +347,6 @@ function OrdersPage() {
     if (!organization || !user) return;
     load();
   }, [organization?.id, user?.id, role]);
-
-  const pickCustomersFiltered = useMemo(() => {
-    const q = customerPickSearch.trim().toLowerCase();
-    if (!q) return customers;
-    return customers.filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        (c.legal_name ?? "").toLowerCase().includes(q),
-    );
-  }, [customers, customerPickSearch]);
-
-  const pickProductsFiltered = useMemo(() => {
-    const q = productPickSearch.trim().toLowerCase();
-    if (!q) return products;
-    return products.filter(
-      (p) =>
-        p.name.toLowerCase().includes(q) ||
-        (p.category ?? "").toLowerCase().includes(q) ||
-        (p.supplier ?? "").toLowerCase().includes(q),
-    );
-  }, [products, productPickSearch]);
 
   const newOrdersCount = useMemo(
     () => orders.filter((o) => o.status === "enviado").length,
@@ -494,7 +472,6 @@ function OrdersPage() {
 
   const reset = () => {
     setCustomerId("");
-    setCustomerPickSearch("");
     setNotes("");
     setItems([]);
     setSelectedProduct("");
@@ -717,10 +694,7 @@ function OrdersPage() {
             open={open}
             onOpenChange={(v) => {
               setOpen(v);
-              if (!v) {
-                reset();
-                setProductPickSearch("");
-              }
+              if (!v) reset();
             }}
           >
             <DialogTrigger asChild>
@@ -735,83 +709,59 @@ function OrdersPage() {
               <div className="grid gap-4 py-2 max-h-[70vh] overflow-y-auto">
                 <div className="grid gap-2">
                   <Label>Cliente *</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                    <Input
-                      value={customerPickSearch}
-                      onChange={(e) => setCustomerPickSearch(e.target.value)}
-                      placeholder="Buscar por nome fantasia ou razão social da empresa…"
-                      className="h-10 pl-9 mb-2"
-                    />
-                  </div>
-                  <Select value={customerId} onValueChange={setCustomerId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Escolha um cliente na lista" />
-                    </SelectTrigger>
-                    <SelectContent className="z-[200] max-h-[min(320px,55vh)]">
-                      {pickCustomersFiltered.length === 0 ? (
-                        <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-                          Nenhum cliente encontrado para essa busca.
-                        </div>
-                      ) : (
-                        pickCustomersFiltered.map((c) => (
-                          <SelectItem key={c.id} value={c.id} className="py-2.5">
-                            <span className="flex flex-col gap-0.5 text-left">
-                              <span className="font-medium leading-tight">{c.name}</span>
-                              {c.legal_name?.trim() ? (
-                                <span className="text-xs font-normal text-muted-foreground">
-                                  Razão social: {c.legal_name.trim()}
-                                </span>
-                              ) : null}
-                            </span>
-                          </SelectItem>
-                        ))
-                      )}
-                    </SelectContent>
-                  </Select>
+                  <SearchCombobox
+                    items={customers}
+                    value={customerId}
+                    onValueChange={(id) => setCustomerId(id)}
+                    getItemId={(c) => c.id}
+                    getItemLabel={(c) => c.name}
+                    getSearchFields={(c) => [c.name, c.legal_name]}
+                    placeholder="Buscar por nome fantasia ou razão social…"
+                    emptyMessage="Nenhum cliente encontrado para essa busca."
+                    renderItem={(c) => (
+                      <span className="flex flex-col gap-0.5 text-left">
+                        <span className="font-medium leading-tight">{c.name}</span>
+                        {c.legal_name?.trim() ? (
+                          <span className="text-xs font-normal text-muted-foreground">
+                            Razão social: {c.legal_name.trim()}
+                          </span>
+                        ) : null}
+                      </span>
+                    )}
+                  />
                 </div>
 
                 <div className="grid gap-2">
                   <Label>Adicionar produto</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                    <Input
-                      value={productPickSearch}
-                      onChange={(e) => setProductPickSearch(e.target.value)}
-                      placeholder="Filtrar por nome, categoria ou indústria…"
-                      className="h-10 pl-9 mb-2"
-                    />
-                  </div>
                   <div className="flex gap-2">
-                    <Select value={selectedProduct} onValueChange={setSelectedProduct}>
-                      <SelectTrigger className="flex-1">
-                        <SelectValue placeholder="Escolha um produto" />
-                      </SelectTrigger>
-                      <SelectContent className="z-[200] max-h-[min(380px,65vh)]">
-                        {pickProductsFiltered.length === 0 ? (
-                          <div className="px-3 py-6 text-center text-sm text-muted-foreground">
-                            {products.length === 0
-                              ? "Nenhum produto ativo no catálogo. Cadastre em Catálogo."
-                              : "Nenhum produto encontrado para essa busca."}
-                          </div>
-                        ) : (
-                          pickProductsFiltered.map((p) => (
-                            <SelectItem key={p.id} value={p.id} className="py-2.5">
-                              <span className="flex flex-col gap-0.5 text-left">
-                                <span className="font-medium leading-tight">{p.name}</span>
-                                <span className="text-xs font-normal text-muted-foreground">
-                                  {(p.category?.trim() || "Sem categoria") +
-                                    (p.supplier?.trim() ? ` · ${p.supplier.trim()}` : "")}
-                                  {" · "}
-                                  {brl(p.price)}
-                                </span>
-                              </span>
-                            </SelectItem>
-                          ))
-                        )}
-                      </SelectContent>
-                    </Select>
-                    <Button onClick={addItem} disabled={!selectedProduct}>
+                    <SearchCombobox
+                      className="flex-1 min-w-0"
+                      items={products}
+                      value={selectedProduct}
+                      onValueChange={(id) => setSelectedProduct(id)}
+                      getItemId={(p) => p.id}
+                      getItemLabel={(p) => p.name}
+                      getSearchFields={(p) => [p.name, p.sku, p.category, p.supplier]}
+                      placeholder="Buscar por nome, categoria, indústria ou EAN…"
+                      emptyMessage={
+                        products.length === 0
+                          ? "Nenhum produto ativo no catálogo. Cadastre em Catálogo."
+                          : "Nenhum produto encontrado para essa busca."
+                      }
+                      listClassName="max-h-[min(380px,65vh)]"
+                      renderItem={(p) => (
+                        <span className="flex flex-col gap-0.5 text-left">
+                          <span className="font-medium leading-tight">{p.name}</span>
+                          <span className="text-xs font-normal text-muted-foreground">
+                            {(p.category?.trim() || "Sem categoria") +
+                              (p.supplier?.trim() ? ` · ${p.supplier.trim()}` : "")}
+                            {" · "}
+                            {brl(p.price)}
+                          </span>
+                        </span>
+                      )}
+                    />
+                    <Button type="button" onClick={addItem} disabled={!selectedProduct} className="shrink-0">
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>

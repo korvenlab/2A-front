@@ -5,6 +5,7 @@ import { useAuth } from "@/lib/auth-context";
 import { brl, dt } from "@/lib/format";
 import { AppPage } from "@/components/layout/AppPage";
 import { PageHeader } from "@/components/PageHeader";
+import { SearchCombobox } from "@/components/ui/search-combobox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -731,19 +732,24 @@ function FunilPage() {
               </div>
               <div className="grid gap-2">
                 <Label>Cliente *</Label>
-                <Select value={formCustomerId} onValueChange={setFormCustomerId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecionar cliente" />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-72">
-                    {customers.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                        {c.legal_name ? ` · ${c.legal_name}` : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchCombobox
+                  items={customers}
+                  value={formCustomerId}
+                  onValueChange={(id) => setFormCustomerId(id)}
+                  getItemId={(c) => c.id}
+                  getItemLabel={(c) => c.name}
+                  getSearchFields={(c) => [c.name, c.legal_name]}
+                  placeholder="Buscar cliente por nome ou razão social…"
+                  emptyMessage="Nenhum cliente encontrado."
+                  renderItem={(c) => (
+                    <span className="flex flex-col gap-0.5 text-left">
+                      <span className="font-medium leading-tight">{c.name}</span>
+                      {c.legal_name?.trim() ? (
+                        <span className="text-xs text-muted-foreground">{c.legal_name.trim()}</span>
+                      ) : null}
+                    </span>
+                  )}
+                />
               </div>
               <div className="grid gap-2">
                 <Label>Estágio *</Label>
@@ -804,24 +810,27 @@ function FunilPage() {
                 Produtos industriais
               </legend>
               <div className="flex gap-2">
-                <Select value={pickProductId} onValueChange={setPickProductId}>
-                  <SelectTrigger className="flex-1">
-                    <SelectValue placeholder="Adicionar produto..." />
-                  </SelectTrigger>
-                  <SelectContent className="max-h-72">
-                    {products.map((p) => (
-                      <SelectItem key={p.id} value={p.id}>
-                        <span className="flex flex-col text-left">
-                          <span>{p.name}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {p.sku ? `EAN13: ${p.sku} · ` : ""}
-                            {brl(p.price)}
-                          </span>
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <SearchCombobox
+                  className="flex-1 min-w-0"
+                  items={products}
+                  value={pickProductId}
+                  onValueChange={(id) => setPickProductId(id)}
+                  getItemId={(p) => p.id}
+                  getItemLabel={(p) => p.name}
+                  getSearchFields={(p) => [p.name, p.sku]}
+                  placeholder="Buscar produto por nome ou EAN…"
+                  emptyMessage="Nenhum produto encontrado."
+                  listClassName="max-h-72"
+                  renderItem={(p) => (
+                    <span className="flex flex-col text-left">
+                      <span className="font-medium">{p.name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        {p.sku ? `EAN13: ${p.sku} · ` : ""}
+                        {brl(p.price)}
+                      </span>
+                    </span>
+                  )}
+                />
                 <Button type="button" variant="secondary" onClick={addProductLine}>
                   <Package className="h-4 w-4" />
                 </Button>

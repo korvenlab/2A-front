@@ -77,6 +77,11 @@ import {
   type OrderItemLineSummary,
 } from "@/lib/order-display";
 import { moneyNumber } from "@/lib/format";
+import { matchesFieldsSearch } from "@/lib/text-search";
+import { formatCep, formatCnpj, formatCnpjOrCpf, isCnpjComplete } from "@/lib/document-masks";
+import { lookupCnpj, type CnpjLookupResult } from "@/lib/cnpj-lookup";
+import { joinStreetAndDistrict } from "@/lib/address-format";
+import { AddressCepFields, type AddressCepValues } from "@/components/forms/AddressCepFields";
 
 export const Route = createFileRoute("/_authenticated/clientes")({
   head: () => ({ meta: [{ title: "Clientes — 2AVendas" }] }),
@@ -91,6 +96,7 @@ interface Customer {
   email: string | null;
   phone: string | null;
   document: string | null;
+  address: string | null;
   city: string | null;
   state: string | null;
   notes: string | null;
@@ -136,6 +142,7 @@ const empty: Omit<Customer, "id"> = {
   email: "",
   phone: "",
   document: "",
+  address: "",
   city: "",
   state: "",
   notes: "",
@@ -167,6 +174,9 @@ function CustomersPage() {
   const [inviteSaving, setInviteSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<Customer | null>(null);
   const [deletingCustomer, setDeletingCustomer] = useState(false);
+  const [postalCode, setPostalCode] = useState("");
+  const [addressDistrict, setAddressDistrict] = useState("");
+  const [documentLookupLoading, setDocumentLookupLoading] = useState(false);
   const isAdmin = role === "admin";
 
   const distinctStates = useMemo(() => {
@@ -189,24 +199,24 @@ function CustomersPage() {
 
   const filteredCustomers = useMemo(() => {
     let rows = customers;
-    const q = clientSearch.trim().toLowerCase();
-    if (q) {
-      rows = rows.filter((c) => {
-        const hay = [
-          c.name,
-          c.legal_name ?? "",
-          c.email ?? "",
-          c.phone ?? "",
-          c.document ?? "",
-          c.city ?? "",
-          c.state ?? "",
-          c.industry ?? "",
-          c.notes ?? "",
-        ]
-          .join("\n")
-          .toLowerCase();
-        return hay.includes(q);
-      });
+    if (clientSearch.trim()) {
+      rows = rows.filter((c) =>
+        matchesFieldsSearch(
+          [
+            c.name,
+            c.legal_name,
+            c.email,
+            c.phone,
+            c.document,
+            c.address,
+            c.city,
+            c.state,
+            c.industry,
+            c.notes,
+          ],
+          clientSearch,
+        ),
+      );
     }
     if (ufFilter !== "__all__") {
       rows = rows.filter((c) => (c.state ?? "").trim().toUpperCase() === ufFilter);
@@ -253,7 +263,7 @@ function CustomersPage() {
     const { data, error } = await supabase
       .from("customers")
       .select(
-        "id,name,legal_name,industry,email,phone,document,city,state,notes,assigned_seller_id",
+        "id,name,legal_name,industry,email,phone,document,address,city,state,notes,assigned_seller_id",
       )
       .eq("organization_id", organization.id)
       .order("name");
@@ -386,16 +396,66 @@ function CustomersPage() {
     };
   }, [historyCustomer, role, user?.id]);
 
+  const resetAddressAux = () => {
+    setPostalCode("");
+    setAddressDistrict("");
+  };
+
   const openNew = () => {
     setEditing(null);
     setForm({ ...empty, assigned_seller_id: isAdmin ? null : (user?.id ?? null) });
+    resetAddressAux();
     setOpen(true);
   };
   const openEdit = (c: Customer) => {
     setEditing(c);
     const { id: _id, ...rest } = c;
     setForm(rest);
+    resetAddressAux();
     setOpen(true);
+  };
+
+  const handleCnpjLookup = (data: CnpjLookupResult) => {
+    const streetCore = [data.logradouro, data.numero].filter((p) => p.trim()).join(", ");
+    const street = data.complemento.trim()
+      ? streetCore
+        ? `${streetCore} - ${data.complemento.trim()}`
+        : data.complemento.trim()
+      : streetCore;
+    setForm((x) => ({
+      ...x,
+      legal_name: data.razaoSocial || x.legal_name,
+      name: data.nomeFantasia || data.razaoSocial || x.name,
+      city: data.cidade || x.city,
+      state: data.uf || x.state,
+      phone: data.telefone || x.phone,
+      email: data.email || x.email,
+      address: street || x.address,
+    }));
+    if (data.cep) setPostalCode(formatCep(data.cep));
+    if (data.bairro.trim()) setAddressDistrict(data.bairro.trim());
+  };
+
+  const patchAddress = (patch: Partial<AddressCepValues>) => {
+    if (patch.cep !== undefined) setPostalCode(patch.cep);
+    if (patch.street !== undefined) setForm((x) => ({ ...x, address: patch.street! }));
+    if (patch.district !== undefined) setAddressDistrict(patch.district);
+    if (patch.city !== undefined) setForm((x) => ({ ...x, city: patch.city! }));
+    if (patch.state !== undefined) setForm((x) => ({ ...x, state: patch.state! }));
+  };
+
+  const handleDocumentBlur = async () => {
+    if (!isCnpjComplete(form.document ?? "")) return;
+    setDocumentLookupLoading(true);
+    try {
+      const data = await lookupCnpj(form.document ?? "");
+      handleCnpjLookup(data);
+      toast.success("Dados do CNPJ preenchidos.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Erro ao consultar CNPJ.");
+    } finally {
+      setDocumentLookupLoading(false);
+    }
   };
 
   const save = async () => {
@@ -423,12 +483,14 @@ function CustomersPage() {
         ...form,
         legal_name: form.legal_name?.trim() || null,
         industry: form.industry?.trim() || null,
-        email: form.email || null,
-        phone: form.phone || null,
-        document: form.document || null,
-        city: form.city || null,
-        state: form.state || null,
-        notes: form.notes || null,
+        email: form.email?.trim() || null,
+        phone: form.phone?.trim() || null,
+        document: form.document?.trim() || null,
+        address:
+          joinStreetAndDistrict(form.address ?? "", addressDistrict).trim() || null,
+        city: form.city?.trim() || null,
+        state: form.state?.trim().toUpperCase().slice(0, 2) || null,
+        notes: form.notes?.trim() || null,
         assigned_seller_id: isAdmin ? form.assigned_seller_id : user.id,
       };
       const { error } = editing
@@ -607,6 +669,34 @@ function CustomersPage() {
                   </TabsList>
                   <TabsContent value="identificacao" className="space-y-4 pt-3 outline-none">
                     <div className="grid gap-2">
+                      <Label htmlFor="client-document">CNPJ / CPF</Label>
+                      <div className="relative">
+                        <Input
+                          id="client-document"
+                          value={form.document ?? ""}
+                          disabled={documentLookupLoading}
+                          inputMode="numeric"
+                          autoComplete="off"
+                          placeholder="00.000.000/0000-00 ou 000.000.000-00"
+                          className={documentLookupLoading ? "pr-9" : undefined}
+                          onChange={(e) =>
+                            setForm({ ...form, document: formatCnpjOrCpf(e.target.value) })
+                          }
+                          onBlur={() => void handleDocumentBlur()}
+                        />
+                        {documentLookupLoading ? (
+                          <Loader2
+                            className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground"
+                            aria-hidden
+                          />
+                        ) : null}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Com CNPJ completo, ao sair do campo os dados da Receita Federal são
+                        preenchidos automaticamente.
+                      </p>
+                    </div>
+                    <div className="grid gap-2">
                       <Label>Nome da empresa (nome fantasia) *</Label>
                       <Input
                         value={form.name}
@@ -622,6 +712,16 @@ function CustomersPage() {
                         placeholder="Denominação jurídica"
                       />
                     </div>
+                    <AddressCepFields
+                      values={{
+                        cep: postalCode,
+                        street: form.address ?? "",
+                        district: addressDistrict,
+                        city: form.city ?? "",
+                        state: form.state ?? "",
+                      }}
+                      onChange={patchAddress}
+                    />
                     <div className="grid grid-cols-2 gap-3">
                       <div className="grid gap-2">
                         <Label>E-mail</Label>
@@ -636,35 +736,8 @@ function CustomersPage() {
                         <Input
                           value={form.phone ?? ""}
                           onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                          inputMode="tel"
                         />
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="grid gap-2">
-                        <Label>CNPJ/CPF</Label>
-                        <Input
-                          value={form.document ?? ""}
-                          onChange={(e) => setForm({ ...form, document: e.target.value })}
-                        />
-                      </div>
-                      <div className="grid gap-2 grid-cols-3 col-span-1">
-                        <div className="col-span-2 grid gap-2">
-                          <Label>Cidade</Label>
-                          <Input
-                            value={form.city ?? ""}
-                            onChange={(e) => setForm({ ...form, city: e.target.value })}
-                          />
-                        </div>
-                        <div className="grid gap-2">
-                          <Label>UF</Label>
-                          <Input
-                            maxLength={2}
-                            value={form.state ?? ""}
-                            onChange={(e) =>
-                              setForm({ ...form, state: e.target.value.toUpperCase() })
-                            }
-                          />
-                        </div>
                       </div>
                     </div>
                     {isAdmin && (
@@ -747,6 +820,8 @@ function CustomersPage() {
                 onChange={(e) => setClientSearch(e.target.value)}
                 placeholder="Buscar nome, razão social, e-mail, telefone, documento, cidade…"
                 className="h-10 pl-9"
+                autoComplete="off"
+                aria-label="Buscar clientes"
               />
             </div>
             <div className="grid gap-1.5 min-w-[140px]">
