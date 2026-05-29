@@ -75,7 +75,7 @@ type Mode = "guest" | "member";
 
 function LogoMarkLink({ mode }: { mode: Mode }) {
   const logo = (
-    <img src={logoSrc} alt="2AVendas" className="h-9 w-auto object-contain sm:h-10 md:h-11" />
+    <img src={logoSrc} alt="2AVendas" className="h-11 w-auto object-contain sm:h-12 md:h-14" />
   );
 
   if (mode === "guest") {
@@ -101,25 +101,25 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
       <LandingScrollProgress />
 
       <header className="landing-sticky-header sticky top-0 z-50 w-full border-b border-[#E8ECF2]/90 bg-white/95 shadow-[0_4px_24px_rgba(0,51,102,0.06)] backdrop-blur-md supports-[backdrop-filter]:bg-white/88">
-        <div className="landing-invisible-grid mx-auto flex max-w-6xl items-center justify-between gap-3 px-6 py-2.5 md:px-12 md:py-3">
+        <div className="landing-hero-wide mx-auto flex items-center justify-between gap-3 px-3 py-3 sm:px-4 md:px-8 md:py-3.5">
           <LogoMarkLink mode={mode} />
-          <nav className="flex flex-wrap items-center justify-end gap-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] sm:gap-2 sm:text-[11px]">
+          <nav className="flex flex-wrap items-center justify-end gap-1.5 font-mono text-[11px] font-semibold uppercase tracking-[0.15em] sm:gap-2 sm:text-xs">
             <a
               href="#funcionalidades"
-              className="rounded-lg px-2.5 py-2 text-[#003366] transition-colors hover:bg-[#007AFF]/[0.06] hover:text-[#007AFF] sm:px-3"
+              className="rounded-lg px-3 py-2.5 text-[#003366] transition-colors hover:bg-[#007AFF]/[0.06] hover:text-[#007AFF]"
             >
               Funcionalidades
             </a>
             <a
               href="#pricing"
-              className="rounded-lg px-2.5 py-2 text-[#003366] transition-colors hover:bg-[#007AFF]/[0.06] hover:text-[#007AFF] sm:px-3"
+              className="rounded-lg px-3 py-2.5 text-[#003366] transition-colors hover:bg-[#007AFF]/[0.06] hover:text-[#007AFF]"
             >
               Plano
             </a>
             {consoleIsMember ? (
               <Link
                 to="/dashboard"
-                className="rounded-lg px-2.5 py-2 text-[#007AFF] underline-offset-4 transition-colors hover:bg-[#007AFF]/[0.06] hover:underline sm:px-3"
+                className="rounded-lg px-3 py-2.5 text-[#007AFF] underline-offset-4 transition-colors hover:bg-[#007AFF]/[0.06] hover:underline"
               >
                 Painel
               </Link>
@@ -127,13 +127,13 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
               <>
                 <Link
                   to="/login"
-                  className="rounded-lg px-2.5 py-2 text-[#003366] transition-colors hover:bg-[#007AFF]/[0.06] hover:text-[#007AFF] sm:px-3"
+                  className="rounded-lg px-3 py-2.5 text-[#003366] transition-colors hover:bg-[#007AFF]/[0.06] hover:text-[#007AFF]"
                 >
                   Entrar
                 </Link>
                 <Link
                   to="/signup"
-                  className="rounded-full bg-[#007AFF] px-3.5 py-2 text-white shadow-[0_2px_12px_rgba(0,122,255,0.22)] transition-[background-color,box-shadow] hover:bg-[#0066DB] sm:px-4"
+                  className="rounded-full bg-[#007AFF] px-4 py-2.5 text-white shadow-[0_3px_16px_rgba(0,122,255,0.26)] transition-[background-color,box-shadow] hover:bg-[#0066DB] sm:px-5"
                 >
                   Criar conta
                 </Link>
@@ -144,15 +144,15 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
       </header>
 
       <main>
-        <section className="landing-hero-section landing-invisible-grid mx-auto max-w-6xl px-6 pb-16 pt-8 md:px-12 md:pb-20 md:pt-10">
+        <section className="landing-hero-section landing-hero-wide mx-auto px-3 pb-16 pt-8 sm:px-4 md:px-8 md:pb-20 md:pt-11">
           <div className="landing-hero-panel landing-hero-stagger relative w-full">
             <div className="landing-hero-shine" aria-hidden />
-            <div className="landing-hero-split grid grid-cols-1 items-center gap-8 md:grid-cols-2 md:gap-8 lg:gap-10 xl:gap-12">
+            <div className="landing-hero-split grid grid-cols-1 items-center gap-8 md:grid-cols-2 md:gap-10 lg:gap-12">
               <div className="flex flex-col items-center text-center md:items-start md:text-left">
                 <p className="landing-reveal landing-hero-a landing-hero-badge mb-5 font-mono text-[10px] uppercase tracking-[0.35em] text-[#007AFF]">
                   CRM · Representantes comerciais
                 </p>
-                <h1 className="landing-reveal landing-hero-a text-balance text-[2rem] font-bold leading-[1.1] tracking-tight text-[#1a2332] sm:text-4xl lg:text-[2.65rem] xl:text-[2.85rem]">
+                <h1 className="landing-reveal landing-hero-a text-balance text-[2.15rem] font-bold leading-[1.1] tracking-tight text-[#1a2332] sm:text-[2.5rem] lg:text-[3rem] xl:text-[3.25rem]">
                   Pilares essenciais para o dia a dia da{" "}
                   <span className="text-[#007AFF]">representação comercial</span>.
                 </h1>
@@ -204,12 +204,12 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
                 </div>
               </div>
               <div className="landing-reveal landing-hero-d w-full min-w-0">
-                <div className="landing-hero-preview landing-hero-screenshot p-2 md:p-2.5">
-                  <div className="overflow-hidden rounded-xl border border-[#E8ECF2] bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] lg:rounded-2xl">
+                <div className="landing-hero-preview landing-hero-screenshot p-1 sm:p-2 md:p-2.5">
+                  <div className="landing-hero-screenshot-frame overflow-hidden rounded-xl border border-[#E8ECF2] bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] md:rounded-2xl">
                     <img
                       src="/Dashboard.png"
                       alt="Painel do 2AVendas — visão do dashboard com pedidos e operação da representação"
-                      className="block h-auto w-full object-cover object-left-top"
+                      className="landing-hero-screenshot-img block h-auto w-full object-cover object-left-top"
                       width={1280}
                       height={720}
                       loading="eager"
