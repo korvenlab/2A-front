@@ -75,7 +75,7 @@ type Mode = "guest" | "member";
 
 function LogoMarkLink({ mode }: { mode: Mode }) {
   const logo = (
-    <img src={logoSrc} alt="2AVendas" className="h-16 w-auto object-contain sm:h-20 md:h-24" />
+    <img src={logoSrc} alt="2AVendas" className="h-9 w-auto object-contain sm:h-10 md:h-11" />
   );
 
   if (mode === "guest") {
@@ -101,25 +101,25 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
       <LandingScrollProgress />
 
       <header className="landing-sticky-header sticky top-0 z-50 w-full border-b border-[#E8ECF2]/90 bg-white/95 shadow-[0_4px_24px_rgba(0,51,102,0.06)] backdrop-blur-md supports-[backdrop-filter]:bg-white/88">
-        <div className="landing-invisible-grid mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-4 md:px-12 md:py-5">
+        <div className="landing-invisible-grid mx-auto flex max-w-6xl items-center justify-between gap-3 px-6 py-2.5 md:px-12 md:py-3">
           <LogoMarkLink mode={mode} />
-          <nav className="flex flex-wrap items-center justify-end gap-2 font-mono text-[12px] font-semibold uppercase tracking-[0.16em] sm:gap-3 sm:text-[13px] md:gap-4 md:text-sm">
+          <nav className="flex flex-wrap items-center justify-end gap-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] sm:gap-2 sm:text-[11px]">
             <a
               href="#funcionalidades"
-              className="rounded-xl px-3 py-2.5 text-[#003366] transition-colors hover:bg-[#007AFF]/[0.06] hover:text-[#007AFF] md:px-4 md:py-3"
+              className="rounded-lg px-2.5 py-2 text-[#003366] transition-colors hover:bg-[#007AFF]/[0.06] hover:text-[#007AFF] sm:px-3"
             >
               Funcionalidades
             </a>
             <a
               href="#pricing"
-              className="rounded-xl px-3 py-2.5 text-[#003366] transition-colors hover:bg-[#007AFF]/[0.06] hover:text-[#007AFF] md:px-4 md:py-3"
+              className="rounded-lg px-2.5 py-2 text-[#003366] transition-colors hover:bg-[#007AFF]/[0.06] hover:text-[#007AFF] sm:px-3"
             >
               Plano
             </a>
             {consoleIsMember ? (
               <Link
                 to="/dashboard"
-                className="rounded-xl px-3 py-2.5 text-[#007AFF] underline-offset-4 transition-colors hover:bg-[#007AFF]/[0.06] hover:underline md:px-4 md:py-3"
+                className="rounded-lg px-2.5 py-2 text-[#007AFF] underline-offset-4 transition-colors hover:bg-[#007AFF]/[0.06] hover:underline sm:px-3"
               >
                 Painel
               </Link>
@@ -127,13 +127,13 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
               <>
                 <Link
                   to="/login"
-                  className="rounded-xl px-3 py-2.5 text-[#003366] transition-colors hover:bg-[#007AFF]/[0.06] hover:text-[#007AFF] md:px-4 md:py-3"
+                  className="rounded-lg px-2.5 py-2 text-[#003366] transition-colors hover:bg-[#007AFF]/[0.06] hover:text-[#007AFF] sm:px-3"
                 >
                   Entrar
                 </Link>
                 <Link
                   to="/signup"
-                  className="rounded-full bg-[#007AFF] px-5 py-2.5 text-white shadow-[0_4px_20px_rgba(0,122,255,0.28)] transition-[background-color,box-shadow,transform] hover:bg-[#0066DB] hover:shadow-[0_6px_24px_rgba(0,122,255,0.34)] active:scale-[0.98] md:px-6 md:py-3"
+                  className="rounded-full bg-[#007AFF] px-3.5 py-2 text-white shadow-[0_2px_12px_rgba(0,122,255,0.22)] transition-[background-color,box-shadow] hover:bg-[#0066DB] sm:px-4"
                 >
                   Criar conta
                 </Link>
@@ -144,77 +144,78 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
       </header>
 
       <main>
-        <section className="landing-hero-section landing-invisible-grid mx-auto max-w-5xl px-6 pb-20 pt-12 md:px-12 md:pb-28 md:pt-20">
-          <div className="landing-hero-panel landing-hero-stagger mx-auto flex w-full max-w-4xl flex-col items-center text-center">
+        <section className="landing-hero-section landing-invisible-grid mx-auto max-w-6xl px-6 pb-16 pt-8 md:px-12 md:pb-20 md:pt-10">
+          <div className="landing-hero-panel landing-hero-stagger relative w-full">
             <div className="landing-hero-shine" aria-hidden />
-            <p className="landing-reveal landing-hero-a landing-hero-badge mb-6 font-mono text-[10px] uppercase tracking-[0.4em] text-[#007AFF]">
-              CRM · Representantes comerciais
-            </p>
-            <h1 className="landing-reveal landing-hero-a text-balance text-[2.35rem] font-bold tracking-tight text-[#1a2332] md:text-5xl lg:text-[3.75rem] lg:leading-[1.05]">
-              Pilares essenciais para o dia a dia da{" "}
-              <span className="text-[#007AFF]">representação comercial</span>.
-            </h1>
-            <p className="landing-reveal landing-hero-b mt-5 max-w-lg text-pretty text-base leading-relaxed text-[#6B7280] md:text-lg">
-              Equipe, funil, pedidos e catálogo B2B — um CRM só para quem representa marcas.
-            </p>
-            <div className="landing-reveal landing-hero-c mt-12 flex w-full flex-col items-center gap-4">
-              <div className="flex flex-col items-center gap-2">
-                <MagneticWrap className="w-full sm:w-auto">
-                  {consoleIsMember ? (
-                    <Link
-                      to="/dashboard"
-                      className="inline-flex min-h-[52px] w-full items-center justify-center rounded-2xl border border-[#0066DB]/30 bg-[#007AFF] px-10 py-4 font-mono text-[12px] font-semibold uppercase tracking-[0.2em] text-white shadow-[0_8px_32px_rgba(0,122,255,0.3)] transition-[transform,box-shadow] duration-300 hover:scale-[1.02] hover:shadow-[0_12px_40px_rgba(0,122,255,0.38)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF] focus-visible:ring-offset-2 sm:w-auto"
-                    >
-                      Abrir painel
-                    </Link>
-                  ) : (
-                    <Link
-                      to="/signup"
-                      className="inline-flex min-h-[52px] w-full items-center justify-center rounded-2xl border border-[#0066DB]/30 bg-[#007AFF] px-10 py-4 font-mono text-[12px] font-semibold uppercase tracking-[0.2em] text-white shadow-[0_8px_32px_rgba(0,122,255,0.3)] transition-[transform,box-shadow] duration-300 hover:scale-[1.02] hover:shadow-[0_12px_40px_rgba(0,122,255,0.38)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF] focus-visible:ring-offset-2 sm:w-auto"
-                    >
-                      Criar minha conta
-                    </Link>
-                  )}
-                </MagneticWrap>
-                {!consoleIsMember ? (
-                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#9CA3AF]">
-                    R$ 150/mês · pacote completo
-                  </p>
-                ) : null}
-              </div>
-              <MagneticWrap strength={0.14} className="w-full sm:w-auto">
-                {consoleIsMember ? (
-                  <Link
-                    to="/portal"
-                    className="inline-flex min-h-[44px] w-full items-center justify-center rounded-2xl border border-[#003366]/20 bg-white/80 px-7 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-[#003366] transition-[border-color,color] duration-300 hover:border-[#007AFF]/35 hover:text-[#007AFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/40 focus-visible:ring-offset-2 sm:w-auto"
-                  >
-                    Portal de compras
-                  </Link>
-                ) : (
-                  <Link
-                    to="/login"
-                    className="inline-flex min-h-[44px] w-full items-center justify-center rounded-2xl border border-[#003366]/20 bg-white/80 px-7 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-[#003366] transition-[border-color,color] duration-300 hover:border-[#007AFF]/35 hover:text-[#007AFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/40 focus-visible:ring-offset-2 sm:w-auto"
-                  >
-                    Já tenho conta
-                  </Link>
-                )}
-              </MagneticWrap>
-            </div>
-            <div className="landing-reveal landing-hero-d mt-14 w-full md:mt-16">
-              <div className="landing-hero-preview landing-hero-screenshot p-2 md:p-3">
-                <p className="mb-4 text-center font-mono text-[10px] font-semibold uppercase tracking-[0.32em] text-[#007AFF]">
-                  Painel 2AVendas
+            <div className="landing-hero-split grid grid-cols-1 items-center gap-8 md:grid-cols-2 md:gap-8 lg:gap-10 xl:gap-12">
+              <div className="flex flex-col items-center text-center md:items-start md:text-left">
+                <p className="landing-reveal landing-hero-a landing-hero-badge mb-5 font-mono text-[10px] uppercase tracking-[0.35em] text-[#007AFF]">
+                  CRM · Representantes comerciais
                 </p>
-                <div className="overflow-hidden rounded-2xl border border-[#E8ECF2] bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
-                  <img
-                    src="/Dashboard.png"
-                    alt="Painel do 2AVendas — visão do dashboard com pedidos e operação da representação"
-                    className="block h-auto w-full object-cover object-top"
-                    width={1280}
-                    height={720}
-                    loading="eager"
-                    decoding="async"
-                  />
+                <h1 className="landing-reveal landing-hero-a text-balance text-[2rem] font-bold leading-[1.1] tracking-tight text-[#1a2332] sm:text-4xl lg:text-[2.65rem] xl:text-[2.85rem]">
+                  Pilares essenciais para o dia a dia da{" "}
+                  <span className="text-[#007AFF]">representação comercial</span>.
+                </h1>
+                <p className="landing-reveal landing-hero-b mt-4 max-w-md text-pretty text-base leading-relaxed text-[#6B7280]">
+                  Equipe, funil, pedidos e catálogo B2B — um CRM só para quem representa marcas.
+                </p>
+                <div className="landing-reveal landing-hero-c mt-8 flex w-full max-w-md flex-col items-center gap-3 md:max-w-none md:items-start">
+                  <div className="flex w-full flex-col items-stretch gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                    <MagneticWrap className="w-full sm:w-auto">
+                      {consoleIsMember ? (
+                        <Link
+                          to="/dashboard"
+                          className="inline-flex min-h-[46px] w-full items-center justify-center rounded-2xl border border-[#0066DB]/30 bg-[#007AFF] px-8 py-3 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-white shadow-[0_6px_24px_rgba(0,122,255,0.28)] transition-[transform,box-shadow] duration-300 hover:scale-[1.02] hover:shadow-[0_10px_32px_rgba(0,122,255,0.34)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF] focus-visible:ring-offset-2 sm:w-auto"
+                        >
+                          Abrir painel
+                        </Link>
+                      ) : (
+                        <Link
+                          to="/signup"
+                          className="inline-flex min-h-[46px] w-full items-center justify-center rounded-2xl border border-[#0066DB]/30 bg-[#007AFF] px-8 py-3 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-white shadow-[0_6px_24px_rgba(0,122,255,0.28)] transition-[transform,box-shadow] duration-300 hover:scale-[1.02] hover:shadow-[0_10px_32px_rgba(0,122,255,0.34)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF] focus-visible:ring-offset-2 sm:w-auto"
+                        >
+                          Criar minha conta
+                        </Link>
+                      )}
+                    </MagneticWrap>
+                    <MagneticWrap strength={0.14} className="w-full sm:w-auto">
+                      {consoleIsMember ? (
+                        <Link
+                          to="/portal"
+                          className="inline-flex min-h-[46px] w-full items-center justify-center rounded-2xl border border-[#003366]/20 bg-white/90 px-6 py-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[#003366] transition-[border-color,color] duration-300 hover:border-[#007AFF]/35 hover:text-[#007AFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/40 focus-visible:ring-offset-2 sm:w-auto"
+                        >
+                          Portal de compras
+                        </Link>
+                      ) : (
+                        <Link
+                          to="/login"
+                          className="inline-flex min-h-[46px] w-full items-center justify-center rounded-2xl border border-[#003366]/20 bg-white/90 px-6 py-3 font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-[#003366] transition-[border-color,color] duration-300 hover:border-[#007AFF]/35 hover:text-[#007AFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/40 focus-visible:ring-offset-2 sm:w-auto"
+                        >
+                          Já tenho conta
+                        </Link>
+                      )}
+                    </MagneticWrap>
+                  </div>
+                  {!consoleIsMember ? (
+                    <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-[#9CA3AF]">
+                      R$ 150/mês · pacote completo
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+              <div className="landing-reveal landing-hero-d w-full min-w-0">
+                <div className="landing-hero-preview landing-hero-screenshot p-2 md:p-2.5">
+                  <div className="overflow-hidden rounded-xl border border-[#E8ECF2] bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] lg:rounded-2xl">
+                    <img
+                      src="/Dashboard.png"
+                      alt="Painel do 2AVendas — visão do dashboard com pedidos e operação da representação"
+                      className="block h-auto w-full object-cover object-left-top"
+                      width={1280}
+                      height={720}
+                      loading="eager"
+                      decoding="async"
+                    />
+                  </div>
                 </div>
               </div>
             </div>

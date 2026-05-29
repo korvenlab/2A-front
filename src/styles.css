@@ -605,8 +605,8 @@
 .landing-hero-panel {
   position: relative;
   overflow: hidden;
-  padding: 2.5rem 1.5rem 2rem;
-  border-radius: 28px;
+  padding: 1.75rem 1.25rem;
+  border-radius: 24px;
   border: 1px solid rgba(0, 51, 102, 0.12);
   background: linear-gradient(180deg, #ffffff 0%, #f6f9fc 100%);
   box-shadow:
@@ -618,8 +618,14 @@
 
 @media (min-width: 768px) {
   .landing-hero-panel {
-    padding: 3.25rem 2.5rem 2.5rem;
-    border-radius: 32px;
+    padding: 2rem 2rem;
+    border-radius: 28px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .landing-hero-panel {
+    padding: 2.25rem 2.5rem;
   }
 }
 
@@ -670,13 +676,13 @@
 }
 
 .landing-hero-screenshot {
-  transform: perspective(1200px) rotateX(1.25deg);
-  transform-origin: center top;
+  transform: none;
 }
 
 @media (min-width: 768px) {
   .landing-hero-screenshot {
-    transform: perspective(1400px) rotateX(1.5deg);
+    transform: perspective(1600px) rotateY(-1.5deg);
+    transform-origin: center center;
   }
 }
 
