@@ -75,7 +75,7 @@ type Mode = "guest" | "member";
 
 function LogoMarkLink({ mode }: { mode: Mode }) {
   const logo = (
-    <img src={logoSrc} alt="2AVendas" className="h-12 w-auto object-contain sm:h-14 md:h-16" />
+    <img src={logoSrc} alt="2AVendas" className="h-16 w-auto object-contain sm:h-20 md:h-24" />
   );
 
   if (mode === "guest") {
@@ -144,54 +144,79 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
       </header>
 
       <main>
-        <section className="landing-invisible-grid mx-auto max-w-5xl px-6 pb-20 pt-4 md:px-12 md:pb-28 md:pt-6">
-          <div className="landing-hero-panel landing-hero-stagger mx-auto flex max-w-3xl flex-col items-center text-center">
+        <section className="landing-hero-section landing-invisible-grid mx-auto max-w-5xl px-6 pb-20 pt-12 md:px-12 md:pb-28 md:pt-20">
+          <div className="landing-hero-panel landing-hero-stagger mx-auto flex w-full max-w-4xl flex-col items-center text-center">
+            <div className="landing-hero-shine" aria-hidden />
             <p className="landing-reveal landing-hero-a landing-hero-badge mb-6 font-mono text-[10px] uppercase tracking-[0.4em] text-[#007AFF]">
               CRM · Representantes comerciais
             </p>
-            <h1 className="landing-reveal landing-hero-a text-balance text-[2.35rem] font-bold tracking-tight text-[#1a2332] md:text-5xl lg:text-[3.5rem] lg:leading-[1.06]">
-              Pilares essenciais para o dia a dia da representação comercial.
+            <h1 className="landing-reveal landing-hero-a text-balance text-[2.35rem] font-bold tracking-tight text-[#1a2332] md:text-5xl lg:text-[3.75rem] lg:leading-[1.05]">
+              Pilares essenciais para o dia a dia da{" "}
+              <span className="text-[#007AFF]">representação comercial</span>.
             </h1>
-            <p className="landing-reveal landing-hero-b mt-6 max-w-xl text-pretty text-base leading-relaxed text-[#4B5563] md:text-lg">
-              Pensado para <strong className="font-semibold text-[#374151]">representantes comerciais</strong>:
-              gestão de equipe, funil de vendas, WhatsApp no pedido, pedidos centralizados, portal com link
-              de pedido e catálogo B2B — tudo integrado para você vender com método.
+            <p className="landing-reveal landing-hero-b mt-5 max-w-lg text-pretty text-base leading-relaxed text-[#6B7280] md:text-lg">
+              Equipe, funil, pedidos e catálogo B2B — um CRM só para quem representa marcas.
             </p>
-            <div className="landing-reveal landing-hero-c mt-12 flex flex-wrap items-center justify-center gap-4">
-              <MagneticWrap>
-                {consoleIsMember ? (
-                  <Link
-                    to="/dashboard"
-                    className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-[#007AFF] px-8 py-3 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-white shadow-[0_8px_32px_rgba(0,122,255,0.28)] transition-[transform,box-shadow] duration-300 hover:scale-[1.03] hover:shadow-[0_12px_40px_rgba(0,122,255,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF] focus-visible:ring-offset-2"
-                  >
-                    Abrir painel
-                  </Link>
-                ) : (
-                  <Link
-                    to="/signup"
-                    className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-[#0066DB]/30 bg-[#007AFF] px-8 py-3 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-white shadow-[0_6px_20px_rgba(0,51,102,0.12),0_10px_36px_rgba(0,122,255,0.32)] transition-[transform,box-shadow] duration-300 hover:scale-[1.03] hover:shadow-[0_8px_28px_rgba(0,51,102,0.14),0_14px_44px_rgba(0,122,255,0.38)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF] focus-visible:ring-offset-2"
-                  >
-                    Criar minha conta
-                  </Link>
-                )}
-              </MagneticWrap>
-              <MagneticWrap strength={0.14}>
+            <div className="landing-reveal landing-hero-c mt-12 flex w-full flex-col items-center gap-4">
+              <div className="flex flex-col items-center gap-2">
+                <MagneticWrap className="w-full sm:w-auto">
+                  {consoleIsMember ? (
+                    <Link
+                      to="/dashboard"
+                      className="inline-flex min-h-[52px] w-full items-center justify-center rounded-2xl border border-[#0066DB]/30 bg-[#007AFF] px-10 py-4 font-mono text-[12px] font-semibold uppercase tracking-[0.2em] text-white shadow-[0_8px_32px_rgba(0,122,255,0.3)] transition-[transform,box-shadow] duration-300 hover:scale-[1.02] hover:shadow-[0_12px_40px_rgba(0,122,255,0.38)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF] focus-visible:ring-offset-2 sm:w-auto"
+                    >
+                      Abrir painel
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/signup"
+                      className="inline-flex min-h-[52px] w-full items-center justify-center rounded-2xl border border-[#0066DB]/30 bg-[#007AFF] px-10 py-4 font-mono text-[12px] font-semibold uppercase tracking-[0.2em] text-white shadow-[0_8px_32px_rgba(0,122,255,0.3)] transition-[transform,box-shadow] duration-300 hover:scale-[1.02] hover:shadow-[0_12px_40px_rgba(0,122,255,0.38)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF] focus-visible:ring-offset-2 sm:w-auto"
+                    >
+                      Criar minha conta
+                    </Link>
+                  )}
+                </MagneticWrap>
+                {!consoleIsMember ? (
+                  <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-[#9CA3AF]">
+                    R$ 150/mês · pacote completo
+                  </p>
+                ) : null}
+              </div>
+              <MagneticWrap strength={0.14} className="w-full sm:w-auto">
                 {consoleIsMember ? (
                   <Link
                     to="/portal"
-                    className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-[#003366]/20 bg-white px-8 py-3 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-[#003366] transition-[border-color,background-color,transform] duration-300 hover:border-[#007AFF]/35 hover:bg-[#F9F9F9] hover:text-[#007AFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/40 focus-visible:ring-offset-2"
+                    className="inline-flex min-h-[44px] w-full items-center justify-center rounded-2xl border border-[#003366]/20 bg-white/80 px-7 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-[#003366] transition-[border-color,color] duration-300 hover:border-[#007AFF]/35 hover:text-[#007AFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/40 focus-visible:ring-offset-2 sm:w-auto"
                   >
                     Portal de compras
                   </Link>
                 ) : (
                   <Link
                     to="/login"
-                    className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-[#003366]/25 bg-white px-8 py-3 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-[#003366] shadow-[0_4px_20px_rgba(0,51,102,0.08)] transition-[border-color,background-color,transform,box-shadow] duration-300 hover:border-[#007AFF]/45 hover:bg-[#F9F9F9] hover:text-[#007AFF] hover:shadow-[0_6px_28px_rgba(0,51,102,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/40 focus-visible:ring-offset-2"
+                    className="inline-flex min-h-[44px] w-full items-center justify-center rounded-2xl border border-[#003366]/20 bg-white/80 px-7 py-2.5 font-mono text-[10px] font-semibold uppercase tracking-[0.18em] text-[#003366] transition-[border-color,color] duration-300 hover:border-[#007AFF]/35 hover:text-[#007AFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/40 focus-visible:ring-offset-2 sm:w-auto"
                   >
                     Já tenho conta
                   </Link>
                 )}
               </MagneticWrap>
+            </div>
+            <div className="landing-reveal landing-hero-d mt-14 w-full md:mt-16">
+              <div className="landing-hero-preview landing-hero-screenshot p-2 md:p-3">
+                <p className="mb-4 text-center font-mono text-[10px] font-semibold uppercase tracking-[0.32em] text-[#007AFF]">
+                  Painel 2AVendas
+                </p>
+                <div className="overflow-hidden rounded-2xl border border-[#E8ECF2] bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
+                  <img
+                    src="/Dashboard.png"
+                    alt="Painel do 2AVendas — visão do dashboard com pedidos e operação da representação"
+                    className="block h-auto w-full object-cover object-top"
+                    width={1280}
+                    height={720}
+                    loading="eager"
+                    decoding="async"
+                  />
+                </div>
+              </div>
             </div>
           </div>
         </section>
