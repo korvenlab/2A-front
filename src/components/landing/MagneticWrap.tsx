@@ -43,14 +43,17 @@ export function MagneticWrap({ children, className, strength = 0.22, radius = 72
     setXy({ x: 0, y: 0 });
   }, []);
 
+  const fullWidth = className?.includes("w-full");
+
   return (
     <div
       ref={ref}
-      className={cn("inline-flex", className)}
+      className={cn(fullWidth ? "flex w-full min-w-0" : "inline-flex", className)}
       onMouseMove={onMove}
       onMouseLeave={onLeave}
     >
       <div
+        className={cn(fullWidth && "w-full min-w-0")}
         style={{
           transform: `translate3d(${xy.x}px, ${xy.y}px, 0)`,
           transition: "transform 0.35s cubic-bezier(0.22, 1, 0.36, 1)",

@@ -25,42 +25,36 @@ const FEATURES = [
     description:
       "CRM para representação: vendedores, permissões, comissões e convites na mesma base — você comanda quem vende o quê, sem planilha paralela.",
     icon: Users,
-    gridClass: "lg:col-span-4 lg:row-span-2 min-h-[260px]",
   },
   {
     title: "Funil de vendas",
     description:
       "Pipeline comercial do representante: oportunidades em etapas, do primeiro contato ao pedido — visão clara do que está travando o fechamento.",
     icon: Columns3,
-    gridClass: "lg:col-span-2 min-h-[160px]",
   },
   {
     title: "WhatsApp no pedido",
     description:
       "Fale com o cliente B2B já com contexto do pedido: link direto do painel para o WhatsApp, alinhado a status e follow-up.",
     icon: MessageCircle,
-    gridClass: "lg:col-span-2 min-h-[160px]",
   },
   {
     title: "Pedidos centralizados",
     description:
       "Todos os pedidos da representação num só lugar: status, totais, NF-e e histórico — o cockpit do representante comercial.",
     icon: ShoppingBag,
-    gridClass: "lg:col-span-3 min-h-[180px]",
   },
   {
     title: "Portal e link de pedido",
     description:
       "Catálogo em link para o cliente montar o pedido sozinho; tudo cai centralizado no seu painel — menos troca de e-mail e retrabalho.",
     icon: Link2,
-    gridClass: "lg:col-span-2 min-h-[160px]",
   },
   {
     title: "Catálogo B2B",
     description:
       "Produtos, preços e estoque organizados para a equipe externa e para o portal — uma vitrine única da sua operação B2B.",
     icon: Package,
-    gridClass: "lg:col-span-3 min-h-[180px]",
   },
 ];
 
@@ -80,26 +74,21 @@ const PLAN_FEATURES = [
 type Mode = "guest" | "member";
 
 function LogoMarkLink({ mode }: { mode: Mode }) {
-  const inner = (
-    <>
-      <img src={logoSrc} alt="2AVendas" className="h-12 w-auto object-contain sm:h-14 md:h-16" />
-      <span className="font-mono text-sm font-semibold uppercase tracking-[0.26em] text-[#003366] sm:text-base md:text-lg">
-        2AVendas
-      </span>
-    </>
+  const logo = (
+    <img src={logoSrc} alt="2AVendas" className="h-12 w-auto object-contain sm:h-14 md:h-16" />
   );
 
   if (mode === "guest") {
     return (
-      <Link to="/" className="flex items-center gap-3.5 transition-opacity hover:opacity-80 sm:gap-4">
-        {inner}
+      <Link to="/" className="transition-opacity hover:opacity-80">
+        {logo}
       </Link>
     );
   }
 
   return (
-    <Link to="/dashboard" className="flex items-center gap-3.5 transition-opacity hover:opacity-80 sm:gap-4">
-      {inner}
+    <Link to="/dashboard" className="transition-opacity hover:opacity-80">
+      {logo}
     </Link>
   );
 }
@@ -228,7 +217,7 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
             </p>
           </div>
 
-          <div className="mt-14 grid grid-cols-1 gap-5 lg:grid-cols-6 lg:gap-6 lg:auto-rows-[minmax(140px,auto)]">
+          <div className="mt-14 grid grid-cols-1 items-stretch gap-5 md:grid-cols-2 lg:grid-cols-3 lg:gap-6">
             {FEATURES.map((f) => (
               <BentoFeatureCard key={f.title} {...f} />
             ))}
@@ -253,7 +242,7 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
             </p>
           </div>
           <div className="mx-auto mt-14 max-w-lg">
-            <div className="landing-pricing-card flex flex-col rounded-[22px] bg-[#F9F9F9] p-8 ring-2 ring-[#007AFF]/45 md:p-10">
+            <div className="landing-pricing-card flex min-w-0 flex-col overflow-hidden rounded-[22px] bg-[#F9F9F9] p-8 ring-2 ring-[#007AFF]/45 md:p-10">
               <span className="mb-3 inline-flex w-fit rounded-full bg-white px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#007AFF]">
                 2AVendas
               </span>
@@ -274,11 +263,11 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
                   </li>
                 ))}
               </ul>
-              <div className="mt-10">
-                <MagneticWrap strength={0.12}>
+              <div className="mt-10 w-full min-w-0">
+                <MagneticWrap strength={0.12} className="w-full">
                   <Link
                     to="/signup"
-                    className="inline-flex h-12 w-full items-center justify-center rounded-2xl bg-[#003366] font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-white transition-colors hover:bg-[#007AFF]"
+                    className="flex h-12 w-full min-w-0 items-center justify-center rounded-2xl bg-[#003366] px-4 text-center font-mono text-[10px] font-semibold uppercase leading-tight tracking-[0.1em] text-white transition-colors hover:bg-[#007AFF] sm:text-[11px] sm:tracking-[0.14em]"
                   >
                     Assinar por R$ 150/mês
                   </Link>
