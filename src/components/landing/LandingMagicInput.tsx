@@ -105,8 +105,8 @@ export function LandingMagicInput({ className }: Props) {
       <div
         data-focused={focused ? "true" : "false"}
         className={cn(
-          "landing-magic-shell landing-magic-float rounded-2xl border border-[rgba(0,122,255,0.22)] bg-white px-1.5 py-1.5 transition-[border-color] duration-300",
-          focused && "border-[#007AFF]/55",
+          "landing-magic-shell landing-magic-float rounded-2xl border border-[rgba(0,122,255,0.35)] bg-white px-1.5 py-1.5 transition-[border-color,box-shadow] duration-300",
+          focused && "border-[#007AFF]/65",
         )}
       >
         <div className="relative flex items-center gap-2 rounded-[14px] px-3 py-2.5 md:px-4 md:py-3">

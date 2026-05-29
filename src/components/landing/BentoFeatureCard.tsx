@@ -13,14 +13,14 @@ export function BentoFeatureCard({ title, description, icon: Icon, gridClass }: 
   return (
     <article
       className={cn(
-        "landing-bento-cell group relative rounded-[20px] p-[1px] shadow-none md:rounded-[24px]",
+        "landing-bento-cell group relative rounded-[20px] p-[1px] md:rounded-[24px]",
         gridClass,
       )}
     >
       <div className="landing-bento-bridge pointer-events-none absolute inset-0 rounded-[inherit]" />
-      <div className="relative flex h-full min-h-[140px] flex-col gap-3 rounded-[19px] bg-[#F9F9F9] p-6 md:rounded-[23px] md:p-8">
+      <div className="landing-bento-inner relative flex h-full min-h-[140px] flex-col gap-3 rounded-[19px] bg-[#F9F9F9] p-6 md:rounded-[23px] md:p-8">
         <div className="flex items-start gap-4">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white shadow-[0_4px_24px_rgba(0,51,102,0.06)]">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#003366]/10 bg-white shadow-[0_6px_28px_rgba(0,51,102,0.12)]">
             <Icon className="h-5 w-5 text-[#007AFF]" aria-hidden strokeWidth={1.75} />
           </span>
           <div className="min-w-0 flex-1">

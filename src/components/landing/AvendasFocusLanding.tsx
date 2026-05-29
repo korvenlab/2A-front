@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { motion } from "framer-motion";
 import {
   Check,
   Columns3,
@@ -146,12 +147,12 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
 
       <main>
         <section className="landing-invisible-grid mx-auto max-w-5xl px-6 pb-20 pt-4 md:px-12 md:pb-28 md:pt-6">
-          <div className="landing-hero-stagger mx-auto flex max-w-3xl flex-col items-center text-center">
-            <p className="landing-reveal landing-hero-a mb-5 font-mono text-[10px] uppercase tracking-[0.4em] text-[#007AFF]">
+          <div className="landing-hero-panel landing-hero-stagger mx-auto flex max-w-3xl flex-col items-center text-center">
+            <p className="landing-reveal landing-hero-a landing-hero-badge mb-6 font-mono text-[10px] uppercase tracking-[0.4em] text-[#007AFF]">
               CRM · Representantes comerciais
             </p>
-            <h1 className="landing-reveal landing-hero-a text-balance text-4xl font-semibold tracking-tight text-[#2d2d2d] md:text-5xl lg:text-[3.25rem] lg:leading-[1.08]">
-              O CRM da sua representação: equipe, funil, pedidos e catálogo B2B num fluxo só.
+            <h1 className="landing-reveal landing-hero-a text-balance text-[2.35rem] font-bold tracking-tight text-[#1a2332] md:text-5xl lg:text-[3.5rem] lg:leading-[1.06]">
+              Pilares essenciais para o dia a dia da representação comercial.
             </h1>
             <p className="landing-reveal landing-hero-b mt-6 max-w-xl text-pretty text-base leading-relaxed text-[#4B5563] md:text-lg">
               Pensado para <strong className="font-semibold text-[#374151]">representantes comerciais</strong>:
@@ -173,7 +174,7 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
                 ) : (
                   <Link
                     to="/signup"
-                    className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-[#007AFF] px-8 py-3 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-white shadow-[0_8px_32px_rgba(0,122,255,0.28)] transition-[transform,box-shadow] duration-300 hover:scale-[1.03] hover:shadow-[0_12px_40px_rgba(0,122,255,0.35)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF] focus-visible:ring-offset-2"
+                    className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-[#0066DB]/30 bg-[#007AFF] px-8 py-3 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-white shadow-[0_6px_20px_rgba(0,51,102,0.12),0_10px_36px_rgba(0,122,255,0.32)] transition-[transform,box-shadow] duration-300 hover:scale-[1.03] hover:shadow-[0_8px_28px_rgba(0,51,102,0.14),0_14px_44px_rgba(0,122,255,0.38)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF] focus-visible:ring-offset-2"
                   >
                     Criar minha conta
                   </Link>
@@ -190,7 +191,7 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
                 ) : (
                   <Link
                     to="/login"
-                    className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-[#003366]/20 bg-white px-8 py-3 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-[#003366] transition-[border-color,background-color,transform] duration-300 hover:border-[#007AFF]/35 hover:bg-[#F9F9F9] hover:text-[#007AFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/40 focus-visible:ring-offset-2"
+                    className="inline-flex min-h-[44px] items-center justify-center rounded-2xl border border-[#003366]/25 bg-white px-8 py-3 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-[#003366] shadow-[0_4px_20px_rgba(0,51,102,0.08)] transition-[border-color,background-color,transform,box-shadow] duration-300 hover:border-[#007AFF]/45 hover:bg-[#F9F9F9] hover:text-[#007AFF] hover:shadow-[0_6px_28px_rgba(0,51,102,0.12)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/40 focus-visible:ring-offset-2"
                   >
                     Já tenho conta
                   </Link>
@@ -255,7 +256,7 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
             </p>
           </div>
           <div className="mx-auto mt-14 max-w-lg">
-            <div className="flex flex-col rounded-[22px] bg-[#F9F9F9] p-8 ring-2 ring-[#007AFF]/35 md:p-10">
+            <div className="landing-pricing-card flex flex-col rounded-[22px] bg-[#F9F9F9] p-8 ring-2 ring-[#007AFF]/45 md:p-10">
               <span className="mb-3 inline-flex w-fit rounded-full bg-white px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.2em] text-[#007AFF]">
                 2AVendas
               </span>
@@ -290,42 +291,73 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
           </div>
         </section>
 
-        <footer className="landing-invisible-grid mx-auto max-w-5xl px-6 pb-20 pt-12 md:px-12 md:pb-28 md:pt-16">
-          <div className="rounded-[24px] bg-[#F9F9F9] px-8 py-12 md:px-12 md:py-14">
-            <div className="flex flex-col items-start justify-between gap-8 md:flex-row md:items-center">
-              <div>
-                <p className="font-mono text-[10px] uppercase tracking-[0.35em] text-[#007AFF]">
-                  Próximo passo
-                </p>
-                <p className="mt-3 max-w-md text-xl font-semibold text-[#003366] md:text-2xl">
-                  {consoleIsMember
-                    ? "Continue de onde parou no painel ou no portal."
-                    : "Leve seu CRM de representante do link do catálogo ao pedido centralizado em minutos."}
-                </p>
+        <footer className="relative mt-12 w-full border-t border-[#E8ECF2] bg-gradient-to-b from-[#F9F9F9] to-white pb-1">
+          <div className="landing-invisible-grid mx-auto max-w-5xl px-6 pt-12 md:px-12 md:pt-16">
+            <div className="landing-footer-panel rounded-[24px] bg-[#F9F9F9] px-8 py-12 md:px-12 md:py-14">
+              <div className="flex flex-col items-start justify-between gap-8 md:flex-row md:items-center">
+                <div>
+                  <p className="font-mono text-[10px] uppercase tracking-[0.35em] text-[#007AFF]">
+                    Próximo passo
+                  </p>
+                  <p className="mt-3 max-w-md text-xl font-semibold text-[#003366] md:text-2xl">
+                    {consoleIsMember
+                      ? "Continue de onde parou no painel ou no portal."
+                      : "Leve seu CRM de representante do link do catálogo ao pedido centralizado em minutos."}
+                  </p>
+                </div>
+                <MagneticWrap>
+                  {consoleIsMember ? (
+                    <Link
+                      to="/dashboard"
+                      className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-[#003366] px-8 py-3 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-white transition-[transform,background-color] duration-300 hover:bg-[#007AFF] hover:shadow-[0_8px_28px_rgba(0,122,255,0.25)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF] focus-visible:ring-offset-2"
+                    >
+                      Ir para o painel
+                    </Link>
+                  ) : (
+                    <Link
+                      to="/signup"
+                      className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-[#003366] px-8 py-3 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-white transition-[transform,background-color] duration-300 hover:bg-[#007AFF] hover:shadow-[0_8px_28px_rgba(0,122,255,0.25)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF] focus-visible:ring-offset-2"
+                    >
+                      Criar conta
+                    </Link>
+                  )}
+                </MagneticWrap>
               </div>
-              <MagneticWrap>
-                {consoleIsMember ? (
-                  <Link
-                    to="/dashboard"
-                    className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-[#003366] px-8 py-3 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-white transition-[transform,background-color] duration-300 hover:bg-[#007AFF] hover:shadow-[0_8px_28px_rgba(0,122,255,0.25)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF] focus-visible:ring-offset-2"
-                  >
-                    Ir para o painel
-                  </Link>
-                ) : (
-                  <Link
-                    to="/signup"
-                    className="inline-flex min-h-[44px] items-center justify-center rounded-2xl bg-[#003366] px-8 py-3 font-mono text-[11px] font-semibold uppercase tracking-[0.22em] text-white transition-[transform,background-color] duration-300 hover:bg-[#007AFF] hover:shadow-[0_8px_28px_rgba(0,122,255,0.25)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF] focus-visible:ring-offset-2"
-                  >
-                    Criar conta grátis
-                  </Link>
-                )}
-              </MagneticWrap>
+              <LandingFlowRibbon className="mt-12 opacity-80" />
             </div>
-            <LandingFlowRibbon className="mt-12 opacity-80" />
-            <p className="mt-10 text-center font-mono text-[10px] uppercase tracking-[0.28em] text-[#9CA3AF]">
-              2AVendas · CRM para representantes comerciais
-            </p>
           </div>
+
+          <motion.div
+            initial={{ opacity: 0 }}
+            whileInView={{ opacity: 1 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.3 }}
+            className="landing-invisible-grid mx-auto flex max-w-5xl flex-col items-center gap-8 border-t border-[#E8ECF2] px-6 py-10 md:px-12 md:py-12"
+          >
+            <div className="flex flex-col items-center gap-3">
+              <span className="text-xs font-medium uppercase tracking-widest text-gray-400">
+                Desenvolvido por
+              </span>
+              <a
+                href="https://korvenlab.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="transition-transform hover:scale-105 active:scale-95"
+              >
+                <img
+                  src="/logokorven.png"
+                  alt="Korven Lab"
+                  className="h-8 object-contain opacity-70 grayscale transition-all hover:opacity-100 hover:grayscale-0"
+                />
+              </a>
+            </div>
+
+            <p className="text-xs text-gray-400">
+              © {new Date().getFullYear()} — Korven Lab — Todos os direitos reservados
+            </p>
+          </motion.div>
+
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-[#007BFF] via-[#6F42C1] to-[#007BFF]" />
         </footer>
       </main>
     </div>
