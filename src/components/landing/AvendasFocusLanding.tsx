@@ -9,14 +9,12 @@ import {
   Package,
   ShoppingBag,
   Users,
-  Zap,
 } from "lucide-react";
 
 import logoSrc from "@/assets/logo-2avendas.png";
 import { useAuth } from "@/lib/auth-context";
 import { BentoFeatureCard } from "@/components/landing/BentoFeatureCard";
 import { LandingFlowRibbon } from "@/components/landing/LandingFlowRibbon";
-import { LandingMagicInput } from "@/components/landing/LandingMagicInput";
 import { LandingScrollProgress } from "@/components/landing/LandingScrollProgress";
 import { LandingSocialProof } from "@/components/landing/LandingSocialProof";
 import { MagneticWrap } from "@/components/landing/MagneticWrap";
@@ -84,8 +82,8 @@ type Mode = "guest" | "member";
 function LogoMarkLink({ mode }: { mode: Mode }) {
   const inner = (
     <>
-      <img src={logoSrc} alt="2AVendas" className="h-10 w-auto object-contain md:h-11" />
-      <span className="font-mono text-xs font-semibold uppercase tracking-[0.28em] text-[#003366]">
+      <img src={logoSrc} alt="2AVendas" className="h-12 w-auto object-contain sm:h-14 md:h-16" />
+      <span className="font-mono text-sm font-semibold uppercase tracking-[0.26em] text-[#003366] sm:text-base md:text-lg">
         2AVendas
       </span>
     </>
@@ -93,14 +91,14 @@ function LogoMarkLink({ mode }: { mode: Mode }) {
 
   if (mode === "guest") {
     return (
-      <Link to="/" className="flex items-center gap-3 transition-opacity hover:opacity-80">
+      <Link to="/" className="flex items-center gap-3.5 transition-opacity hover:opacity-80 sm:gap-4">
         {inner}
       </Link>
     );
   }
 
   return (
-    <Link to="/dashboard" className="flex items-center gap-3 transition-opacity hover:opacity-80">
+    <Link to="/dashboard" className="flex items-center gap-3.5 transition-opacity hover:opacity-80 sm:gap-4">
       {inner}
     </Link>
   );
@@ -113,36 +111,47 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
     <div className="landing-focus min-h-screen bg-[#FFFFFF] text-[#1f2937]">
       <LandingScrollProgress />
 
-      <header className="landing-invisible-grid mx-auto flex max-w-5xl items-center justify-between px-6 py-10 md:px-12 md:py-12">
-        <LogoMarkLink mode={mode} />
-        <nav className="flex flex-wrap items-center justify-end gap-4 font-mono text-[11px] uppercase tracking-[0.2em] md:gap-6">
-          <a
-            href="#funcionalidades"
-            className="text-[#003366] transition-colors hover:text-[#007AFF]"
-          >
-            Funcionalidades
-          </a>
-          <a href="#pricing" className="text-[#003366] transition-colors hover:text-[#007AFF]">
-            Plano
-          </a>
-          {consoleIsMember ? (
-            <Link to="/dashboard" className="text-[#007AFF] underline-offset-4 hover:underline">
-              Painel
-            </Link>
-          ) : (
-            <>
-              <Link to="/login" className="text-[#003366] transition-colors hover:text-[#007AFF]">
-                Entrar
-              </Link>
+      <header className="landing-sticky-header sticky top-0 z-50 w-full border-b border-[#E8ECF2]/90 bg-white/95 shadow-[0_4px_24px_rgba(0,51,102,0.06)] backdrop-blur-md supports-[backdrop-filter]:bg-white/88">
+        <div className="landing-invisible-grid mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-4 md:px-12 md:py-5">
+          <LogoMarkLink mode={mode} />
+          <nav className="flex flex-wrap items-center justify-end gap-2 font-mono text-[12px] font-semibold uppercase tracking-[0.16em] sm:gap-3 sm:text-[13px] md:gap-4 md:text-sm">
+            <a
+              href="#funcionalidades"
+              className="rounded-xl px-3 py-2.5 text-[#003366] transition-colors hover:bg-[#007AFF]/[0.06] hover:text-[#007AFF] md:px-4 md:py-3"
+            >
+              Funcionalidades
+            </a>
+            <a
+              href="#pricing"
+              className="rounded-xl px-3 py-2.5 text-[#003366] transition-colors hover:bg-[#007AFF]/[0.06] hover:text-[#007AFF] md:px-4 md:py-3"
+            >
+              Plano
+            </a>
+            {consoleIsMember ? (
               <Link
-                to="/signup"
-                className="rounded-full bg-[#007AFF] px-4 py-2 text-white shadow-[0_4px_16px_rgba(0,122,255,0.22)] transition-colors hover:bg-[#0066DB]"
+                to="/dashboard"
+                className="rounded-xl px-3 py-2.5 text-[#007AFF] underline-offset-4 transition-colors hover:bg-[#007AFF]/[0.06] hover:underline md:px-4 md:py-3"
               >
-                Criar conta
+                Painel
               </Link>
-            </>
-          )}
-        </nav>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="rounded-xl px-3 py-2.5 text-[#003366] transition-colors hover:bg-[#007AFF]/[0.06] hover:text-[#007AFF] md:px-4 md:py-3"
+                >
+                  Entrar
+                </Link>
+                <Link
+                  to="/signup"
+                  className="rounded-full bg-[#007AFF] px-5 py-2.5 text-white shadow-[0_4px_20px_rgba(0,122,255,0.28)] transition-[background-color,box-shadow,transform] hover:bg-[#0066DB] hover:shadow-[0_6px_24px_rgba(0,122,255,0.34)] active:scale-[0.98] md:px-6 md:py-3"
+                >
+                  Criar conta
+                </Link>
+              </>
+            )}
+          </nav>
+        </div>
       </header>
 
       <main>
@@ -159,10 +168,7 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
               gestão de equipe, funil de vendas, WhatsApp no pedido, pedidos centralizados, portal com link
               de pedido e catálogo B2B — tudo integrado para você vender com método.
             </p>
-            <div className="landing-reveal landing-hero-c mt-12 w-full">
-              <LandingMagicInput />
-            </div>
-            <div className="landing-reveal landing-hero-d mt-10 flex flex-wrap items-center justify-center gap-4">
+            <div className="landing-reveal landing-hero-c mt-12 flex flex-wrap items-center justify-center gap-4">
               <MagneticWrap>
                 {consoleIsMember ? (
                   <Link
@@ -197,15 +203,6 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
                   </Link>
                 )}
               </MagneticWrap>
-            </div>
-          </div>
-
-          <div className="mx-auto mt-16 max-w-4xl md:mt-24">
-            <div className="flex flex-wrap items-center justify-center gap-3 font-mono text-[10px] uppercase tracking-[0.28em] text-[#003366]/70">
-              <Zap className="h-4 w-4 text-[#007AFF]" aria-hidden />
-              <span>
-                Equipe · funil · WhatsApp no pedido · pedidos centralizados · portal e link · catálogo B2B
-              </span>
             </div>
           </div>
         </section>
