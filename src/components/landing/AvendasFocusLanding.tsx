@@ -15,6 +15,7 @@ import logoSrc from "@/assets/logo-2avendas.png";
 import { useAuth } from "@/lib/auth-context";
 import { BentoFeatureCard } from "@/components/landing/BentoFeatureCard";
 import { LandingFlowRibbon } from "@/components/landing/LandingFlowRibbon";
+import { LandingHeroScreenshot } from "@/components/landing/LandingHeroScreenshot";
 import { LandingScrollProgress } from "@/components/landing/LandingScrollProgress";
 import { LandingSocialProof } from "@/components/landing/LandingSocialProof";
 import { MagneticWrap } from "@/components/landing/MagneticWrap";
@@ -147,7 +148,7 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
         <section className="landing-hero-section landing-hero-wide mx-auto px-3 pb-16 pt-8 sm:px-4 md:px-8 md:pb-20 md:pt-11">
           <div className="landing-hero-panel landing-hero-stagger relative w-full">
             <div className="landing-hero-shine" aria-hidden />
-            <div className="landing-hero-split grid grid-cols-1 items-center gap-8 md:grid-cols-2 md:gap-10 lg:gap-12">
+            <div className="landing-hero-split grid grid-cols-1 items-center gap-8 md:grid-cols-[minmax(0,1fr)_minmax(0,1.12fr)] md:gap-10 lg:gap-12">
               <div className="flex flex-col items-center text-center md:items-start md:text-left">
                 <p className="landing-reveal landing-hero-a landing-hero-badge mb-5 font-mono text-[10px] uppercase tracking-[0.35em] text-[#007AFF]">
                   CRM · Representantes comerciais
@@ -204,19 +205,7 @@ export function AvendasFocusLanding({ mode }: { mode: Mode }) {
                 </div>
               </div>
               <div className="landing-reveal landing-hero-d w-full min-w-0">
-                <div className="landing-hero-preview landing-hero-screenshot p-1 sm:p-2 md:p-2.5">
-                  <div className="landing-hero-screenshot-frame overflow-hidden rounded-xl border border-[#E8ECF2] bg-white shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] md:rounded-2xl">
-                    <img
-                      src="/Dashboard.png"
-                      alt="Painel do 2AVendas — visão do dashboard com pedidos e operação da representação"
-                      className="landing-hero-screenshot-img block h-auto w-full object-cover object-left-top"
-                      width={1280}
-                      height={720}
-                      loading="eager"
-                      decoding="async"
-                    />
-                  </div>
-                </div>
+                <LandingHeroScreenshot />
               </div>
             </div>
           </div>
